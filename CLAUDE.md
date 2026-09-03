@@ -72,11 +72,14 @@ Always run `analyze` as well — that is what actually type-checks the app.
   time rather than 06:00, 50-minute blocks an hour apart, then reviews at +1,
   +3 and +7 days. The +21 review was correctly absent, being outside the
   14-day window.
-- **Still unproven: delivery.** An alarm being registered is not a notification
-  appearing. Whether Xiaomi's HyperOS lets the process survive to handle it —
-  once the standby bucket drops below 10 (ACTIVE) — is the open question, and
-  the usual failure mode for reminder apps on this vendor. Autostart and
-  battery "No restrictions" are likely required.
+- **Delivery is proven, and it depends entirely on the battery exemption.**
+  With the app exempt, a scheduled reminder fires on time, vibrates and reaches
+  the lock screen. Without the exemption it does not arrive at all until the
+  app is opened by hand. See the device findings below — this is the single
+  most important fact about the app.
+- **Sound needed a second fix.** Even once delivered, reminders were silent
+  because the channel inherited a default notification sound that is unset on
+  this device.
 
 Next step: confirm a notification actually appears when a block falls due, then
 leave the phone idle overnight and check the next morning's 06:00 alarm fires.
@@ -207,7 +210,28 @@ Local alarms only, via `flutter_local_notifications`. No FCM, no push, no cost.
 The whole plan is known in advance, so reminders can be handed to the OS and
 work offline and force-stopped.
 
-Two Android facts dominate this code:
+### Two device findings that cost hours to isolate
+
+**Battery optimisation decides whether the app works at all.** Without an
+exemption Android freezes the process, and a correctly registered exact alarm
+wakes nothing: the reminder appears only when the user next opens the app by
+hand, which is precisely when it is useless. Verified on a Xiaomi device —
+identical code, exemption off: nothing arrived; exemption on: it arrived to the
+minute. `_BatteryWarning` on Today is the loudest thing in the app for this
+reason, and `permission_handler` exists in the dependency list solely for it.
+`tools\dev.ps1 exempt [off]` toggles it over adb for testing.
+
+**A channel inherits the *default notification sound*, which may not exist.**
+On this device `settings get system notification_sound` returns `null`, so
+reminders vibrated and reached the lock screen in complete silence. Setting
+`audioAttributesUsage: alarm` alone did not fix it — that changes the stream,
+not the sound. The channel now names `content://settings/system/alarm_alert`
+explicitly. Never rely on the default notification sound existing.
+
+Diagnose both with `tools\dev.ps1 notif`, which reports channel importance and
+audio usage, the standby bucket, the exemption, and the system sound settings.
+
+Two further Android facts dominate this code:
 
 1. **Exact alarms** need `SCHEDULE_EXACT_ALARM`, which the user grants on a
    separate settings screen. Without it Android batches reminders into idle

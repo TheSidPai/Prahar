@@ -41,6 +41,11 @@ class AppState extends ChangeNotifier {
   bool loading = true;
   bool exactAlarmsAllowed = true;
 
+  /// False means reminders will not arrive until the app is opened by hand.
+  /// Surfaced loudly, because everything else about the app is pointless
+  /// without it.
+  bool batteryExempt = true;
+
   DateTime get today => dateOnly(DateTime.now());
 
   Future<void> load() async {
@@ -81,12 +86,24 @@ class AppState extends ChangeNotifier {
 
     if (resyncAlarms && plan != null) {
       exactAlarmsAllowed = await notifier.canScheduleExact();
+      batteryExempt = await notifier.isBatteryExempt();
       await notifier.syncFromPlan(plan!);
     }
   }
 
   Future<void> refreshAlarms() async {
+    exactAlarmsAllowed = await notifier.canScheduleExact();
+    batteryExempt = await notifier.isBatteryExempt();
     if (plan != null) await notifier.syncFromPlan(plan!);
+    notifyListeners();
+  }
+
+  /// Prompts for the battery exemption and re-checks afterwards.
+  Future<bool> requestBatteryExemption() async {
+    final granted = await notifier.requestBatteryExemption();
+    batteryExempt = await notifier.isBatteryExempt();
+    notifyListeners();
+    return granted;
   }
 
   // ------------------------------------------------------------- subjects

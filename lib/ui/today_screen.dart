@@ -54,6 +54,7 @@ class TodayScreen extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 90),
       children: [
         _Header(state: state),
+        if (!state.batteryExempt) _BatteryWarning(state: state),
         if (!state.exactAlarmsAllowed) const _ExactAlarmWarning(),
         if (state.feasibility != null)
           FeasibilityBanner(feasibility: state.feasibility!),
@@ -224,6 +225,73 @@ class _Header extends StatelessWidget {
                 ? 'Nothing planned today'
                 : '${formatMinutes(done)} of ${formatMinutes(planned)}',
             style: theme.textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The single most important warning in the app.
+///
+/// Without a battery-optimisation exemption Android freezes the process, and a
+/// perfectly registered exact alarm wakes nothing. The reminder then appears
+/// only when the app is next opened by hand — which is exactly when it is
+/// worthless. Confirmed on a Xiaomi device: identical code, exemption off,
+/// nothing arrived; exemption on, it arrived to the minute.
+class _BatteryWarning extends StatelessWidget {
+  const _BatteryWarning({required this.state});
+
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.battery_alert, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Reminders will not arrive',
+                  style: theme.textTheme.titleSmall),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          Text(
+            'Android is allowed to freeze Prahar in the background, so study '
+            'reminders will only appear when you open the app yourself. Allow '
+            'it to run unrestricted and they arrive on time.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              onPressed: () async {
+                final ok = await state.requestBatteryExemption();
+                if (context.mounted && !ok) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Still restricted. Settings > Apps > Prahar > Battery '
+                        '> No restrictions, and turn on Autostart.',
+                      ),
+                      duration: Duration(seconds: 8),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Fix this'),
+            ),
           ),
         ],
       ),

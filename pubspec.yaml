@@ -23,6 +23,12 @@ dependencies:
   flutter_local_notifications: ^19.4.2
   timezone: ^0.10.0
 
+  # No package for the battery-optimisation exemption. permission_handler was
+  # tried and removed: it requires Android SDK 37, which installs as
+  # "android-37.0" under Android's new minor-version scheme while Gradle looks
+  # for "android-37" and fails outright. Two methods of Kotlin in
+  # MainActivity.kt do the same job with no dependency and no SDK bump.
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

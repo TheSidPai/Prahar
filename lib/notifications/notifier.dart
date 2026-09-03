@@ -1,4 +1,7 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
@@ -14,16 +17,34 @@ import '../domain/schedule.dart';
 class Notifier {
   final _plugin = FlutterLocalNotificationsPlugin();
 
-  /// Bumped from `prahar_sessions` when the audio moved to alarm usage.
-  ///
+  /// Implemented in `MainActivity.kt`. Two methods of hand-written platform
+  /// code, in preference to a package that would drag in an Android SDK 37
+  /// requirement for a single API call.
+  static const _batteryChannel = MethodChannel('prahar/battery');
+
   /// A channel's importance, sound and audio attributes are frozen at creation.
   /// Editing them in code does nothing for anyone who already ran the app — the
-  /// only way to change them is a new channel id. Bump the suffix again if
-  /// these settings ever change, or the change will appear to work in
-  /// development and silently do nothing for existing installs.
-  static const _channelId = 'prahar_sessions_v2';
+  /// only way to change them is a new channel id. Bump the suffix whenever any
+  /// of those change, and retire the old id below, or the change will appear to
+  /// work in development and silently do nothing on existing installs.
+  static const _channelId = 'prahar_sessions_v3';
   static const _channelName = 'Study sessions';
   static const _digestChannelId = 'prahar_digest';
+
+  /// Superseded ids, deleted on startup so the user's notification settings do
+  /// not accumulate a dead channel per revision.
+  static const _retiredChannelIds = ['prahar_sessions', 'prahar_sessions_v2'];
+
+  /// The device's alarm tone, named explicitly.
+  ///
+  /// Channels otherwise inherit the *default notification sound*, and on this
+  /// phone `settings get system notification_sound` is `null` — unset. The
+  /// result was a reminder that vibrated and reached the lock screen in
+  /// perfect silence, because there was no sound to play. Pointing at
+  /// `alarm_alert` both fixes that and matches the alarm-stream routing below.
+  /// It resolves at play time, so the user's own alarm tone is respected.
+  static const _alarmSound =
+      UriAndroidNotificationSound('content://settings/system/alarm_alert');
 
   /// Study blocks are announced at alarm volume rather than notification
   /// volume. The channel was already IMPORTANCE_HIGH and audibly configured,
@@ -43,6 +64,7 @@ class Notifier {
       priority: Priority.high,
       category: AndroidNotificationCategory.reminder,
       audioAttributesUsage: AudioAttributesUsage.alarm,
+      sound: _alarmSound,
       playSound: true,
       enableVibration: true,
       enableLights: true,
@@ -69,6 +91,21 @@ class Notifier {
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
     );
+
+    // Channels are immutable, so each audio change needs a new id. Remove the
+    // superseded ones so the user's notification settings list does not fill
+    // up with identically-named dead channels.
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    for (final old in _retiredChannelIds) {
+      try {
+        await android?.deleteNotificationChannel(old);
+      } catch (_) {
+        // Deleting a channel that was never created is not an error worth
+        // failing startup over.
+      }
+    }
+
     _ready = true;
   }
 
@@ -115,6 +152,44 @@ class Notifier {
     await android.requestExactAlarmsPermission();
 
     return granted;
+  }
+
+  /// Whether the app is exempt from battery optimisation.
+  ///
+  /// This is the difference between reminders working and not. Without the
+  /// exemption Android freezes the process, and a correctly registered exact
+  /// alarm cannot wake anything to post its notification — it silently arrives
+  /// only when the user next opens the app by hand, which is precisely when a
+  /// reminder is useless. Verified on a Xiaomi device: granting the exemption
+  /// turned a reminder that never appeared into one that arrived on time.
+  Future<bool> isBatteryExempt() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final v = await _batteryChannel
+          .invokeMethod<bool>('isIgnoringBatteryOptimizations');
+      return v ?? true;
+    } catch (e) {
+      // Never nag on the strength of a failed check.
+      debugPrint('Prahar: battery exemption check failed: $e');
+      return true;
+    }
+  }
+
+  /// Opens the system dialog offering to stop optimising this app.
+  ///
+  /// The dialog is a separate activity, so its answer is not available here.
+  /// [AppState] re-checks on resume — `HomeScreen.didChangeAppLifecycleState`
+  /// already refreshes alarms when the app comes back to the foreground.
+  Future<bool> requestBatteryExemption() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final opened = await _batteryChannel
+          .invokeMethod<bool>('requestIgnoreBatteryOptimizations');
+      return opened ?? false;
+    } catch (e) {
+      debugPrint('Prahar: battery exemption request failed: $e');
+      return false;
+    }
   }
 
   Future<bool> canScheduleExact() async {

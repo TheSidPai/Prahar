@@ -16,6 +16,16 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
 
+    <!-- Lets the app offer the "stop optimising this app" system dialog.
+         Without the exemption Android freezes the process and a correctly
+         registered exact alarm wakes nothing, so reminders only appear when
+         the app is opened by hand. Verified on a Xiaomi device.
+
+         Google Play restricts this permission to apps whose core function
+         genuinely needs it (alarms, reminders, calendars). A study reminder
+         qualifies, but the justification must be given at submission. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
     <application
         android:label="Prahar"
         android:name="${applicationName}"

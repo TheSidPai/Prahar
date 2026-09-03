@@ -393,26 +393,86 @@ switch ($Task.ToLower()) {
         exit 0
     }
 
-    'notif' {
-        # Notification channel settings as the OS actually holds them. A
-        # channel's importance and sound are fixed at creation: changing the
-        # values in code afterwards does nothing until the app is uninstalled
-        # or the channel id changes. So the only truth is what is dumped here.
+    'exempt' {
+        # Add/remove the battery-optimisation exemption over adb, to test
+        # whether Doze is what stops background alarms being delivered before
+        # committing to an in-app permission prompt for it.
+        #   tools\dev.ps1 exempt        grant
+        #   tools\dev.ps1 exempt off    revoke
         $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
-        Write-Output '=== notification channels ==='
-        $raw = & $adb shell "dumpsys notification --noredact | grep -A 1 'prahar'" 2>$null
-        if ($raw) { $raw | ForEach-Object { Write-Output "  $_" } }
-        else { Write-Output '  no channels found (app may not have posted yet)' }
+        $pkg = 'com.siddhantpai.prahar'
+        $sign = if ($Rest -and $Rest[0] -eq 'off') { '-' } else { '+' }
+        & $adb shell "dumpsys deviceidle whitelist $sign$pkg"
+        Write-Output ''
+        $wl = & $adb shell 'dumpsys deviceidle whitelist' 2>$null | Select-String -Pattern 'siddhantpai'
+        Write-Output ("  now: " + $(if ($wl) { "EXEMPT  $wl" } else { 'not exempt' }))
+        exit 0
+    }
+
+    'notif' {
+        # Channel settings as the OS holds them. Importance, sound and audio
+        # attributes freeze at channel creation, so code is not the truth here.
+        $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+        $pkg = 'com.siddhantpai.prahar'
+
+        Write-Output '=== our notification channels ==='
+        # Regexes here deliberately avoid the quote character: a single quote
+        # inside a double-quoted PowerShell string, and nested quoting in an
+        # adb shell argument, both derail the parser.
+        $raw = & $adb shell 'dumpsys notification --noredact | grep prahar_sessions' 2>$null
+        $seen = @{}
+        foreach ($line in $raw) {
+            if ($line -match 'mId=.([a-z0-9_]+)') {
+                $id = $Matches[1]
+                if ($seen.ContainsKey($id)) { continue }
+                $seen[$id] = $true
+                $imp = '?'; $use = '?'
+                if ($line -match 'mImportance=(\d+)') { $imp = $Matches[1] }
+                if ($line -match 'usage=([A-Z_]+)') { $use = $Matches[1] }
+                Write-Output "  $id  importance=$imp (4=HIGH)  audio=$use"
+            }
+        }
+        if ($seen.Count -eq 0) { Write-Output '  none yet (a notification must be POSTED to create its channel)' }
 
         Write-Output ''
-        Write-Output '=== app notification enablement ==='
-        & $adb shell "dumpsys notification --noredact | grep -B 2 -A 8 'com.siddhantpai.prahar'" 2>$null |
-            Select-Object -First 25 | ForEach-Object { Write-Output "  $_" }
+        Write-Output '=== why a background alarm may not be delivered ==='
+        Write-Output '  -- standby bucket (10=ACTIVE 20=WORKING 30=FREQUENT 40=RARE 45=RESTRICTED)'
+        $b = & $adb shell "am get-standby-bucket $pkg" 2>$null
+        Write-Output "     $b"
+
+        Write-Output '  -- battery optimisation exemption (whitelisted = can run in background)'
+        $wl = & $adb shell "dumpsys deviceidle whitelist" 2>$null | Select-String -Pattern 'siddhantpai'
+        Write-Output ("     " + $(if ($wl) { "EXEMPT: $wl" } else { 'NOT exempt - Android may freeze it' }))
+
+        Write-Output '  -- MIUI/HyperOS background restriction (RUN_ANY_IN_BACKGROUND)'
+        $ops = & $adb shell "appops get $pkg RUN_ANY_IN_BACKGROUND" 2>$null
+        Write-Output ("     " + $(if ($ops) { $ops } else { 'not set' }))
+
+        Write-Output '  -- is the process alive right now?'
+        $procPid = & $adb shell "pidof $pkg" 2>$null
+        Write-Output ("     " + $(if ($procPid) { "running (pid $procPid)" } else { 'NOT RUNNING - a broadcast must cold-start it' }))
+
+        Write-Output '  -- MIUI autostart / boot ops (MIUI uses its own ops, not the AOSP ones)'
+        $allops = & $adb shell "appops get $pkg" 2>$null
+        $interesting = $allops | Select-String -Pattern 'AUTO_START|BOOT|BACKGROUND|WAKE'
+        if ($interesting) { $interesting | ForEach-Object { Write-Output "     $_" } }
+        else { Write-Output '     none reported' }
 
         Write-Output ''
-        Write-Output '=== do not disturb / focus ==='
-        & $adb shell "dumpsys notification --noredact | grep -E 'mZenMode|zen mode'" 2>$null |
-            Select-Object -First 4 | ForEach-Object { Write-Output "  $_" }
+        Write-Output '=== audio: is the alarm stream even audible? ==='
+        # USAGE_ALARM plays on the alarm stream, so a muted alarm volume makes
+        # a correctly-configured notification silent.
+        foreach ($k in @('volume_alarm_speaker', 'volume_alarm', 'volume_system')) {
+            $v = & $adb shell "settings get system $k" 2>$null
+            Write-Output "  $k = $v"
+        }
+        $ring = & $adb shell 'dumpsys audio | grep -m 2 -i "ringer mode"' 2>$null
+        if ($ring) { $ring | ForEach-Object { Write-Output "  $_" } }
+
+        Write-Output ''
+        Write-Output '=== do not disturb ==='
+        & $adb shell "dumpsys notification --noredact | grep -m 1 mZenMode" 2>$null |
+            ForEach-Object { Write-Output "  $_  (ZEN_MODE_OFF = DND is off)" }
         exit 0
     }
 
