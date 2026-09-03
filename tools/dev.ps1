@@ -393,6 +393,29 @@ switch ($Task.ToLower()) {
         exit 0
     }
 
+    'notif' {
+        # Notification channel settings as the OS actually holds them. A
+        # channel's importance and sound are fixed at creation: changing the
+        # values in code afterwards does nothing until the app is uninstalled
+        # or the channel id changes. So the only truth is what is dumped here.
+        $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+        Write-Output '=== notification channels ==='
+        $raw = & $adb shell "dumpsys notification --noredact | grep -A 1 'prahar'" 2>$null
+        if ($raw) { $raw | ForEach-Object { Write-Output "  $_" } }
+        else { Write-Output '  no channels found (app may not have posted yet)' }
+
+        Write-Output ''
+        Write-Output '=== app notification enablement ==='
+        & $adb shell "dumpsys notification --noredact | grep -B 2 -A 8 'com.siddhantpai.prahar'" 2>$null |
+            Select-Object -First 25 | ForEach-Object { Write-Output "  $_" }
+
+        Write-Output ''
+        Write-Output '=== do not disturb / focus ==='
+        & $adb shell "dumpsys notification --noredact | grep -E 'mZenMode|zen mode'" 2>$null |
+            Select-Object -First 4 | ForEach-Object { Write-Output "  $_" }
+        exit 0
+    }
+
     'alarms' {
         # What the OS actually has scheduled for us, and whether it will honour
         # exact timing. The real test of the notification layer.

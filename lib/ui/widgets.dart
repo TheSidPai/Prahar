@@ -151,17 +151,25 @@ class SessionTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (!handled && onDone != null)
-                IconButton(
-                  tooltip: 'Done',
-                  icon: const Icon(Icons.check_circle_outline),
-                  onPressed: onDone,
-                ),
+              // Labelled, not bare icons: a check and a clock face gave no
+              // hint which was which, and one of them is irreversible.
               if (!handled && onSkip != null)
-                IconButton(
-                  tooltip: 'Skip',
-                  icon: const Icon(Icons.schedule),
+                TextButton(
                   onPressed: onSkip,
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                  child: const Text('Skip'),
+                ),
+              if (!handled && onDone != null)
+                FilledButton.tonal(
+                  onPressed: onDone,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
+                  child: const Text('Done'),
                 ),
               if (handled)
                 const Padding(

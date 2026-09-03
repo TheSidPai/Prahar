@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../domain/format.dart';
+import '../notifications/notifier.dart';
 import '../state/app_state.dart';
+import 'how_it_works.dart';
 
 /// Availability is the other half of the planner's input. Everything here
 /// feeds straight back into a replan.
@@ -85,19 +87,32 @@ class SettingsScreen extends StatelessWidget {
           leading: const Icon(Icons.sync),
           title: const Text('Reschedule all reminders'),
           subtitle: Text(
-            state.exactAlarmsAllowed
-                ? 'Exact alarms are allowed'
-                : 'Exact alarms are blocked — reminders may arrive late',
+            'One reminder per study block for the next ${Notifier.windowDays} '
+            'days. ${state.exactAlarmsAllowed ? "Exact timing is allowed." : "Exact alarms are blocked — reminders may arrive late."}',
           ),
           onTap: () async {
             await state.refreshAlarms();
             final pending = await state.notifier.pendingCount();
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('$pending reminders scheduled')),
+                SnackBar(
+                  content: Text(
+                    '$pending reminders set — one for each study block in the '
+                    'next ${Notifier.windowDays} days.',
+                  ),
+                  duration: const Duration(seconds: 5),
+                ),
               );
             }
           },
+        ),
+        const Divider(height: 32),
+        ListTile(
+          leading: const Icon(Icons.help_outline),
+          title: const Text('How Prahar works'),
+          subtitle: const Text(
+              'What the tabs are for, and why blocks land where they do'),
+          onTap: () => HowItWorks.open(context),
         ),
         const Divider(height: 32),
         Padding(

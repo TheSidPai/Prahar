@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../domain/format.dart';
 import '../domain/schedule.dart';
 import '../state/app_state.dart';
+import 'how_it_works.dart';
+import 'subjects_screen.dart';
 import 'widgets.dart';
 
 class TodayScreen extends StatelessWidget {
@@ -15,13 +17,36 @@ class TodayScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final sessions = state.todaySessions;
 
+    // First run: explain the app rather than showing an empty page. Someone
+    // who has just installed this has no idea what the five tabs are for.
     if (state.subjects.isEmpty) {
-      return const EmptyState(
-        icon: Icons.menu_book_outlined,
-        title: 'Nothing to plan yet',
-        message:
-            'Add a subject and the topics you need to cover. Prahar works out '
-            'the day-by-day schedule from there.',
+      return ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 4),
+            child: Text('Welcome to Prahar',
+                style: theme.textTheme.headlineSmall),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: Text(
+              'A study planner that tells you the truth about whether your '
+              'plan is possible.',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
+          const HowItWorks(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+            child: FilledButton.icon(
+              onPressed: () => showSubjectSheet(context),
+              icon: const Icon(Icons.add),
+              label: const Text('Add your first subject'),
+            ),
+          ),
+        ],
       );
     }
 
@@ -59,10 +84,57 @@ class TodayScreen extends StatelessWidget {
               color: Color(
                   state.subjectFor(s.subjectId)?.colorValue ?? 0xFF4F46E5),
               onDone: () => _confirmDone(context, state, s),
-              onSkip: () => state.markSkipped(s),
+              onSkip: () => _confirmSkip(context, state, s),
             ),
       ],
     );
+  }
+
+  /// Skipping is irreversible *and* costs the slot: the block's time is
+  /// subtracted from today so the work rolls to tomorrow rather than being
+  /// offered again this afternoon. Two consequences behind one tap, so it asks
+  /// first and says what will happen.
+  Future<void> _confirmSkip(
+      BuildContext context, AppState state, StudySession session) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Skip this block?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(session.topicTitle,
+                style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 12),
+            Text(
+              'The work moves to a later day, and today loses '
+              '${formatMinutes(session.durationMinutes)} of study time so it '
+              "isn't offered again this afternoon.",
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'This cannot be undone.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep it'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Skip'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await state.markSkipped(session);
   }
 
   /// Asks for the *actual* time spent rather than assuming the plan was

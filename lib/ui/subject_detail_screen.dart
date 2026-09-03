@@ -180,7 +180,25 @@ Future<void> showTopicSheet(
                         value: _EffortMode.minutes, label: Text('Minutes')),
                   ],
                   selected: {mode},
-                  onSelectionChanged: (s) => setState(() => mode = s.first),
+                  // Convert the figure when the unit changes. Without this,
+                  // switching Minutes -> Pages with "600" in the box silently
+                  // reinterprets it as 600 pages and stores 1800 minutes: a
+                  // 3x inflation with no warning.
+                  onSelectionChanged: (s) => setState(() {
+                    final next = s.first;
+                    final current = computeMinutes();
+                    mode = next;
+                    if (current != null && current > 0) {
+                      final converted = switch (next) {
+                        _EffortMode.minutes => current,
+                        _EffortMode.pages =>
+                          (current / estimator.minutesPerPage).round(),
+                        _EffortMode.problems =>
+                          (current / estimator.minutesPerProblem).round(),
+                      };
+                      amountController.text = '${converted.clamp(1, 100000)}';
+                    }
+                  }),
                 ),
                 const SizedBox(height: 12),
                 TextField(

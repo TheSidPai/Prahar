@@ -14,9 +14,40 @@ import '../domain/schedule.dart';
 class Notifier {
   final _plugin = FlutterLocalNotificationsPlugin();
 
-  static const _channelId = 'prahar_sessions';
+  /// Bumped from `prahar_sessions` when the audio moved to alarm usage.
+  ///
+  /// A channel's importance, sound and audio attributes are frozen at creation.
+  /// Editing them in code does nothing for anyone who already ran the app — the
+  /// only way to change them is a new channel id. Bump the suffix again if
+  /// these settings ever change, or the change will appear to work in
+  /// development and silently do nothing for existing installs.
+  static const _channelId = 'prahar_sessions_v2';
   static const _channelName = 'Study sessions';
   static const _digestChannelId = 'prahar_digest';
+
+  /// Study blocks are announced at alarm volume rather than notification
+  /// volume. The channel was already IMPORTANCE_HIGH and audibly configured,
+  /// yet reminders still went unheard: notification volume is a separate,
+  /// often near-silent slider, especially on Xiaomi. Alarm usage borrows the
+  /// alarm stream instead, which people keep loud.
+  ///
+  /// It does NOT set bypassDnd, so Do Not Disturb and Focus modes still
+  /// silence it — deliberately, so the app cannot talk over a deliberate
+  /// silence.
+  static const _sessionDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      _channelId,
+      _channelName,
+      channelDescription: 'Reminders for scheduled study blocks',
+      importance: Importance.high,
+      priority: Priority.high,
+      category: AndroidNotificationCategory.reminder,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      playSound: true,
+      enableVibration: true,
+      enableLights: true,
+    ),
+  );
 
   /// How far ahead to hand alarms to the OS.
   ///
@@ -139,16 +170,7 @@ class Notifier {
         title,
         body,
         tz.TZDateTime.from(s.startsAt, tz.local),
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channelId,
-            _channelName,
-            channelDescription: 'Reminders for scheduled study blocks',
-            importance: Importance.high,
-            priority: Priority.high,
-            category: AndroidNotificationCategory.reminder,
-          ),
-        ),
+        _sessionDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         payload: s.topicId,
       );
@@ -223,16 +245,7 @@ class Notifier {
       'Delivery works. Scheduled '
           '${delay.inSeconds}s earlier, at ${formatClock(when.hour * 60 + when.minute)}.',
       tz.TZDateTime.from(when, tz.local),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channelId,
-          _channelName,
-          channelDescription: 'Reminders for scheduled study blocks',
-          importance: Importance.high,
-          priority: Priority.high,
-          category: AndroidNotificationCategory.reminder,
-        ),
-      ),
+      _sessionDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
     return when;
