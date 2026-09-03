@@ -1,5 +1,43 @@
 import 'models.dart';
 
+/// A period the student cannot study: a lecture, lunch, a commute, a shift.
+///
+/// Scheduling into time the student is occupied does not merely waste that
+/// block — it teaches them the schedule is fiction, and a plan that is
+/// ignored once tends to be ignored thereafter.
+class BusySlot {
+  final String id;
+  final String label;
+  final int startMinute;
+  final int endMinute;
+
+  /// `DateTime.monday`..`sunday` for something that repeats weekly.
+  /// Null when this is a one-off on [date].
+  final int? weekday;
+
+  /// The single day this applies to, when [weekday] is null.
+  final DateTime? date;
+
+  const BusySlot({
+    required this.id,
+    required this.label,
+    required this.startMinute,
+    required this.endMinute,
+    this.weekday,
+    this.date,
+  });
+
+  bool get repeatsWeekly => weekday != null;
+
+  int get durationMinutes => endMinute - startMinute;
+
+  bool appliesTo(DateTime day) {
+    if (weekday != null) return day.weekday == weekday;
+    final d = date;
+    return d != null && dateKey(d) == dateKey(day);
+  }
+}
+
 /// How much time the student actually has, per weekday, with per-date
 /// overrides for holidays, exam days and unusually free weekends.
 class Availability {
@@ -10,10 +48,73 @@ class Availability {
   /// A `0` here is how a holiday or a day off is expressed.
   final Map<String, int> overrides;
 
+  /// Periods blocked out. Subtracted from the study window to give the
+  /// intervals a block may actually occupy.
+  final List<BusySlot> busy;
+
   const Availability({
     required this.minutesByWeekday,
     this.overrides = const {},
+    this.busy = const [],
   });
+
+  /// The intervals of [day] that are inside the study window and not busy,
+  /// as `(start, end)` minute pairs, sorted and non-overlapping.
+  ///
+  /// Overlapping busy slots are merged first — a student will happily enter
+  /// "class 09:00-13:00" and "lab 11:00-12:00" without thinking about it, and
+  /// naive subtraction of the second would re-open a gap inside the first.
+  List<(int, int)> freeIntervals(
+    DateTime day, {
+    required int windowStart,
+    required int windowEnd,
+  }) {
+    if (windowEnd <= windowStart) return const [];
+
+    final blocks = busy
+        .where((b) => b.appliesTo(day))
+        .map((b) => (
+              b.startMinute.clamp(windowStart, windowEnd),
+              b.endMinute.clamp(windowStart, windowEnd),
+            ))
+        .where((r) => r.$2 > r.$1)
+        .toList()
+      ..sort((a, b) => a.$1.compareTo(b.$1));
+
+    final merged = <(int, int)>[];
+    for (final b in blocks) {
+      if (merged.isNotEmpty && b.$1 <= merged.last.$2) {
+        final last = merged.removeLast();
+        merged.add((last.$1, last.$2 > b.$2 ? last.$2 : b.$2));
+      } else {
+        merged.add(b);
+      }
+    }
+
+    final free = <(int, int)>[];
+    var cursor = windowStart;
+    for (final b in merged) {
+      if (b.$1 > cursor) free.add((cursor, b.$1));
+      if (b.$2 > cursor) cursor = b.$2;
+    }
+    if (cursor < windowEnd) free.add((cursor, windowEnd));
+    return free;
+  }
+
+  /// Minutes left in the window on [day] once busy slots are removed.
+  int freeMinutesOn(
+    DateTime day, {
+    required int windowStart,
+    required int windowEnd,
+  }) =>
+      freeIntervals(day, windowStart: windowStart, windowEnd: windowEnd)
+          .fold(0, (a, r) => a + (r.$2 - r.$1));
+
+  Availability withBusy(List<BusySlot> next) => Availability(
+        minutesByWeekday: minutesByWeekday,
+        overrides: overrides,
+        busy: next,
+      );
 
   /// A sane starting point: 2h on weekdays, 4h on weekends.
   factory Availability.standard() => const Availability(minutesByWeekday: {
@@ -50,11 +151,13 @@ class Availability {
   Availability withOverride(DateTime day, int minutes) => Availability(
         minutesByWeekday: minutesByWeekday,
         overrides: {...overrides, dateKey(day): minutes},
+        busy: busy,
       );
 
   Availability withWeekday(int weekday, int minutes) => Availability(
         minutesByWeekday: {...minutesByWeekday, weekday: minutes},
         overrides: overrides,
+        busy: busy,
       );
 }
 

@@ -5,6 +5,7 @@ import '../domain/format.dart';
 import '../domain/preferences.dart';
 import '../notifications/notifier.dart';
 import '../state/app_state.dart';
+import 'busy_slots_screen.dart';
 import 'how_it_works.dart';
 
 /// Availability is the other half of the planner's input. Everything here
@@ -99,6 +100,22 @@ class SettingsScreen extends StatelessWidget {
             style: theme.textTheme.bodySmall,
           ),
         ),
+        const SizedBox(height: 8),
+        ListTile(
+          leading: const Icon(Icons.event_busy_outlined),
+          title: const Text('Busy slots'),
+          subtitle: Text(
+            state.availability.busy.isEmpty
+                ? 'Class, lunch, a shift — blocks route around these'
+                : '${state.availability.busy.length} recorded',
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+                builder: (_) => const BusySlotsScreen()),
+          ),
+        ),
         const Divider(height: 32),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
@@ -159,6 +176,33 @@ class SettingsScreen extends StatelessWidget {
               );
             }
           },
+        ),
+        const Divider(height: 32),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: Text('Appearance', style: theme.textTheme.titleMedium),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: SegmentedButton<ThemeChoice>(
+            segments: const [
+              ButtonSegment(
+                  value: ThemeChoice.system,
+                  label: Text('System'),
+                  icon: Icon(Icons.brightness_auto_outlined)),
+              ButtonSegment(
+                  value: ThemeChoice.light,
+                  label: Text('Light'),
+                  icon: Icon(Icons.light_mode_outlined)),
+              ButtonSegment(
+                  value: ThemeChoice.dark,
+                  label: Text('Dark'),
+                  icon: Icon(Icons.dark_mode_outlined)),
+            ],
+            selected: {state.prefs.themeChoice},
+            onSelectionChanged: (s) => _savePrefs(
+                context, state, state.prefs.copyWith(themeChoice: s.first)),
+          ),
         ),
         const Divider(height: 32),
         ListTile(

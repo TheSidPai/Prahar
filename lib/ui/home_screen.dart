@@ -62,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         index: _index,
         children: const [
           TodayScreen(),
-          PlanScreen(),
+          PlanTabs(),
           ProgressScreen(),
           SubjectsScreen(),
           SettingsScreen(),

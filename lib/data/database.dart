@@ -70,7 +70,48 @@ class PraharDatabase {
         key   TEXT PRIMARY KEY,
         value TEXT NOT NULL
       )''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS busy_slots (
+        id            TEXT PRIMARY KEY,
+        label         TEXT    NOT NULL,
+        start_minute  INTEGER NOT NULL,
+        end_minute    INTEGER NOT NULL,
+        weekday       INTEGER,
+        one_off_date  TEXT
+      )''');
   }
+
+  // ----------------------------------------------------------- busy slots
+
+  Future<List<BusySlot>> busySlots() async {
+    final rows = await _db.query('busy_slots', orderBy: 'start_minute');
+    return [
+      for (final r in rows)
+        BusySlot(
+          id: r['id'] as String,
+          label: r['label'] as String,
+          startMinute: r['start_minute'] as int,
+          endMinute: r['end_minute'] as int,
+          weekday: r['weekday'] as int?,
+          date: r['one_off_date'] == null
+              ? null
+              : parseDateKey(r['one_off_date'] as String),
+        ),
+    ];
+  }
+
+  Future<void> upsertBusySlot(BusySlot s) => _upsert('busy_slots', {
+        'id': s.id,
+        'label': s.label,
+        'start_minute': s.startMinute,
+        'end_minute': s.endMinute,
+        'weekday': s.weekday,
+        'one_off_date': s.date == null ? null : dateKey(s.date!),
+      });
+
+  Future<void> deleteBusySlot(String id) =>
+      _db.delete('busy_slots', where: 'id = ?', whereArgs: [id]);
 
   // ------------------------------------------------------------- settings
 
@@ -335,6 +376,12 @@ class PraharDatabase {
   Future<Availability> availability() async {
     final weekly = await _db.query('availability');
     final overrides = await _db.query('availability_overrides');
+    // busy_slots was added in v2; on a v1 database it does not exist yet, so
+    // read defensively rather than assuming schema alignment.
+    List<BusySlot> slots = const [];
+    try {
+      slots = await busySlots();
+    } catch (_) {}
     return Availability(
       minutesByWeekday: {
         for (final r in weekly) r['weekday'] as int: r['minutes'] as int,
@@ -342,6 +389,7 @@ class PraharDatabase {
       overrides: {
         for (final r in overrides) r['day'] as String: r['minutes'] as int,
       },
+      busy: slots,
     );
   }
 

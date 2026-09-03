@@ -298,6 +298,30 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> addBusySlot(BusySlot s) async {
+    await db.upsertBusySlot(s);
+    availability = availability.withBusy([...availability.busy, s]);
+    await _rebuild();
+    notifyListeners();
+  }
+
+  Future<void> updateBusySlot(BusySlot s) async {
+    await db.upsertBusySlot(s);
+    availability = availability.withBusy([
+      for (final x in availability.busy) x.id == s.id ? s : x,
+    ]);
+    await _rebuild();
+    notifyListeners();
+  }
+
+  Future<void> deleteBusySlot(String id) async {
+    await db.deleteBusySlot(id);
+    availability = availability
+        .withBusy(availability.busy.where((b) => b.id != id).toList());
+    await _rebuild();
+    notifyListeners();
+  }
+
   /// Persists a study-window change and replans against it.
   ///
   /// Rejects an unusable window rather than saving one that would silently

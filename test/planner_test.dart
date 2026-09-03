@@ -84,6 +84,92 @@ void main() {
     });
   });
 
+  group('busy slots', () {
+    BusySlot slot(int start, int end, {int? weekday, DateTime? date}) =>
+        BusySlot(
+          id: '$start-$end',
+          label: 'busy',
+          startMinute: start,
+          endMinute: end,
+          weekday: weekday,
+          date: date,
+        );
+
+    test('no block is scheduled during a busy slot', () {
+      final busy = flat(300).withBusy([slot(13 * 60, 15 * 60, weekday: 4)]);
+      final plan = planner.generate(
+        subjects: [subject('phys')],
+        topics: [topic('a', 'phys', 300)],
+        availability: busy,
+        today: today,
+      );
+
+      for (final s in plan.onDate(today)) {
+        // Nothing may overlap 13:00-15:00.
+        expect(
+          s.endMinuteOfDay <= 13 * 60 || s.startMinuteOfDay >= 15 * 60,
+          isTrue,
+          reason: 'scheduled ${s.startMinuteOfDay}-${s.endMinuteOfDay} '
+              'across a busy slot',
+        );
+      }
+    });
+
+    test('a one-off slot applies only to its date', () {
+      final busy = flat(300).withBusy([slot(6 * 60, 22 * 60, date: today)]);
+      final plan = planner.generate(
+        subjects: [subject('phys')],
+        topics: [topic('a', 'phys', 300)],
+        availability: busy,
+        today: today,
+      );
+
+      expect(plan.onDate(today), isEmpty,
+          reason: 'today is entirely busy');
+      expect(plan.onDate(today.add(const Duration(days: 1))), isNotEmpty,
+          reason: 'the one-off must not affect other days');
+    });
+
+    test('overlapping slots are merged before subtracting', () {
+      // "class" 09:00-13:00 and "lab" 11:00-12:00 must not re-open a gap.
+      final busy = flat(300).withBusy([
+        slot(9 * 60, 13 * 60, weekday: 4),
+        slot(11 * 60, 12 * 60, weekday: 4),
+      ]);
+      final plan = planner.generate(
+        subjects: [subject('phys')],
+        topics: [topic('a', 'phys', 300)],
+        availability: busy,
+        today: today,
+      );
+
+      for (final s in plan.onDate(today)) {
+        // The whole 09:00-13:00 window must remain blocked.
+        expect(
+          s.endMinuteOfDay <= 9 * 60 || s.startMinuteOfDay >= 13 * 60,
+          isTrue,
+          reason: 'block landed inside a merged busy window',
+        );
+      }
+    });
+
+    test('minute budget still limits work when free time is abundant', () {
+      // Free intervals decide *where*, minutes decide *how much*. Even with a
+      // huge window, only 60 minutes may be spent.
+      final busy = Availability(minutesByWeekday: {
+        for (var d = 1; d <= 7; d++) d: 60,
+      }).withBusy([slot(12 * 60, 13 * 60, weekday: 4)]);
+      final plan = planner.generate(
+        subjects: [subject('phys')],
+        topics: [topic('a', 'phys', 600)],
+        availability: busy,
+        today: today,
+      );
+
+      expect(plan.minutesOn(today), lessThanOrEqualTo(60));
+    });
+  });
+
   group('replanning mid-day', () {
     test('does not offer blocks that start in the past', () {
       const threePm = 15 * 60;

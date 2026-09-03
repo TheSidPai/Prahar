@@ -145,9 +145,40 @@ class Planner {
       var capacity = availability.minutesOn(day);
       if (capacity <= 0) continue;
 
-      var cursor = (day == start && todayStartMinute != null)
+      // Two independent limits, and both must hold. The free intervals say
+      // *where* a block may go — the window minus lectures, lunch, a shift.
+      // The minute budget says *how much* the student intends to do, which is
+      // usually far less than the time they are technically free.
+      final earliest = (day == start && todayStartMinute != null)
           ? max(config.dayStartMinute, todayStartMinute)
           : config.dayStartMinute;
+
+      final intervals = availability
+          .freeIntervals(
+            day,
+            windowStart: config.dayStartMinute,
+            windowEnd: config.dayEndMinute,
+          )
+          .where((r) => r.$2 > earliest)
+          .map((r) => (r.$1 < earliest ? earliest : r.$1, r.$2))
+          .toList();
+      if (intervals.isEmpty) continue;
+
+      var slot = 0;
+      var cursor = intervals.first.$1;
+
+      /// Moves to the next interval when the current one is full. Returns
+      /// false when the day is exhausted.
+      bool advance(int need) {
+        while (slot < intervals.length) {
+          if (cursor < intervals[slot].$1) cursor = intervals[slot].$1;
+          if (cursor + need <= intervals[slot].$2) return true;
+          slot++;
+          if (slot < intervals.length) cursor = intervals[slot].$1;
+        }
+        return false;
+      }
+
       final placed = <String>[]; // subject ids, in the order placed today
 
       // 1. Reviews due today go first. They are short and time-critical: a
@@ -162,7 +193,7 @@ class Planner {
       for (final r in dueToday) {
         if (reviewBudget < config.reviewMinutes) break;
         if (capacity < config.reviewMinutes) break;
-        if (cursor + config.reviewMinutes > config.dayEndMinute) break;
+        if (!advance(config.reviewMinutes)) break;
         final topic = topicById[r.topicId];
         if (topic == null) {
           pendingReviews.remove(r);
@@ -206,10 +237,10 @@ class Planner {
         );
         if (topic == null) break;
 
-        // What is left of the day bounds the block just as much as the
+        // The current free interval bounds the block just as much as the
         // student's stated capacity does.
-        final roomLeft = config.dayEndMinute - cursor;
-        if (roomLeft < config.minSessionMinutes) break;
+        if (!advance(config.minSessionMinutes)) break;
+        final roomLeft = intervals[slot].$2 - cursor;
         final usable = min(capacity, roomLeft);
 
         final remaining = work[topic.id]!;

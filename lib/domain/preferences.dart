@@ -1,5 +1,12 @@
 import '../planner/planner.dart';
 
+/// How the interface picks a colour scheme.
+///
+/// System is deliberately the default: a phone that switches to light in the
+/// morning should carry the app with it. Explicit choices override, but are
+/// not the norm.
+enum ThemeChoice { system, light, dark }
+
 /// The scheduling choices a student is allowed to make.
 ///
 /// These were hardcoded in [PlannerConfig], which meant every block landed
@@ -20,11 +27,14 @@ class Prefs {
   /// Gap between consecutive blocks.
   final int breakMinutes;
 
+  final ThemeChoice themeChoice;
+
   const Prefs({
     this.dayStartMinute = 6 * 60,
     this.dayEndMinute = 22 * 60,
     this.blockMinutes = 50,
     this.breakMinutes = 10,
+    this.themeChoice = ThemeChoice.system,
   });
 
   /// The window must be wide enough for at least one block plus a break,
@@ -48,12 +58,14 @@ class Prefs {
     int? dayEndMinute,
     int? blockMinutes,
     int? breakMinutes,
+    ThemeChoice? themeChoice,
   }) =>
       Prefs(
         dayStartMinute: dayStartMinute ?? this.dayStartMinute,
         dayEndMinute: dayEndMinute ?? this.dayEndMinute,
         blockMinutes: blockMinutes ?? this.blockMinutes,
         breakMinutes: breakMinutes ?? this.breakMinutes,
+        themeChoice: themeChoice ?? this.themeChoice,
       );
 
   Map<String, String> toMap() => {
@@ -61,6 +73,7 @@ class Prefs {
         'day_end': '$dayEndMinute',
         'block_minutes': '$blockMinutes',
         'break_minutes': '$breakMinutes',
+        'theme': themeChoice.name,
       };
 
   /// Tolerant of missing or malformed values: a corrupt preference should fall
@@ -80,11 +93,17 @@ class Prefs {
       end = 22 * 60;
     }
 
+    final theme = ThemeChoice.values.firstWhere(
+      (c) => c.name == m['theme'],
+      orElse: () => ThemeChoice.system,
+    );
+
     return Prefs(
       dayStartMinute: start,
       dayEndMinute: end,
       blockMinutes: read('block_minutes', 50, 10, 180),
       breakMinutes: read('break_minutes', 10, 0, 60),
+      themeChoice: theme,
     );
   }
 }

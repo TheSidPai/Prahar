@@ -58,32 +58,77 @@ class _SubjectRow extends StatelessWidget {
     final theme = Theme.of(context);
     final remaining = topics.fold(0, (a, t) => a + t.remainingMinutes);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      child: ListTile(
-        leading: Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: Color(subject.colorValue),
-            shape: BoxShape.circle,
+    // Two states that do nothing and say nothing. A subject with no topics
+    // contributes no work at all, and one with no exam date sits at the bottom
+    // of every priority list permanently. Both are easy to create by accident
+    // and impossible to notice.
+    final needsTopics = topics.isEmpty;
+    final needsDate = subject.examDate == null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      child: Card(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SubjectDetailScreen(subjectId: subject.id),
+            ),
           ),
-        ),
-        title: Text(subject.name),
-        subtitle: Text(
-          [
-            '${topics.length} topics',
-            '${formatMinutes(remaining)} left',
-            if (subject.examDate != null)
-              'exam ${formatDate(subject.examDate!)}',
-          ].join(' · '),
-          style: theme.textTheme.bodySmall,
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => SubjectDetailScreen(subjectId: subject.id),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 12, 16),
+            child: Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Color(subject.colorValue),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(subject.name, style: theme.textTheme.titleSmall),
+                      const SizedBox(height: 3),
+                      Text(
+                        [
+                          if (!needsTopics) '${topics.length} topics',
+                          if (!needsTopics) '${formatMinutes(remaining)} left',
+                          if (subject.examDate != null)
+                            'exam ${formatDate(subject.examDate!)}',
+                        ].join('  ·  '),
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      if (needsTopics || needsDate) ...[
+                        const SizedBox(height: 8),
+                        Row(children: [
+                          Icon(Icons.error_outline,
+                              size: 14, color: theme.colorScheme.tertiary),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              needsTopics
+                                  ? 'No topics yet — nothing is being scheduled'
+                                  : 'No exam date — scheduled last',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.tertiary,
+                              ),
+                            ),
+                          ),
+                        ]),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right,
+                    size: 20, color: theme.colorScheme.outline),
+              ],
+            ),
           ),
         ),
       ),
@@ -153,7 +198,31 @@ Future<void> showSubjectSheet(BuildContext context, {Subject? existing}) async {
                   if (picked != null) setState(() => examDate = picked);
                 },
               ),
-              const SizedBox(height: 8),
+              // Said before saving, not after: the consequence of omitting a
+              // date is invisible once the sheet closes.
+              if (examDate == null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .tertiaryContainer
+                        .withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.info_outline, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Without a date this subject is scheduled only after '
+                        'every subject that has one.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ]),
+                ),
+              const SizedBox(height: 12),
               Text('Importance', style: Theme.of(context).textTheme.labelLarge),
               Slider(
                 value: weight.toDouble(),

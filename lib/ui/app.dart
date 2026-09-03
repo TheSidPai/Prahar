@@ -1,39 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../domain/preferences.dart';
+import '../state/app_state.dart';
 import 'home_screen.dart';
+import 'theme.dart';
 
 class PraharApp extends StatelessWidget {
   const PraharApp({super.key});
 
-  static const _seed = Color(0xFF4F46E5);
-
   @override
   Widget build(BuildContext context) {
+    // Rebuilds when Prefs changes, so the theme choice takes effect the moment
+    // the user picks it rather than on the next launch.
+    final choice = context.select<AppState, ThemeChoice>((s) => s.prefs.themeChoice);
     return MaterialApp(
       title: 'Prahar',
       debugShowCheckedModeBanner: false,
-      theme: _theme(Brightness.light),
-      darkTheme: _theme(Brightness.dark),
+      themeMode: switch (choice) {
+        ThemeChoice.system => ThemeMode.system,
+        ThemeChoice.light => ThemeMode.light,
+        ThemeChoice.dark => ThemeMode.dark,
+      },
+      theme: PraharTheme.of(Brightness.light),
+      darkTheme: PraharTheme.of(Brightness.dark),
       home: const HomeScreen(),
-    );
-  }
-
-  ThemeData _theme(Brightness brightness) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: _seed,
-      brightness: brightness,
-    );
-    return ThemeData(
-      colorScheme: scheme,
-      useMaterial3: true,
-      cardTheme: CardThemeData(
-        elevation: 0,
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-      ),
-      appBarTheme: const AppBarTheme(centerTitle: false),
     );
   }
 }

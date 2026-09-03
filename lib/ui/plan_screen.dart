@@ -4,8 +4,48 @@ import 'package:provider/provider.dart';
 import '../domain/format.dart';
 import '../domain/models.dart';
 import '../state/app_state.dart';
+import 'calendar_screen.dart';
 import 'subject_detail_screen.dart';
 import 'widgets.dart';
+
+/// The Plan tab combines the near-term day list with a month calendar.
+/// Both answer "when will this happen"; the difference is zoom.
+class PlanTabs extends StatefulWidget {
+  const PlanTabs({super.key});
+
+  @override
+  State<PlanTabs> createState() => _PlanTabsState();
+}
+
+class _PlanTabsState extends State<PlanTabs> {
+  int _view = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: SegmentedButton<int>(
+            segments: const [
+              ButtonSegment(value: 0, label: Text('Days')),
+              ButtonSegment(value: 1, label: Text('Month')),
+            ],
+            selected: {_view},
+            onSelectionChanged: (s) => setState(() => _view = s.first),
+          ),
+        ),
+        Expanded(
+          child: IndexedStack(
+            index: _view,
+            sizing: StackFit.expand,
+            children: const [PlanScreen(), CalendarScreen()],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 /// The next fortnight, day by day. Enough to see the shape of the plan without
 /// pretending the far future is meaningful — it will be replanned many times

@@ -1,26 +1,21 @@
-# Generates the launcher icon into android/app/src/main/res/mipmap-*.
-#
-# Kept as a script rather than committing only the PNGs so the mark can be
-# retuned later without hunting for whatever tool produced it. Uses
-# System.Drawing, which ships with Windows - no image toolchain to install.
+# Launcher icons for Android, rendered from a single vector definition to every
+# density. Kept as a script rather than committing only PNGs so the mark can be
+# retuned without hunting for whatever tool made it. Uses System.Drawing, so no
+# image toolchain to install.
 #
 #   tools\make_icon.ps1
 #
-# The mark: a ring with one quarter filled. A "prahar" is a division of the
-# day, so the icon is a day with one portion claimed. It stays legible at
-# 48x48, which rules out anything more detailed.
+# The mark: an inscribed square rotated 30 degrees, hollow, with a small
+# accent disc at one corner. A "prahar" is a division of the day, and this is a
+# schematic of one - a fixed frame with a point of focus. Deliberately not a
+# clock or a pie chart: those read as "timer app" and are what every calendar
+# icon on the store already is.
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
 $project = Split-Path -Parent $PSScriptRoot
 $res = Join-Path $project 'android\app\src\main\res'
-
-# Full-bleed background: launcher masks (Xiaomi's especially) crop to a circle
-# or squircle, so the colour must reach every edge and the glyph must sit well
-# inside a safe zone.
-$bgTop = [System.Drawing.Color]::FromArgb(255, 99, 91, 255)   # indigo
-$bgBot = [System.Drawing.Color]::FromArgb(255, 124, 58, 237)  # violet
 
 function New-Icon([int]$size) {
     $bmp = New-Object System.Drawing.Bitmap($size, $size)
@@ -29,40 +24,62 @@ function New-Icon([int]$size) {
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
 
+    # Background: subtle radial-suggesting linear gradient. The angle carries
+    # depth without so much saturation that it reads as toy.
     $rect = New-Object System.Drawing.Rectangle(0, 0, $size, $size)
-    $brush = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
-        $rect, $bgTop, $bgBot, 60.0)
-    $g.FillRectangle($brush, $rect)
+    $top = [System.Drawing.Color]::FromArgb(255, 41, 46, 96)   # deep navy
+    $bot = [System.Drawing.Color]::FromArgb(255, 88, 74, 176)  # muted violet
+    $bg = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
+        $rect, $top, $bot, 55.0)
+    $g.FillRectangle($bg, $rect)
 
-    # Glyph geometry, as fractions of the canvas so every density matches.
-    $cx = $size / 2.0
-    $cy = $size / 2.0
-    $r = $size * 0.29
-    $stroke = $size * 0.085
+    # Fine noise-suggesting hairline ring so the shape has a considered outer
+    # edge rather than sitting on the raw background - one of the touches that
+    # separates a hand-tuned icon from a generic one.
+    $edgePen = New-Object System.Drawing.Pen(
+        [System.Drawing.Color]::FromArgb(28, 255, 255, 255), [float]($size * 0.006))
+    $inset = $size * 0.06
+    $g.DrawEllipse($edgePen,
+        [float]$inset, [float]$inset,
+        [float]($size - 2 * $inset), [float]($size - 2 * $inset))
 
-    # Pass the bounds as separate floats: PowerShell resolves a RectangleF
-    # argument to the Rectangle overload and then fails to convert it.
-    $x = [float]($cx - $r)
-    $y = [float]($cy - $r)
-    $d = [float]($r * 2)
+    # The mark itself: a rotated square, drawn with rounded joins. Off-white
+    # rather than pure white to sit better against the gradient at small sizes.
+    $g.TranslateTransform([float]($size / 2.0), [float]($size / 2.0))
+    $g.RotateTransform(30.0)
 
-    $white = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
-    $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::White, [float]$stroke)
+    $side = $size * 0.42
+    $stroke = $size * 0.075
+    $off = [float](-$side / 2.0)
+
+    $ink = [System.Drawing.Color]::FromArgb(255, 245, 244, 252)
+    $pen = New-Object System.Drawing.Pen($ink, [float]$stroke)
+    $pen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
     $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
     $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+    $g.DrawRectangle($pen, $off, $off, [float]$side, [float]$side)
 
-    # One quarter of the day, filled: from 12 o'clock clockwise to 3.
-    $g.FillPie($white, $x, $y, $d, $d, [float]-90.0, [float]90.0)
-    # The whole day, outlined.
-    $g.DrawEllipse($pen, $x, $y, $d, $d)
+    # Accent: a small filled circle where the top-right corner sits after the
+    # rotation. Reads as a point of focus, and gives the composition an anchor
+    # so it does not float symmetrically.
+    $ax = [float]($side / 2.0)
+    $ay = [float](-$side / 2.0)
+    $accentR = $size * 0.075
+    $accentColour = [System.Drawing.Color]::FromArgb(255, 250, 176, 116) # amber
+    $accent = New-Object System.Drawing.SolidBrush($accentColour)
+    $g.FillEllipse($accent,
+        [float]($ax - $accentR), [float]($ay - $accentR),
+        [float]($accentR * 2), [float]($accentR * 2))
 
+    $g.ResetTransform()
     $g.Dispose()
-    $brush.Dispose(); $white.Dispose(); $pen.Dispose()
+    $bg.Dispose(); $edgePen.Dispose(); $pen.Dispose(); $accent.Dispose()
     return $bmp
 }
 
-# Render once at high resolution and downsample, so small densities stay clean.
-$master = New-Icon 512
+# Render once large and downsample for every density; produces cleaner small
+# icons than rendering each size natively.
+$master = New-Icon 1024
 
 $targets = @{
     'mipmap-mdpi'    = 48
@@ -92,7 +109,6 @@ foreach ($dir in $targets.Keys) {
     Write-Output ("  {0,-16} {1,3}x{1}  {2:N1} KB" -f $dir, $px, ((Get-Item $out).Length / 1KB))
 }
 
-# A large copy for README / store listing use.
 $preview = Join-Path $project 'build\icon-preview.png'
 New-Item -ItemType Directory -Force (Split-Path $preview) | Out-Null
 $master.Save($preview, [System.Drawing.Imaging.ImageFormat]::Png)
