@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../domain/format.dart';
 import '../domain/models.dart';
+import '../planner/calibration.dart';
 import '../state/app_state.dart';
 import 'calendar_screen.dart';
 import 'subject_detail_screen.dart';
@@ -175,6 +176,7 @@ class ProgressScreen extends StatelessWidget {
       padding: const EdgeInsets.only(top: 8, bottom: 90),
       children: [
         _OverallCard(done: done, total: total, streak: state.streak),
+        const _CalibrationSection(),
         for (final subject in state.subjects)
           _SubjectProgress(
             subject: subject,
@@ -190,6 +192,112 @@ class ProgressScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Shows any calibration recommendations the log currently supports.
+///
+/// A separate widget so the FutureBuilder for the log query doesn't rebuild
+/// the whole Progress screen when the state changes. Silent when there is
+/// nothing to suggest — no evidence, no card.
+class _CalibrationSection extends StatelessWidget {
+  const _CalibrationSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    return FutureBuilder<List<CalibrationSuggestion>>(
+      future: state.calibrationSuggestions(),
+      builder: (context, snap) {
+        final suggestions = snap.data ?? const [];
+        if (suggestions.isEmpty) return const SizedBox.shrink();
+        return Column(
+          children: [
+            for (final s in suggestions)
+              _CalibrationCard(suggestion: s, state: state),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CalibrationCard extends StatelessWidget {
+  const _CalibrationCard({required this.suggestion, required this.state});
+
+  final CalibrationSuggestion suggestion;
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final subject = state.subjectFor(suggestion.subjectId);
+    if (subject == null) return const SizedBox.shrink();
+
+    final unitLabel = switch (suggestion.unit) {
+      EffortUnit.pages => 'page',
+      EffortUnit.problems => 'problem',
+      EffortUnit.minutes => 'minute',
+    };
+    final delta = (suggestion.relativeChange * 100).abs().round();
+    final direction = suggestion.isFaster ? 'faster' : 'slower';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(Icons.auto_awesome_outlined,
+                    size: 18, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text('Estimate learned', style: theme.textTheme.titleSmall),
+              ]),
+              const SizedBox(height: 8),
+              Text(
+                'Your ${subject.name} $unitLabel takes '
+                '${suggestion.recommendedRate.toStringAsFixed(1)} min instead '
+                'of ${suggestion.currentRate.toStringAsFixed(1)}. '
+                '$delta% $direction than estimated, based on '
+                '${suggestion.sampleCount} sessions.',
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Updates ${suggestion.affectedTopicIds.length} topic'
+                '${suggestion.affectedTopicIds.length == 1 ? '' : 's'} — '
+                'progress is preserved.',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.tonal(
+                  onPressed: () async {
+                    await state.applyCalibration(suggestion);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              'Updated ${suggestion.affectedTopicIds.length} '
+                              '${subject.name} topic'
+                              '${suggestion.affectedTopicIds.length == 1 ? '' : 's'}.'),
+                          duration: const Duration(seconds: 4),
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('Update estimates'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

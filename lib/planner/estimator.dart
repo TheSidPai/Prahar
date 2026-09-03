@@ -94,6 +94,31 @@ class EffortEstimator {
         videoOverhead: videoOverhead ?? this.videoOverhead,
       );
 
+  /// Turns a per-subject observation set into a recommended rate.
+  ///
+  /// One observation per completed block that used real units: the count of
+  /// pages (or problems, or minutes) the topic represented, and the actual
+  /// minutes it took. Same shrinkage logic as [calibrate] so the recommendation
+  /// is stable — three sessions nudge the rate; twenty sessions replace it.
+  ///
+  /// [priorRate] is the rate the topic was estimated at; the return value is
+  /// blended toward it. Returns null when the observations are too few or too
+  /// consistent with the prior to be worth acting on — the app should not
+  /// nag when there is nothing new to learn.
+  static ({double rate, int samples})? recommend({
+    required List<CalibrationSample> samples,
+    required double priorRate,
+    int minSamples = 3,
+    double threshold = 0.15,
+  }) {
+    if (samples.length < minSamples) return null;
+    final rate = calibrate(samples: samples, prior: priorRate);
+    // Only recommend if it changes the estimate by more than [threshold]
+    // relative — a 5% correction is not worth interrupting anyone for.
+    if ((rate - priorRate).abs() / priorRate < threshold) return null;
+    return (rate: rate, samples: samples.length);
+  }
+
   /// Blends the observed rate with [prior], shrinking toward the prior when
   /// there is little evidence.
   ///

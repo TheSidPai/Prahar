@@ -44,6 +44,22 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "prahar/widget")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "update") {
+                    WidgetBridge.update(
+                        applicationContext,
+                        call.argument<String?>("title"),
+                        call.argument<String?>("subject"),
+                        call.argument<String?>("time"),
+                        call.argument<String>("status") ?: "none",
+                    )
+                    result.success(true)
+                } else {
+                    result.notImplemented()
+                }
+            }
     }
 
     private fun isIgnoringBatteryOptimizations(): Boolean {

@@ -7,7 +7,9 @@ import '../data/database.dart';
 import '../domain/models.dart';
 import '../domain/preferences.dart';
 import '../domain/schedule.dart';
+import '../planner/calibration.dart';
 import '../notifications/notifier.dart';
+import '../notifications/widget_bridge.dart';
 import '../planner/planner.dart';
 
 String newId() {
@@ -73,6 +75,33 @@ class AppState extends ChangeNotifier {
   int get consumedToday =>
       todayLog.fold(0, (a, e) => a + e.consumedMinutes);
 
+  /// Recommendations the app can currently offer, e.g. "your Chemistry pages
+  /// actually take 4.5 min each". Recomputed on demand; cheap enough not to
+  /// cache.
+  Future<List<CalibrationSuggestion>> calibrationSuggestions() async {
+    final ids = topics.map((t) => t.id);
+    final completed = await db.completedFor(ids);
+    return const Calibrator().analyse(topics: topics, completed: completed);
+  }
+
+  /// Applies a recommendation — updates the rate on every affected topic and
+  /// recomputes its estimated minutes so the schedule reflects the new
+  /// reality. Progress in minutes is preserved rather than proportion, because
+  /// the user has spent real time; the estimate becomes more truthful, not the
+  /// history.
+  Future<void> applyCalibration(CalibrationSuggestion s) async {
+    for (final id in s.affectedTopicIds) {
+      final t = topics.firstWhere((x) => x.id == id);
+      final newMinutes = (t.estimateAmount * s.recommendedRate).round().clamp(1, 1 << 30);
+      await updateTopicSilently(t.copyWith(
+        estimateRate: s.recommendedRate,
+        estimatedMinutes: newMinutes,
+      ));
+    }
+    await _rebuild();
+    notifyListeners();
+  }
+
   Future<void> _rebuild({bool resyncAlarms = true}) async {
     // The planner is stateless, so today's already-spent time has to be
     // expressed as reduced capacity rather than remembered inside it.
@@ -92,6 +121,11 @@ class AppState extends ChangeNotifier {
       exactAlarmsAllowed = await notifier.canScheduleExact();
       batteryExempt = await notifier.isBatteryExempt();
       await notifier.syncFromPlan(plan!);
+    }
+
+    // Keep the home-screen widget in step. Cheap; runs on every replan.
+    if (plan != null) {
+      await WidgetBridge.updateNextBlock(plan!.onDate(today));
     }
   }
 

@@ -52,6 +52,18 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Home-screen widget provider for today's next block. -->
+        <receiver
+            android:name=".NextBlockWidget"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_next_block_info"/>
+        </receiver>
+
         <!-- flutter_local_notifications: delivers a scheduled alarm, and
              re-registers pending alarms after a reboot or an app update. -->
         <receiver

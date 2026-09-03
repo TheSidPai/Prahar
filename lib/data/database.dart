@@ -475,6 +475,22 @@ class PraharDatabase {
   Future<void> deleteLogEntry(String id) =>
       _db.delete('session_log', where: 'id = ?', whereArgs: [id]);
 
+  /// Every completed session ever logged for [topicIds]. Used by the
+  /// calibration pass, which asks "given how long this student actually took
+  /// on these topics, what's their real reading rate for their subject".
+  Future<List<LoggedSession>> completedFor(Iterable<String> topicIds) async {
+    if (topicIds.isEmpty) return const [];
+    final placeholders = List.filled(topicIds.length, '?').join(',');
+    final rows = await _db.query(
+      'session_log',
+      where: "topic_id IN ($placeholders) AND status = 'done' "
+          "AND kind = 'newMaterial' AND actual_minutes > 0",
+      whereArgs: topicIds.toList(),
+      orderBy: 'day',
+    );
+    return rows.map(_logFrom).toList();
+  }
+
   /// Everything logged on [day], newest last.
   Future<List<LoggedSession>> logEntriesOn(DateTime day) async {
     final rows = await _db.query('session_log',
