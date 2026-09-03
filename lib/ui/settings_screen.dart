@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/backup.dart';
 import '../domain/format.dart';
 import '../domain/preferences.dart';
 import '../notifications/notifier.dart';
@@ -108,16 +111,13 @@ class SettingsScreen extends StatelessWidget {
         ),
 
         group('Appearance'),
-        row(
-          icon: Icons.palette_outlined,
-          title: 'Theme',
-          value: switch (state.prefs.themeChoice) {
-            ThemeChoice.system => 'Follows system',
-            ThemeChoice.light => 'Light',
-            ThemeChoice.dark => 'Dark',
-          },
-          onTap: () => Navigator.push(context,
-              MaterialPageRoute<void>(builder: (_) => const _ThemePage())),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: _ThemeToggle(
+            selected: state.prefs.themeChoice,
+            onChanged: (c) => _savePrefs(
+                context, state, state.prefs.copyWith(themeChoice: c)),
+          ),
         ),
         row(
           icon: Icons.text_fields_outlined,
@@ -125,6 +125,24 @@ class SettingsScreen extends StatelessWidget {
           value: PraharTheme.describe(state.prefs.fontChoice).$1,
           onTap: () => Navigator.push(context,
               MaterialPageRoute<void>(builder: (_) => const _FontPage())),
+        ),
+        row(
+          icon: Icons.blur_on,
+          title: 'Materials',
+          value: state.prefs.materialChoice == MaterialChoice.glass
+              ? 'Glass (preview) — nav, sheets, Today header'
+              : 'Matte',
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute<void>(builder: (_) => const _MaterialPage())),
+        ),
+
+        group('Data'),
+        row(
+          icon: Icons.backup_outlined,
+          title: 'Backup & restore',
+          value: 'Export or restore a JSON file',
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute<void>(builder: (_) => const _BackupPage())),
         ),
 
         group('About'),
@@ -256,39 +274,276 @@ class _StudyWindowPage extends StatelessWidget {
   }
 }
 
-class _ThemePage extends StatelessWidget {
-  const _ThemePage();
+/// A pill-shaped three-way toggle: sun, moon, auto. Sits inline in the
+/// Settings list, no subpage — a three-option choice does not deserve one.
+/// The selected pill slides between positions with a spring, so the change of
+/// value feels physical rather than a checkbox flip.
+class _ThemeToggle extends StatelessWidget {
+  const _ThemeToggle({required this.selected, required this.onChanged});
+
+  final ThemeChoice selected;
+  final ValueChanged<ThemeChoice> onChanged;
+
+  static const _options = <(ThemeChoice, IconData, String)>[
+    (ThemeChoice.light, Icons.light_mode_rounded, 'Light'),
+    (ThemeChoice.system, Icons.auto_awesome_rounded, 'Auto'),
+    (ThemeChoice.dark, Icons.dark_mode_rounded, 'Dark'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final index = _options.indexWhere((o) => o.$1 == selected);
+
+    return LayoutBuilder(builder: (context, cons) {
+      final w = cons.maxWidth;
+      final segW = w / _options.length;
+
+      return Container(
+        height: 56,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(28),
+        ),
+        padding: const EdgeInsets.all(4),
+        child: Stack(
+          children: [
+            // The moving selector. AnimatedPositioned rather than
+            // AnimatedContainer so a rapid re-tap still animates from the
+            // current position, not from the target.
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              left: index * (segW - 8 / _options.length),
+              top: 0,
+              bottom: 0,
+              width: segW - 8,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.24),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                for (final o in _options)
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => onChanged(o.$1),
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 180),
+                              child: Icon(
+                                o.$2,
+                                key: ValueKey('${o.$1}-${o.$1 == selected}'),
+                                size: 18,
+                                color: o.$1 == selected
+                                    ? theme.colorScheme.onPrimary
+                                    : theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              o.$3,
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: o.$1 == selected
+                                    ? theme.colorScheme.onPrimary
+                                    : theme.colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
+class _MaterialPage extends StatelessWidget {
+  const _MaterialPage();
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Theme')),
-      body: RadioGroup<ThemeChoice>(
-        groupValue: state.prefs.themeChoice,
-        onChanged: (v) {
-          if (v != null) {
-            _savePrefs(context, state, state.prefs.copyWith(themeChoice: v));
-          }
-        },
-        child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          children: [
-            for (final entry in const [
-              (ThemeChoice.system, 'Follows system',
-                  Icons.brightness_auto_outlined),
-              (ThemeChoice.light, 'Light', Icons.light_mode_outlined),
-              (ThemeChoice.dark, 'Dark', Icons.dark_mode_outlined),
-            ])
-              RadioListTile<ThemeChoice>(
-                value: entry.$1,
-                secondary: Icon(entry.$3),
-                title: Text(entry.$2),
+      appBar: AppBar(title: const Text('Materials')),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        children: [
+          Text(
+            'Two visual languages. Toggle to preview — the change is instant. '
+            'Glass affects the bottom nav, the Today header and every modal '
+            'sheet; everything else stays matte on purpose (contrast between '
+            'materials is what carries the effect).',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          for (final entry in const [
+            (MaterialChoice.matte, 'Matte', Icons.rectangle_outlined,
+                'Flat surfaces, hairline borders. Restrained and quick.'),
+            (MaterialChoice.glass, 'Glass', Icons.blur_on,
+                'Translucent surfaces with a backdrop blur. Frosted, layered.'),
+          ])
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: entry.$1 == state.prefs.materialChoice
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.outlineVariant,
+                    width: entry.$1 == state.prefs.materialChoice ? 2 : 1,
+                  ),
+                ),
+                child: ListTile(
+                  leading: Icon(entry.$3),
+                  title: Text(entry.$2),
+                  subtitle: Text(entry.$4),
+                  trailing: entry.$1 == state.prefs.materialChoice
+                      ? Icon(Icons.check_circle,
+                          color: theme.colorScheme.primary, size: 20)
+                      : null,
+                  onTap: () => _savePrefs(context, state,
+                      state.prefs.copyWith(materialChoice: entry.$1)),
+                ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
+  }
+}
+
+class _BackupPage extends StatefulWidget {
+  const _BackupPage();
+
+  @override
+  State<_BackupPage> createState() => _BackupPageState();
+}
+
+class _BackupPageState extends State<_BackupPage> {
+  String? _lastExport;
+  String? _message;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Backup & restore')),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        children: [
+          Text(
+            'A single JSON file with everything the app knows — subjects, '
+            'topics, availability, busy slots, settings. Local-first means '
+            'this is your only safety net.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.file_upload_outlined),
+              title: const Text('Export'),
+              subtitle: const Text('Writes to /Download/Prahar on the phone'),
+              onTap: () async {
+                try {
+                  final io = BackupIO(state.db);
+                  final path = await io.exportToFile();
+                  setState(() {
+                    _lastExport = path;
+                    _message = 'Exported to $path';
+                  });
+                } catch (e) {
+                  setState(() => _message = 'Export failed: $e');
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.file_download_outlined),
+              title: const Text('Restore'),
+              subtitle: const Text(
+                  'Reads /Download/Prahar/prahar-restore.json — put a backup '
+                  'there first, then tap.'),
+              onTap: () => _confirmRestore(context, state),
+            ),
+          ),
+          if (_message != null) ...[
+            const SizedBox(height: 16),
+            Text(_message!, style: theme.textTheme.bodySmall),
+          ],
+          if (_lastExport != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Open your file manager > Downloads > Prahar to send it '
+              'somewhere safe.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.outline),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmRestore(BuildContext context, AppState state) async {
+    // Restore is destructive by design (see BackupIO.import), so the
+    // confirmation is deliberate rather than a nicety.
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Replace everything?'),
+        content: const Text(
+          'This deletes your current subjects, topics, history and settings, '
+          'and replaces them with the contents of the backup file. It cannot '
+          'be undone. Export first if unsure.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Restore')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      final path = '/sdcard/Download/Prahar/prahar-restore.json';
+      final json = await File(path).readAsString();
+      final io = BackupIO(state.db);
+      final report = await io.import(json);
+      await state.load();
+      if (mounted) setState(() => _message = '$report');
+    } catch (e) {
+      if (mounted) setState(() => _message = 'Restore failed: $e');
+    }
   }
 }
 

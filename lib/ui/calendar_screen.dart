@@ -217,51 +217,67 @@ class _DayCell extends StatelessWidget {
       fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
     );
 
+    // The highlight is now a circle that hugs the digit rather than filling
+    // the whole cell — otherwise the digit sits in the top-left corner of a
+    // rectangle and looks off-centre inside it. Exam dots live in a strip
+    // *beneath* the digit so the digit's alignment is never affected by them.
     return AspectRatio(
       aspectRatio: 0.9,
       child: Container(
         decoration: BoxDecoration(
-          color: isToday
-              ? theme.colorScheme.primary
-              : (isBusy
-                  ? theme.colorScheme.surfaceContainerHighest
-                  : Colors.transparent),
+          color: isBusy && !isToday
+              ? theme.colorScheme.surfaceContainerHighest
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           border: isBusy && !isToday
               ? Border.all(color: theme.colorScheme.outlineVariant)
               : null,
         ),
-        padding: const EdgeInsets.fromLTRB(6, 6, 6, 4),
+        padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('${day.day}', style: dayText),
-            const Spacer(),
-            // At most three subject dots per day. More than that in a month
-            // grid is illegible, and the exam list below shows the full detail.
-            if (exams.isNotEmpty)
-              Wrap(
-                spacing: 3,
-                runSpacing: 3,
-                children: [
-                  for (final s in exams.take(3))
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: Color(s.colorValue),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  if (exams.length > 3)
-                    Text(
-                      '+${exams.length - 3}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                ],
+            Container(
+              width: 30,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isToday ? theme.colorScheme.primary : Colors.transparent,
+                shape: BoxShape.circle,
               ),
+              child: Text('${day.day}', style: dayText),
+            ),
+            const SizedBox(height: 4),
+            SizedBox(
+              height: 6,
+              child: exams.isEmpty
+                  ? const SizedBox.shrink()
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final s in exams.take(3)) ...[
+                          Container(
+                            width: 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: Color(s.colorValue),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                        ],
+                        if (exams.length > 3)
+                          Text(
+                            '+${exams.length - 3}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.outline,
+                              fontSize: 9,
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
           ],
         ),
       ),

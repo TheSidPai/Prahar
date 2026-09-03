@@ -29,11 +29,15 @@ dependencies:
   # for "android-37" and fails outright. Two methods of Kotlin in
   # MainActivity.kt do the same job with no dependency and no SDK bump.
 
-  # Streams a family from fonts.google.com on first use and caches it. Pinned
-  # tight to avoid another SDK-version surprise. The offline path is the
-  # system default, so a failed fetch degrades cleanly rather than blanking
-  # the app.
-  google_fonts: '>=6.2.0 <7.0.0'
+  # Removed: google_fonts fetches its files over HTTPS on first use, but the
+  # release build has no INTERNET permission, so every fetch failed silently
+  # and every "font" was the platform default. The picker's TTFs are bundled
+  # under assets/fonts and referenced through the flutter.fonts entries below.
+
+  # Only for the "open link" action on a topic. First-party package, minimal
+  # surface, hands the URL to Android's own chooser rather than embedding a
+  # webview — offline-first is preserved.
+  url_launcher: '>=6.3.0 <7.0.0'
 
 dev_dependencies:
   flutter_test:
@@ -47,3 +51,27 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Bundled variable fonts. Each TTF carries the whole weight range, so one
+  # asset per family is enough for the four weights the theme uses (400 / 500
+  # / 600 / 700). Files are fetched with tools\dev.ps1 fonts, from the
+  # google/fonts repo.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope.ttf
+    - family: InterTight
+      fonts:
+        - asset: assets/fonts/InterTight.ttf
+    - family: SpaceGrotesk
+      fonts:
+        - asset: assets/fonts/SpaceGrotesk.ttf
+    - family: Fraunces
+      fonts:
+        - asset: assets/fonts/Fraunces.ttf
+    - family: IBMPlexSerif
+      fonts:
+        - asset: assets/fonts/IBMPlexSerif.ttf

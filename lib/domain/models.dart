@@ -123,6 +123,14 @@ class Topic {
   /// When the topic was first finished — anchors the spaced-repetition ladder.
   final DateTime? firstCompletedOn;
 
+  /// A single link a student can jump to — video, notes, PDF, exercises.
+  ///
+  /// Deliberately one field rather than a list: the resources table has never
+  /// had a UI, and the honest question is "what one link do I need for this
+  /// topic", not "let me build a bibliography". Blank when the topic is
+  /// self-contained.
+  final String? link;
+
   /// How the estimate was expressed when it was entered.
   final EffortUnit estimateUnit;
 
@@ -148,6 +156,7 @@ class Topic {
     this.estimateUnit = EffortUnit.minutes,
     int? estimateAmount,
     this.estimateRate = 1.0,
+    this.link,
   }) : estimateAmount = estimateAmount ?? estimatedMinutes;
 
   /// Builds a topic from what the student actually entered.
@@ -202,6 +211,8 @@ class Topic {
     EffortUnit? estimateUnit,
     int? estimateAmount,
     double? estimateRate,
+    String? link,
+    bool clearLink = false,
   }) =>
       Topic(
         id: id,
@@ -216,6 +227,7 @@ class Topic {
         estimateUnit: estimateUnit ?? this.estimateUnit,
         estimateAmount: estimateAmount ?? this.estimateAmount,
         estimateRate: estimateRate ?? this.estimateRate,
+        link: clearLink ? null : (link ?? this.link),
       );
 
   /// "200 pages", "45 problems", "1h 30m" — the estimate as it was entered.

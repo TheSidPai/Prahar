@@ -25,7 +25,9 @@ class PraharDatabase {
   /// The lesson is written in blood: once a version has run on a real device,
   /// editing that version's code does nothing. Every schema change gets its
   /// own version, always.
-  static const _version = 3;
+  ///
+  /// 3 -> 4 added the `link` column on topics.
+  static const _version = 4;
 
   late final Database _db;
 
@@ -39,6 +41,7 @@ class PraharDatabase {
         await _create(db, version);
         await _v2(db);
         await _v3(db);
+        await _v4(db);
       },
       onUpgrade: _upgrade,
     );
@@ -51,6 +54,7 @@ class PraharDatabase {
   Future<void> _upgrade(Database db, int from, int to) async {
     if (from < 2) await _v2(db);
     if (from < 3) await _v3(db);
+    if (from < 4) await _v4(db);
   }
 
   Future<void> _v2(Database db) async {
@@ -97,6 +101,14 @@ class PraharDatabase {
       )''');
   }
 
+  Future<void> _v4(Database db) async {
+    final cols = await db.rawQuery('PRAGMA table_info(topics)');
+    final has = cols.map((c) => c['name'] as String).toSet();
+    if (!has.contains('link')) {
+      await db.execute('ALTER TABLE topics ADD COLUMN link TEXT');
+    }
+  }
+
   // ----------------------------------------------------------- busy slots
 
   Future<List<BusySlot>> busySlots() async {
@@ -127,6 +139,23 @@ class PraharDatabase {
 
   Future<void> deleteBusySlot(String id) =>
       _db.delete('busy_slots', where: 'id = ?', whereArgs: [id]);
+
+  /// Empties every user-owned table. Used only by the backup importer so an
+  /// import lands as an exact replacement rather than a merge whose id
+  /// collisions would produce something the user did not export.
+  Future<void> clearAll() async {
+    final b = _db.batch();
+    // Order does not matter thanks to foreign_keys=ON + CASCADE, but topics
+    // and resources go first to make the sqlite journal smaller.
+    b.delete('resources');
+    b.delete('session_log');
+    b.delete('topics');
+    b.delete('subjects');
+    b.delete('busy_slots');
+    b.delete('availability_overrides');
+    b.delete('settings');
+    await b.commit(noResult: true);
+  }
 
   // ------------------------------------------------------------- settings
 
@@ -311,6 +340,7 @@ class PraharDatabase {
         'estimate_unit': t.estimateUnit.name,
         'estimate_amount': t.estimateAmount,
         'estimate_rate': t.estimateRate,
+        'link': t.link,
       });
 
   Future<void> deleteTopic(String id) =>
@@ -343,6 +373,7 @@ class PraharDatabase {
       estimateAmount:
           (r['estimate_amount'] as int?) ?? (r['estimated_minutes'] as int),
       estimateRate: (r['estimate_rate'] as num?)?.toDouble() ?? 1.0,
+      link: r['link'] as String?,
     );
   }
 

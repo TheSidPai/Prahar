@@ -7,6 +7,14 @@ import '../planner/planner.dart';
 /// not the norm.
 enum ThemeChoice { system, light, dark }
 
+/// Whether the app renders in flat "matte" surfaces or in a frosted-glass
+/// language.
+///
+/// Deliberately narrow: two options, no gradient in between. The point of the
+/// choice is a preview so the student can decide which language the app
+/// speaks; a continuous slider would be a demo reel.
+enum MaterialChoice { matte, glass }
+
 /// The seven candidates the picker offers. Each was chosen for a different
 /// kind of "elegant" — a serif, two humanist sans, a geometric grotesque, a
 /// slab, a display-scale sans that reads especially well on small screens.
@@ -43,6 +51,7 @@ class Prefs {
 
   final ThemeChoice themeChoice;
   final FontChoice fontChoice;
+  final MaterialChoice materialChoice;
 
   const Prefs({
     this.dayStartMinute = 6 * 60,
@@ -51,6 +60,7 @@ class Prefs {
     this.breakMinutes = 10,
     this.themeChoice = ThemeChoice.system,
     this.fontChoice = FontChoice.inter,
+    this.materialChoice = MaterialChoice.matte,
   });
 
   /// The window must be wide enough for at least one block plus a break,
@@ -76,6 +86,7 @@ class Prefs {
     int? breakMinutes,
     ThemeChoice? themeChoice,
     FontChoice? fontChoice,
+    MaterialChoice? materialChoice,
   }) =>
       Prefs(
         dayStartMinute: dayStartMinute ?? this.dayStartMinute,
@@ -84,6 +95,7 @@ class Prefs {
         breakMinutes: breakMinutes ?? this.breakMinutes,
         themeChoice: themeChoice ?? this.themeChoice,
         fontChoice: fontChoice ?? this.fontChoice,
+        materialChoice: materialChoice ?? this.materialChoice,
       );
 
   Map<String, String> toMap() => {
@@ -93,6 +105,7 @@ class Prefs {
         'break_minutes': '$breakMinutes',
         'theme': themeChoice.name,
         'font': fontChoice.name,
+        'material': materialChoice.name,
       };
 
   /// Tolerant of missing or malformed values: a corrupt preference should fall
@@ -120,6 +133,10 @@ class Prefs {
       (c) => c.name == m['font'],
       orElse: () => FontChoice.inter,
     );
+    final material = MaterialChoice.values.firstWhere(
+      (c) => c.name == m['material'],
+      orElse: () => MaterialChoice.matte,
+    );
 
     return Prefs(
       dayStartMinute: start,
@@ -128,6 +145,7 @@ class Prefs {
       breakMinutes: read('break_minutes', 10, 0, 60),
       themeChoice: theme,
       fontChoice: font,
+      materialChoice: material,
     );
   }
 }

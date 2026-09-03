@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../domain/format.dart';
 import '../domain/models.dart';
 import '../state/app_state.dart';
+import 'glass.dart';
 import 'subject_detail_screen.dart';
 import 'widgets.dart';
 
@@ -17,8 +18,16 @@ const subjectPalette = [
   0xFFDB2777, // pink
 ];
 
-class SubjectsScreen extends StatelessWidget {
+class SubjectsScreen extends StatefulWidget {
   const SubjectsScreen({super.key});
+
+  @override
+  State<SubjectsScreen> createState() => _SubjectsScreenState();
+}
+
+class _SubjectsScreenState extends State<SubjectsScreen> {
+  String _query = '';
+  bool _showArchive = false;
 
   @override
   Widget build(BuildContext context) {
@@ -37,12 +46,138 @@ class SubjectsScreen extends StatelessWidget {
       );
     }
 
+    final q = _query.trim().toLowerCase();
+    bool matches(Subject s) {
+      if (q.isEmpty) return true;
+      if (s.name.toLowerCase().contains(q)) return true;
+      return state.topicsFor(s.id).any(
+            (t) => t.title.toLowerCase().contains(q),
+          );
+    }
+
+    final active = state.activeSubjects.where(matches).toList();
+    final archived = state.archivedSubjects.where(matches).toList();
+
+    // With a query on, every matched topic is also shown so a search across
+    // topics is genuinely useful — otherwise "chapter 4" would only surface
+    // the subject and not the row you were looking for.
+    final matchedTopics = q.isEmpty
+        ? const <Topic>[]
+        : state.topics
+            .where((t) => t.title.toLowerCase().contains(q))
+            .toList();
+
     return ListView(
       padding: const EdgeInsets.only(top: 8, bottom: 90),
       children: [
-        for (final subject in state.subjects)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: _SearchField(
+            value: _query,
+            onChanged: (v) => setState(() => _query = v),
+          ),
+        ),
+        for (final subject in active)
           _SubjectRow(subject: subject, topics: state.topicsFor(subject.id)),
+
+        if (q.isNotEmpty && matchedTopics.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+            child: Text(
+              'MATCHED TOPICS',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                    letterSpacing: 1.0,
+                  ),
+            ),
+          ),
+          for (final t in matchedTopics)
+            _TopicHit(topic: t, state: state),
+        ],
+
+        if (archived.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Archive · ${archived.length}',
+                  style: Theme.of(context).textTheme.titleSmall),
+              subtitle: const Text('Subjects whose exam has passed'),
+              trailing: Icon(_showArchive ? Icons.expand_less : Icons.expand_more),
+              onTap: () => setState(() => _showArchive = !_showArchive),
+            ),
+          ),
+          if (_showArchive)
+            for (final s in archived)
+              _SubjectRow(subject: s, topics: state.topicsFor(s.id)),
+        ],
       ],
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  const _SearchField({required this.value, required this.onChanged});
+
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: 'Search subjects or topics',
+        prefixIcon: const Icon(Icons.search, size: 20),
+        suffixIcon: value.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                onPressed: () => onChanged(''),
+              ),
+        // Compact so the field does not shove content down.
+        isDense: true,
+      ),
+    );
+  }
+}
+
+class _TopicHit extends StatelessWidget {
+  const _TopicHit({required this.topic, required this.state});
+
+  final Topic topic;
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final subject = state.subjectFor(topic.subjectId);
+    if (subject == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Card(
+        child: ListTile(
+          leading: Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: Color(subject.colorValue),
+              shape: BoxShape.circle,
+            ),
+          ),
+          title: Text(topic.title, style: theme.textTheme.bodyLarge),
+          subtitle: Text(subject.name, style: theme.textTheme.bodySmall),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => SubjectDetailScreen(subjectId: subject.id),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -148,12 +283,13 @@ Future<void> showSubjectSheet(BuildContext context, {Subject? existing}) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (context) => Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: StatefulBuilder(
-        builder: (context, setState) => Padding(
+    builder: (context) => SheetBackground(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: StatefulBuilder(
+          builder: (context, setState) => Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -291,6 +427,7 @@ Future<void> showSubjectSheet(BuildContext context, {Subject? existing}) async {
               ]),
               const SizedBox(height: 8),
             ],
+          ),
           ),
         ),
       ),

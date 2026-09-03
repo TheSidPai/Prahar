@@ -154,6 +154,28 @@ class AppState extends ChangeNotifier {
   List<Topic> topicsFor(String subjectId) =>
       topics.where((t) => t.subjectId == subjectId).toList();
 
+  /// Subjects whose exam is in the past.
+  ///
+  /// The planner already refuses to schedule them, but they still occupy a row
+  /// in the Subjects list and generate feasibility warnings you cannot act on.
+  /// A subject is "archived" simply by being past its exam date — there is no
+  /// separate flag, so the state is always accurate and cannot fall out of
+  /// sync with the deadline the user set.
+  List<Subject> get archivedSubjects {
+    final today = dateOnly(DateTime.now());
+    return subjects
+        .where((s) => s.examDate != null && s.examDate!.isBefore(today))
+        .toList()
+      ..sort((a, b) => b.examDate!.compareTo(a.examDate!));
+  }
+
+  List<Subject> get activeSubjects {
+    final today = dateOnly(DateTime.now());
+    return subjects
+        .where((s) => s.examDate == null || !s.examDate!.isBefore(today))
+        .toList();
+  }
+
   // --------------------------------------------------------------- topics
 
   Future<void> addTopic({
@@ -164,6 +186,7 @@ class AppState extends ChangeNotifier {
     required double rate,
     int difficulty = 3,
     List<String> prerequisiteIds = const [],
+    String? link,
   }) async {
     final t = Topic.fromEstimate(
       id: newId(),
@@ -174,7 +197,7 @@ class AppState extends ChangeNotifier {
       rate: rate,
       difficulty: difficulty,
       prerequisiteIds: prerequisiteIds,
-    );
+    ).copyWith(link: link);
     await db.upsertTopic(t, sortOrder: topics.length);
     topics = [...topics, t];
     await _rebuild();
@@ -193,6 +216,30 @@ class AppState extends ChangeNotifier {
     topics = topics.where((t) => t.id != id).toList();
     await _rebuild();
     notifyListeners();
+  }
+
+  /// Clones a topic verbatim, appending "(copy)" and resetting completion.
+  ///
+  /// Students add "Ch 4", "Ch 5", "Ch 6" in a row — same book, same page
+  /// count, incremented number. Duplicate + edit the title beats re-entering
+  /// unit / amount / difficulty every time.
+  Future<Topic> duplicateTopic(Topic source) async {
+    final made = Topic(
+      id: newId(),
+      subjectId: source.subjectId,
+      title: '${source.title} (copy)',
+      estimatedMinutes: source.estimatedMinutes,
+      difficulty: source.difficulty,
+      prerequisiteIds: source.prerequisiteIds,
+      estimateUnit: source.estimateUnit,
+      estimateAmount: source.estimateAmount,
+      estimateRate: source.estimateRate,
+    );
+    await db.upsertTopic(made, sortOrder: topics.length);
+    topics = [...topics, made];
+    await _rebuild();
+    notifyListeners();
+    return made;
   }
 
   // ------------------------------------------------------------- progress

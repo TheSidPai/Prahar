@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../domain/format.dart';
 import '../domain/schedule.dart';
 import '../state/app_state.dart';
+import '../domain/preferences.dart';
+import 'glass.dart';
 import 'how_it_works.dart';
 import 'subjects_screen.dart';
 import 'widgets.dart';
@@ -206,11 +208,13 @@ class _Header extends StatelessWidget {
     final done = state.doneMinutesToday;
     final planned = state.plannedMinutesToday;
     final progress = planned == 0 ? 0.0 : (done / planned).clamp(0.0, 1.0);
+    final glass = state.prefs.materialChoice == MaterialChoice.glass;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    // The header is the "hero surface" per the glass rule of one glass panel
+    // per screen — wrapped when the material is glass, plain padding when
+    // matte. Keeping both branches close together stops them drifting.
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -238,6 +242,20 @@ class _Header extends StatelessWidget {
             style: theme.textTheme.bodySmall,
           ),
         ],
+      );
+
+    if (!glass) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+        child: content,
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      child: GlassSurface(
+        borderRadius: BorderRadius.circular(20),
+        padding: const EdgeInsets.all(18),
+        child: content,
       ),
     );
   }

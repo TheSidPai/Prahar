@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../domain/preferences.dart';
 
@@ -23,27 +22,27 @@ class PraharTheme {
   /// product"; muting it lets subject colours stand out against it.
   static const seed = Color(0xFF5A63D8);
 
-  /// Applies [choice] to [base], preserving every weight / size / colour the
-  /// theme already assigned. Google Fonts caches on first fetch; if a fetch
-  /// fails the platform default renders instead, which is the correct fallback
-  /// for a font pick that cannot be resolved.
+  /// The bundled family name for a picker choice, matching the entries in
+  /// pubspec.yaml. Null means "use the platform default", which is the
+  /// meaning of FontChoice.system.
+  static String? _familyOf(FontChoice choice) => switch (choice) {
+        FontChoice.system => null,
+        FontChoice.inter => 'Inter',
+        FontChoice.manrope => 'Manrope',
+        FontChoice.interTight => 'InterTight',
+        FontChoice.spaceGrotesk => 'SpaceGrotesk',
+        FontChoice.fraunces => 'Fraunces',
+        FontChoice.ibmPlexSerif => 'IBMPlexSerif',
+      };
+
+  /// Retypes every style in [base] with the chosen family, preserving the
+  /// weights, sizes and colours the theme has already set. Falls back to the
+  /// platform default (null family) for [FontChoice.system], which is the
+  /// correct meaning of "use the system font".
   static TextTheme fontFor(FontChoice choice, TextTheme base) {
-    switch (choice) {
-      case FontChoice.system:
-        return base;
-      case FontChoice.inter:
-        return GoogleFonts.interTextTheme(base);
-      case FontChoice.manrope:
-        return GoogleFonts.manropeTextTheme(base);
-      case FontChoice.interTight:
-        return GoogleFonts.interTightTextTheme(base);
-      case FontChoice.spaceGrotesk:
-        return GoogleFonts.spaceGroteskTextTheme(base);
-      case FontChoice.fraunces:
-        return GoogleFonts.frauncesTextTheme(base);
-      case FontChoice.ibmPlexSerif:
-        return GoogleFonts.ibmPlexSerifTextTheme(base);
-    }
+    final family = _familyOf(choice);
+    if (family == null) return base;
+    return base.apply(fontFamily: family);
   }
 
   /// A short label plus a one-line character of each face.
@@ -57,7 +56,11 @@ class PraharTheme {
         FontChoice.ibmPlexSerif => ('IBM Plex Serif', 'Editorial serif'),
       };
 
-  static ThemeData of(Brightness brightness, {FontChoice font = FontChoice.inter}) {
+  static ThemeData of(
+    Brightness brightness, {
+    FontChoice font = FontChoice.inter,
+    MaterialChoice material = MaterialChoice.matte,
+  }) {
     final dark = brightness == Brightness.dark;
 
     final scheme = ColorScheme.fromSeed(
@@ -88,20 +91,21 @@ class PraharTheme {
       textTheme: _text(withFont.textTheme, scheme),
 
       appBarTheme: AppBarTheme(
-        // Centred and heavier: left-aligned at title size felt undersized and
-        // adrift on wide screens. Centred with weight reads as a considered
-        // header even at a small point size.
+        // Centred, bolder, all-caps tracking. The point-size-only header
+        // felt undersized; the point-size-plus-tracking version reads as a
+        // deliberate mark rather than a default label.
         centerTitle: true,
         elevation: 0,
         scrolledUnderElevation: 0,
         backgroundColor: scheme.surface,
-        titleTextStyle: base.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.4,
-          fontSize: 15,
+        titleTextStyle: TextStyle(
+          fontFamily: withFont.textTheme.titleLarge?.fontFamily,
+          fontWeight: FontWeight.w800,
+          fontSize: 20,
+          letterSpacing: -0.2,
           color: scheme.onSurface,
         ),
-        toolbarHeight: 52,
+        toolbarHeight: 60,
       ),
 
       // Hairline-bordered cards. Elevation and tinted fills both add noise
@@ -207,7 +211,13 @@ class PraharTheme {
       ),
 
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: scheme.surfaceContainerLowest,
+        // Translucent when glass is on, so the wrapping GlassSurface in
+        // main.dart's sheet builder can blur the layer beneath. Solid when
+        // matte, so no accidental transparency where none is intended.
+        backgroundColor: material == MaterialChoice.glass
+            ? Colors.transparent
+            : scheme.surfaceContainerLowest,
+        elevation: material == MaterialChoice.glass ? 0 : null,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),

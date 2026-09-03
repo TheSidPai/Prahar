@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../domain/preferences.dart';
 import '../state/app_state.dart';
+import 'glass.dart';
 import 'plan_screen.dart';
 import 'settings_screen.dart';
 import 'subjects_screen.dart';
@@ -58,6 +60,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return Scaffold(
       appBar: AppBar(title: Text(_titles[_index])),
+      // When glass is on we want content to slide under the nav rather than
+      // stopping short of it. `extendBody` does that; each screen already
+      // reserves 90px of bottom padding for the nav's height.
+      extendBody: state.prefs.materialChoice == MaterialChoice.glass,
       body: IndexedStack(
         index: _index,
         children: const [
@@ -75,7 +81,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               label: const Text('Subject'),
             )
           : null,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: _NavBar(
+        glass: state.prefs.materialChoice == MaterialChoice.glass,
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
@@ -106,6 +113,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Wraps the OS NavigationBar in a GlassSurface when the material is Glass.
+///
+/// Handles both variants in one place so the two implementations do not
+/// drift out of sync visually.
+class _NavBar extends StatelessWidget {
+  const _NavBar({
+    required this.glass,
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+    required this.destinations,
+  });
+
+  final bool glass;
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+  final List<Widget> destinations;
+
+  @override
+  Widget build(BuildContext context) {
+    final bar = NavigationBar(
+      selectedIndex: selectedIndex,
+      onDestinationSelected: onDestinationSelected,
+      destinations: destinations,
+      // The wrapper draws the tint, so make the bar itself transparent when
+      // glass; otherwise its own fill would obscure the blur.
+      backgroundColor: glass ? Colors.transparent : null,
+    );
+    if (!glass) return bar;
+
+    return GlassSurface(
+      // Top-only rounded corners so the bar tucks into the bottom of the
+      // screen while still reading as a distinct surface.
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      child: bar,
     );
   }
 }

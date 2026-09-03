@@ -266,6 +266,58 @@ switch ($Task.ToLower()) {
         exit 0
     }
 
+    'fonts' {
+        # Fetch each family's variable-font TTF from the google/fonts mirror
+        # and bundle it under assets/fonts. Google's own files are variable
+        # ("Inter[opsz,wght].ttf") - one file per family carrying every
+        # weight - so the picker gets four weights per family from one asset.
+        # Downloaded here rather than at runtime because the release build has
+        # no INTERNET permission and runtime fonts silently fall back to the
+        # system default, which was the bug.
+        $target = Join-Path $Project 'assets\fonts'
+        New-Item -ItemType Directory -Force $target | Out-Null
+
+        $base = 'https://raw.githubusercontent.com/google/fonts/main/ofl'
+        # (family, source basename on the repo, local filename)
+        $families = @(
+            @('Inter',        'Inter[opsz,wght].ttf',                     'Inter.ttf'),
+            @('Manrope',      'Manrope[wght].ttf',                        'Manrope.ttf'),
+            @('InterTight',   'InterTight[wght].ttf',                     'InterTight.ttf'),
+            @('SpaceGrotesk', 'SpaceGrotesk[wght].ttf',                   'SpaceGrotesk.ttf'),
+            @('Fraunces',     'Fraunces[SOFT,WONK,opsz,wght].ttf',        'Fraunces.ttf'),
+            @('IBMPlexSerif', 'IBMPlexSerif-Regular.ttf',                 'IBMPlexSerif.ttf')
+        )
+
+        foreach ($f in $families) {
+            $family = $f[0]; $src = $f[1]; $local = $f[2]
+            $out = Join-Path $target $local
+            $slug = $family.ToLower()
+            # Some IBM Plex families keep a static folder; try that if the
+            # flat path 404s.
+            $urls = @(
+                "$base/$slug/$src",
+                "$base/$slug/static/$src"
+            )
+            $got = $false
+            foreach ($u in $urls) {
+                # --globoff so curl does not interpret the [opsz,wght] brackets
+                # in filenames as a URL-globbing set.
+                & curl.exe -L --fail --silent --show-error --globoff -o $out $u 2>$null
+                if ($LASTEXITCODE -eq 0 -and (Get-Item $out -ErrorAction SilentlyContinue).Length -gt 5000) {
+                    Write-Output ("  {0,-32} {1,5:N0} KB" -f $local, ((Get-Item $out).Length / 1KB))
+                    $got = $true; break
+                }
+                Remove-Item $out -Force -ErrorAction SilentlyContinue
+            }
+            if (-not $got) { Write-Output "  MISSING  $local" }
+        }
+
+        Write-Output ''
+        $total = (Get-ChildItem $target -Filter '*.ttf' | Measure-Object -Property Length -Sum).Sum
+        Write-Output ("assets\fonts: {0:N1} MB total" -f ($total / 1MB))
+        exit 0
+    }
+
     'pubget'  { & $Flutter pub get; exit $LASTEXITCODE }
 
     'test' {

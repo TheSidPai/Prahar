@@ -5,6 +5,7 @@ import '../domain/format.dart';
 import '../domain/models.dart' show dateOnly;
 import '../domain/schedule.dart';
 import '../state/app_state.dart';
+import 'glass.dart';
 import 'widgets.dart';
 
 /// Times the student is unavailable. Subtracted from the study window so blocks
@@ -132,11 +133,12 @@ Future<void> _showSheet(BuildContext context, {BusySlot? existing}) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (context) => Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: StatefulBuilder(
-        builder: (context, set) => Padding(
+    builder: (context) => SheetBackground(
+      child: Padding(
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: StatefulBuilder(
+          builder: (context, set) => Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -285,11 +287,12 @@ Future<void> _showSheet(BuildContext context, {BusySlot? existing}) async {
                               }
                             }
                           : null,
-                  child: const Text('Save'),
-                ),
-              ]),
-              const SizedBox(height: 8),
-            ],
+                    child: const Text('Save'),
+                  ),
+                ]),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),

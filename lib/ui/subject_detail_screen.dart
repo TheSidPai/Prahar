@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'glass.dart';
 
 import '../domain/format.dart';
 import '../domain/models.dart';
@@ -275,10 +278,87 @@ class _TopicRow extends StatelessWidget {
             ),
           ],
         ),
-        trailing: const Icon(Icons.more_vert),
+        trailing: topic.link == null
+            ? const Icon(Icons.more_vert)
+            : Icon(Icons.link, size: 18, color: theme.colorScheme.primary),
         onTap: () =>
             showTopicSheet(context, subjectId: subjectId, existing: topic),
+        onLongPress: () => _showTopicMenu(context, topic),
       ),
+    );
+  }
+}
+
+/// Long-press action sheet — duplicate, open link, delete.
+///
+/// Duplicate is here rather than a button because it is not the primary
+/// action, but it saves a lot of re-entry when adding "Ch 4", "Ch 5", "Ch 6"
+/// in a row.
+Future<void> _showTopicMenu(BuildContext context, Topic topic) async {
+  final state = context.read<AppState>();
+  await showModalBottomSheet<void>(
+    context: context,
+    builder: (context) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (topic.link != null && topic.link!.isNotEmpty)
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: const Text('Open link'),
+              subtitle: Text(topic.link!, maxLines: 1, overflow: TextOverflow.ellipsis),
+              onTap: () async {
+                Navigator.pop(context);
+                await _openLink(context, topic.link!);
+              },
+            ),
+          ListTile(
+            leading: const Icon(Icons.content_copy_outlined),
+            title: const Text('Duplicate'),
+            subtitle: const Text('Same effort, "(copy)" appended'),
+            onTap: () async {
+              Navigator.pop(context);
+              await state.duplicateTopic(topic);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Duplicated ${topic.title}'),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.delete_outline,
+                color: Theme.of(context).colorScheme.error),
+            title: Text('Delete',
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            onTap: () async {
+              Navigator.pop(context);
+              await state.deleteTopic(topic.id);
+            },
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
+}
+
+Future<void> _openLink(BuildContext context, String raw) async {
+  final url = raw.contains('://') ? raw : 'https://$raw';
+  final uri = Uri.tryParse(url);
+  if (uri == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Not a valid URL: $raw')),
+    );
+    return;
+  }
+  final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('No app on this device can open that URL.')),
     );
   }
 }
@@ -302,6 +382,7 @@ Future<void> showTopicSheet(
   final amountController = TextEditingController(
     text: existing == null ? '' : '${existing.estimateAmount}',
   );
+  final linkController = TextEditingController(text: existing?.link ?? '');
 
   var difficulty = existing?.difficulty ?? 3;
   var mode = existing?.estimateUnit ?? EffortUnit.pages;
@@ -322,14 +403,15 @@ Future<void> showTopicSheet(
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (context) => Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: StatefulBuilder(
-        builder: (context, setState) {
-          final minutes = computeMinutes();
-          return Padding(
+    builder: (context) => SheetBackground(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            final minutes = computeMinutes();
+            return Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -392,6 +474,18 @@ Future<void> showTopicSheet(
                   ),
                 ),
                 const SizedBox(height: 12),
+                TextField(
+                  controller: linkController,
+                  keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Link (optional)',
+                    hintText: 'video, notes, exercises',
+                    prefixIcon: Icon(Icons.link, size: 18),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Text('Difficulty',
                     style: Theme.of(context).textTheme.labelLarge),
                 Slider(
@@ -421,6 +515,8 @@ Future<void> showTopicSheet(
                             final title = titleController.text.trim();
                             final amount = amountEntered()!;
                             final rate = estimator.rateFor(mode);
+                            final linkRaw = linkController.text.trim();
+                            final link = linkRaw.isEmpty ? null : linkRaw;
                             if (existing == null) {
                               await state.addTopic(
                                 subjectId: subjectId,
@@ -429,6 +525,7 @@ Future<void> showTopicSheet(
                                 amount: amount,
                                 rate: rate,
                                 difficulty: difficulty,
+                                link: link,
                               );
                             } else {
                               await state.updateTopic(existing.copyWith(
@@ -438,6 +535,8 @@ Future<void> showTopicSheet(
                                 estimateUnit: mode,
                                 estimateAmount: amount,
                                 estimateRate: rate,
+                                link: link,
+                                clearLink: link == null,
                               ));
                             }
                             if (!context.mounted) return;
@@ -465,11 +564,12 @@ Future<void> showTopicSheet(
                     child: const Text('Save'),
                   ),
                 ]),
-                const SizedBox(height: 8),
-              ],
-            ),
-          );
-        },
+                  const SizedBox(height: 8),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     ),
   );
