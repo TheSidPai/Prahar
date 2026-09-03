@@ -5,6 +5,8 @@
 /// without a device, an emulator, or a running app.
 library;
 
+import 'format.dart';
+
 /// Strips the time component so dates compare and hash predictably.
 ///
 /// `DateTime` equality includes milliseconds, which makes untruncated dates
@@ -86,6 +88,16 @@ class Resource {
 
 enum TopicStatus { notStarted, inProgress, done }
 
+/// The unit the student actually typed.
+///
+/// Stored alongside the derived minutes so a topic can be shown back in the
+/// terms it was entered — "200 pages", not "600 minutes" — and, more
+/// importantly, so estimates can be recomputed when calibration learns the
+/// student's real reading speed. Without the original count there is nothing to
+/// recompute from, which is why `session_log` has been collecting timing data
+/// that could never be applied.
+enum EffortUnit { minutes, pages, problems }
+
 /// The unit the planner schedules. A topic is a leaf of the syllabus with an
 /// effort estimate attached.
 class Topic {
@@ -111,6 +123,18 @@ class Topic {
   /// When the topic was first finished — anchors the spaced-repetition ladder.
   final DateTime? firstCompletedOn;
 
+  /// How the estimate was expressed when it was entered.
+  final EffortUnit estimateUnit;
+
+  /// The figure the student typed, in [estimateUnit].
+  final int estimateAmount;
+
+  /// Minutes per unit used at the time. Recorded rather than re-derived so a
+  /// later change to the rate cannot silently rewrite an estimate the student
+  /// is halfway through — a progress bar that moves backwards on its own
+  /// destroys trust faster than a wrong estimate does.
+  final double estimateRate;
+
   const Topic({
     required this.id,
     required this.subjectId,
@@ -121,7 +145,43 @@ class Topic {
     this.prerequisiteIds = const [],
     this.status = TopicStatus.notStarted,
     this.firstCompletedOn,
-  });
+    this.estimateUnit = EffortUnit.minutes,
+    int? estimateAmount,
+    this.estimateRate = 1.0,
+  }) : estimateAmount = estimateAmount ?? estimatedMinutes;
+
+  /// Builds a topic from what the student actually entered.
+  ///
+  /// [estimatedMinutes] is derived here and then stored, rather than computed
+  /// on every read: the planner reads it constantly and must stay free of the
+  /// estimator and of per-subject rates.
+  factory Topic.fromEstimate({
+    required String id,
+    required String subjectId,
+    required String title,
+    required EffortUnit unit,
+    required int amount,
+    required double rate,
+    int completedMinutes = 0,
+    int difficulty = 3,
+    List<String> prerequisiteIds = const [],
+    TopicStatus status = TopicStatus.notStarted,
+    DateTime? firstCompletedOn,
+  }) =>
+      Topic(
+        id: id,
+        subjectId: subjectId,
+        title: title,
+        estimatedMinutes: (amount * rate).round().clamp(1, 1 << 30),
+        completedMinutes: completedMinutes,
+        difficulty: difficulty,
+        prerequisiteIds: prerequisiteIds,
+        status: status,
+        firstCompletedOn: firstCompletedOn,
+        estimateUnit: unit,
+        estimateAmount: amount,
+        estimateRate: rate,
+      );
 
   int get remainingMinutes =>
       (estimatedMinutes - completedMinutes).clamp(0, estimatedMinutes);
@@ -139,6 +199,9 @@ class Topic {
     List<String>? prerequisiteIds,
     TopicStatus? status,
     DateTime? firstCompletedOn,
+    EffortUnit? estimateUnit,
+    int? estimateAmount,
+    double? estimateRate,
   }) =>
       Topic(
         id: id,
@@ -150,7 +213,17 @@ class Topic {
         prerequisiteIds: prerequisiteIds ?? this.prerequisiteIds,
         status: status ?? this.status,
         firstCompletedOn: firstCompletedOn ?? this.firstCompletedOn,
+        estimateUnit: estimateUnit ?? this.estimateUnit,
+        estimateAmount: estimateAmount ?? this.estimateAmount,
+        estimateRate: estimateRate ?? this.estimateRate,
       );
+
+  /// "200 pages", "45 problems", "1h 30m" — the estimate as it was entered.
+  String get estimateLabel => switch (estimateUnit) {
+        EffortUnit.pages => '$estimateAmount pages',
+        EffortUnit.problems => '$estimateAmount problems',
+        EffortUnit.minutes => formatMinutes(estimateAmount),
+      };
 }
 
 /// A course with a deadline. Deadlines drive urgency; weight lets a student

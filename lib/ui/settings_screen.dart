@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../domain/format.dart';
+import '../domain/preferences.dart';
 import '../notifications/notifier.dart';
 import '../state/app_state.dart';
 import 'how_it_works.dart';
@@ -45,6 +46,59 @@ class SettingsScreen extends StatelessWidget {
             minutes: weekly.minutesByWeekday[day] ?? 0,
             onChanged: (m) => state.setWeekdayMinutes(day, m),
           ),
+        const Divider(height: 32),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: Text('Study window', style: theme.textTheme.titleMedium),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Text(
+            'The hours blocks may be placed between. Set these to when you are '
+            'actually free — a schedule built around hours you are in class is '
+            'one you will ignore.',
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.outline),
+          ),
+        ),
+        _TimeRow(
+          label: 'Earliest start',
+          minute: state.prefs.dayStartMinute,
+          onPicked: (m) => _savePrefs(
+              context, state, state.prefs.copyWith(dayStartMinute: m)),
+        ),
+        _TimeRow(
+          label: 'Latest end',
+          minute: state.prefs.dayEndMinute,
+          onPicked: (m) =>
+              _savePrefs(context, state, state.prefs.copyWith(dayEndMinute: m)),
+        ),
+        _StepRow(
+          label: 'Block length',
+          value: state.prefs.blockMinutes,
+          min: 15,
+          max: 120,
+          step: 5,
+          onChanged: (v) =>
+              _savePrefs(context, state, state.prefs.copyWith(blockMinutes: v)),
+        ),
+        _StepRow(
+          label: 'Break between',
+          value: state.prefs.breakMinutes,
+          min: 0,
+          max: 30,
+          step: 5,
+          onChanged: (v) =>
+              _savePrefs(context, state, state.prefs.copyWith(breakMinutes: v)),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          child: Text(
+            '${formatMinutes(state.prefs.windowMinutes)} available each day, '
+            'in blocks of ${state.prefs.blockMinutes} min.',
+            style: theme.textTheme.bodySmall,
+          ),
+        ),
         const Divider(height: 32),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
@@ -125,6 +179,104 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Saves a preference, refusing a window too narrow to hold a single block.
+/// Without this the planner would schedule nothing and the day would appear
+/// broken with no explanation.
+Future<void> _savePrefs(
+    BuildContext context, AppState state, Prefs next) async {
+  final ok = await state.updatePrefs(next);
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'That window is too narrow to fit a '
+          '${next.blockMinutes} min block. Widen the hours, or shorten the '
+          'block first.',
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+}
+
+class _TimeRow extends StatelessWidget {
+  const _TimeRow({
+    required this.label,
+    required this.minute,
+    required this.onPicked,
+  });
+
+  final String label;
+  final int minute;
+  final ValueChanged<int> onPicked;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(label),
+      trailing: Text(
+        formatClock(minute),
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+      onTap: () async {
+        final picked = await showTimePicker(
+          context: context,
+          initialTime: TimeOfDay(hour: minute ~/ 60, minute: minute % 60),
+        );
+        if (picked != null) onPicked(picked.hour * 60 + picked.minute);
+      },
+    );
+  }
+}
+
+class _StepRow extends StatelessWidget {
+  const _StepRow({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.step,
+    required this.onChanged,
+  });
+
+  final String label;
+  final int value;
+  final int min;
+  final int max;
+  final int step;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(label),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.remove_circle_outline),
+            onPressed:
+                value - step >= min ? () => onChanged(value - step) : null,
+          ),
+          SizedBox(
+            width: 56,
+            child: Text(
+              '$value min',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            onPressed:
+                value + step <= max ? () => onChanged(value + step) : null,
+          ),
+        ],
+      ),
     );
   }
 }

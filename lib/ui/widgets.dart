@@ -187,10 +187,19 @@ class SessionTile extends StatelessWidget {
 /// A block that has already been dealt with. Rendered from the log rather than
 /// the plan, so it stays put even though the planner no longer knows about it.
 class LoggedTile extends StatelessWidget {
-  const LoggedTile({super.key, required this.entry, required this.color});
+  const LoggedTile({
+    super.key,
+    required this.entry,
+    required this.color,
+    this.onUndo,
+  });
 
   final LoggedSession entry;
   final Color color;
+
+  /// Marking done and skipping were both irreversible, so one mis-tap
+  /// permanently corrupted progress. Undo is the cheapest possible remedy.
+  final VoidCallback? onUndo;
 
   @override
   Widget build(BuildContext context) {
@@ -238,6 +247,15 @@ class LoggedTile extends StatelessWidget {
                 entry.wasSkipped ? Icons.redo : Icons.check_circle,
                 size: 20,
               ),
+              if (onUndo != null)
+                TextButton(
+                  onPressed: onUndo,
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 32),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  child: const Text('Undo'),
+                ),
             ],
           ),
         ),

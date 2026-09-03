@@ -37,7 +37,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
-      context.read<AppState>().refreshAlarms();
+      final app = context.read<AppState>();
+      // Left open overnight, `today` moves on but the loaded log does not, so
+      // yesterday's blocks would show as today's and misstate the day's
+      // remaining capacity.
+      app.refreshIfDayChanged();
+      app.refreshAlarms();
     }
   }
 

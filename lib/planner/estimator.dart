@@ -35,6 +35,25 @@ class EffortEstimator {
 
   static const defaults = EffortEstimator();
 
+  /// Minutes per unit for [unit]. The rate is recorded on the topic so a later
+  /// change here cannot retroactively rewrite existing estimates.
+  double rateFor(EffortUnit unit) => switch (unit) {
+        EffortUnit.minutes => 1.0,
+        EffortUnit.pages => minutesPerPage,
+        EffortUnit.problems => minutesPerProblem,
+      };
+
+  /// Converts a figure between units, preserving the underlying effort.
+  ///
+  /// Lives here rather than in the topic sheet: this is domain arithmetic, and
+  /// having it in the widget was both a purity-rule violation and the source of
+  /// a silent 3x inflation when the unit was switched.
+  int convert(int amount, EffortUnit from, EffortUnit to) {
+    if (amount <= 0 || from == to) return amount;
+    final minutes = amount * rateFor(from);
+    return (minutes / rateFor(to)).round().clamp(1, 1 << 30);
+  }
+
   /// Minutes of work remaining in [resource], accounting for progress already
   /// made. Returns null when the resource carries no countable measure — a
   /// bare URL, say — so the caller can fall back to asking the student.

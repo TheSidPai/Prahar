@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../data/database.dart';
 import '../domain/models.dart';
+import '../domain/preferences.dart';
 import '../domain/schedule.dart';
 import '../notifications/notifier.dart';
 import '../planner/planner.dart';
@@ -27,12 +28,14 @@ class AppState extends ChangeNotifier {
   final PraharDatabase db;
   final Notifier notifier;
 
-  final Planner planner = const Planner();
-
   List<Subject> subjects = const [];
   List<Topic> topics = const [];
   Availability availability = Availability.standard();
+  Prefs prefs = const Prefs();
   Plan? plan;
+
+  /// Rebuilt whenever [prefs] changes, so the study window is honoured.
+  Planner get planner => Planner(config: prefs.toConfig());
 
   /// What has already been logged today — done or skipped.
   List<LoggedSession> todayLog = const [];
@@ -55,6 +58,7 @@ class AppState extends ChangeNotifier {
     subjects = await db.subjects();
     topics = await db.topics();
     availability = await db.availability();
+    prefs = Prefs.fromMap(await db.settings());
     streak = await db.streakEndingAt(today);
     todayLog = await db.logEntriesOn(today);
 
@@ -155,15 +159,19 @@ class AppState extends ChangeNotifier {
   Future<void> addTopic({
     required String subjectId,
     required String title,
-    required int estimatedMinutes,
+    required EffortUnit unit,
+    required int amount,
+    required double rate,
     int difficulty = 3,
     List<String> prerequisiteIds = const [],
   }) async {
-    final t = Topic(
+    final t = Topic.fromEstimate(
       id: newId(),
       subjectId: subjectId,
       title: title,
-      estimatedMinutes: estimatedMinutes,
+      unit: unit,
+      amount: amount,
+      rate: rate,
       difficulty: difficulty,
       prerequisiteIds: prerequisiteIds,
     );
@@ -230,6 +238,50 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Reverses a logged block.
+  ///
+  /// Marking done and skipping were both irreversible, so a single mis-tap
+  /// permanently corrupted progress and silently consumed the day's capacity.
+  /// Undo removes the log entry and, for completed work, gives the minutes back
+  /// to the topic.
+  Future<void> undoLogged(LoggedSession entry) async {
+    if (entry.status == SessionStatus.done && entry.kind != SessionKind.review) {
+      final topic = topics.where((t) => t.id == entry.topicId).firstOrNull;
+      if (topic != null) {
+        final restored =
+            (topic.completedMinutes - entry.actualMinutes).clamp(0, 1 << 30);
+        await updateTopicSilently(topic.copyWith(
+          completedMinutes: restored,
+          status: restored == 0
+              ? TopicStatus.notStarted
+              : (restored >= topic.estimatedMinutes
+                  ? TopicStatus.done
+                  : TopicStatus.inProgress),
+        ));
+      }
+    }
+
+    await db.deleteLogEntry(entry.id);
+    todayLog = await db.logEntriesOn(today);
+    streak = await db.streakEndingAt(today);
+    await _rebuild();
+    notifyListeners();
+  }
+
+  /// Reloads if the calendar day has rolled over while the app sat open.
+  ///
+  /// [today] is computed fresh on every call, but [todayLog] is not: leaving
+  /// the app open past midnight showed yesterday's completed blocks as today's
+  /// and mis-stated the day's remaining capacity.
+  Future<void> refreshIfDayChanged() async {
+    final logDay = todayLog.isEmpty ? null : todayLog.first.day;
+    if (logDay != null && dateKey(logDay) == dateKey(today)) return;
+    todayLog = await db.logEntriesOn(today);
+    streak = await db.streakEndingAt(today);
+    await _rebuild();
+    notifyListeners();
+  }
+
   /// Persists a topic without triggering a replan — used inside operations
   /// that will replan once at the end anyway.
   Future<void> updateTopicSilently(Topic t) async {
@@ -244,6 +296,21 @@ class AppState extends ChangeNotifier {
     await db.saveAvailability(availability);
     await _rebuild();
     notifyListeners();
+  }
+
+  /// Persists a study-window change and replans against it.
+  ///
+  /// Rejects an unusable window rather than saving one that would silently
+  /// schedule nothing.
+  Future<bool> updatePrefs(Prefs next) async {
+    if (!next.isUsable) return false;
+    prefs = next;
+    for (final e in next.toMap().entries) {
+      await db.putSetting(e.key, e.value);
+    }
+    await _rebuild();
+    notifyListeners();
+    return true;
   }
 
   Future<void> setDayOverride(DateTime day, int minutes) async {

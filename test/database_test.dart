@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:prahar/data/database.dart';
 import 'package:prahar/domain/models.dart';
 import 'package:prahar/domain/schedule.dart';
@@ -180,6 +181,131 @@ void main() {
       final a = await db.availability();
       expect(a.minutesOn(day), 0);
       expect(a.minutesByWeekday[1], 90);
+    });
+  });
+
+  group('estimate provenance', () {
+    test('the unit and figure entered survive a save and load', () async {
+      await db.upsertSubject(subject());
+      await db.upsertTopic(Topic.fromEstimate(
+        id: 't1',
+        subjectId: 's1',
+        title: 'Ch 4',
+        unit: EffortUnit.pages,
+        amount: 200,
+        rate: 3.0,
+      ));
+
+      final t = (await db.topicsFor('s1')).single;
+      expect(t.estimateUnit, EffortUnit.pages);
+      expect(t.estimateAmount, 200, reason: 'the typed figure must persist');
+      expect(t.estimateRate, 3.0);
+      expect(t.estimatedMinutes, 600);
+      expect(t.estimateLabel, '200 pages');
+    });
+
+    test('minutes-entered topics round trip unchanged', () async {
+      await db.upsertSubject(subject());
+      await db.upsertTopic(Topic.fromEstimate(
+        id: 't1',
+        subjectId: 's1',
+        title: 'Revision',
+        unit: EffortUnit.minutes,
+        amount: 90,
+        rate: 1.0,
+      ));
+
+      final t = (await db.topicsFor('s1')).single;
+      expect(t.estimatedMinutes, 90);
+      expect(t.estimateAmount, 90);
+      expect(t.estimateUnit, EffortUnit.minutes);
+    });
+  });
+
+  group('migration from v1', () {
+    test('adds estimate columns and backfills existing rows', () async {
+      // Build a database with the v1 schema, exactly as it shipped.
+      final dir2 = await Directory.systemTemp.createTemp('prahar_v1');
+      final path = p.join(dir2.path, 'prahar.db');
+
+      final v1 = await databaseFactory.openDatabase(
+        path,
+        options: OpenDatabaseOptions(
+          version: 1,
+          onCreate: (d, _) async {
+            await d.execute('''
+              CREATE TABLE subjects (
+                id TEXT PRIMARY KEY, name TEXT NOT NULL, exam_date TEXT,
+                weight INTEGER NOT NULL DEFAULT 3, color INTEGER NOT NULL)''');
+            await d.execute('''
+              CREATE TABLE topics (
+                id TEXT PRIMARY KEY,
+                subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+                title TEXT NOT NULL,
+                estimated_minutes INTEGER NOT NULL,
+                completed_minutes INTEGER NOT NULL DEFAULT 0,
+                difficulty INTEGER NOT NULL DEFAULT 3,
+                prerequisite_ids TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'notStarted',
+                first_completed_on TEXT,
+                sort_order INTEGER NOT NULL DEFAULT 0)''');
+            await d.insert('subjects',
+                {'id': 's1', 'name': 'Physics', 'weight': 3, 'color': 1});
+            await d.insert('topics', {
+              'id': 't1',
+              'subject_id': 's1',
+              'title': 'Old topic',
+              'estimated_minutes': 450,
+              'completed_minutes': 120,
+            });
+          },
+        ),
+      );
+      await v1.close();
+
+      // Reopening through the real class must upgrade, not wipe.
+      final upgraded = PraharDatabase();
+      await upgraded.open(path: dir2.path);
+
+      final topics = await upgraded.topicsFor('s1');
+      expect(topics.length, 1, reason: 'migration must not lose rows');
+
+      final t = topics.single;
+      expect(t.title, 'Old topic');
+      expect(t.estimatedMinutes, 450);
+      expect(t.completedMinutes, 120, reason: 'progress must survive');
+      expect(t.estimateUnit, EffortUnit.minutes,
+          reason: 'pre-v2 rows were entered as minutes');
+      expect(t.estimateAmount, 450, reason: 'backfilled from the minutes');
+      expect(t.estimateRate, 1.0);
+
+      // The settings table the study window needs must now exist.
+      await upgraded.putSetting('day_start', '480');
+      expect((await upgraded.settings())['day_start'], '480');
+
+      await upgraded.close();
+      dir2.deleteSync(recursive: true);
+    });
+
+    test('upgrading twice is harmless', () async {
+      await db.upsertSubject(subject());
+      await db.upsertTopic(topic());
+      // open() already ran the migration; running the whole flow again on the
+      // same file must not throw on duplicate columns.
+      final again = PraharDatabase();
+      await again.open(path: dir.path);
+      expect((await again.topicsFor('s1')).length, 1);
+      await again.close();
+    });
+  });
+
+  group('settings', () {
+    test('round trip and overwrite', () async {
+      await db.putSetting('block_minutes', '45');
+      await db.putSetting('block_minutes', '30');
+      final s = await db.settings();
+      expect(s['block_minutes'], '30');
+      expect(s.length, 1, reason: 'overwriting must not duplicate the key');
     });
   });
 

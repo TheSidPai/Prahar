@@ -88,8 +88,9 @@ class _TopicRow extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '${formatMinutes(topic.completedMinutes)} / '
-              '${formatMinutes(topic.estimatedMinutes)} · '
-              'difficulty ${topic.difficulty}',
+              '${formatMinutes(topic.estimatedMinutes)}'
+              '${topic.estimateUnit == EffortUnit.minutes ? '' : '  (${topic.estimateLabel})'}'
+              ' · difficulty ${topic.difficulty}',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 6),
@@ -122,22 +123,28 @@ Future<void> showTopicSheet(
 }) async {
   final state = context.read<AppState>();
   final titleController = TextEditingController(text: existing?.title ?? '');
+
+  // Reopen a topic in the unit it was entered in, showing the figure that was
+  // typed. Previously this always showed derived minutes, so "200 pages" came
+  // back as "600" under a Minutes label.
   final amountController = TextEditingController(
-    text: existing == null ? '' : '${existing.estimatedMinutes}',
+    text: existing == null ? '' : '${existing.estimateAmount}',
   );
 
   var difficulty = existing?.difficulty ?? 3;
-  var mode = existing == null ? _EffortMode.pages : _EffortMode.minutes;
+  var mode = existing?.estimateUnit ?? EffortUnit.pages;
   const estimator = EffortEstimator.defaults;
 
-  int? computeMinutes() {
+  int? amountEntered() {
     final raw = int.tryParse(amountController.text.trim());
     if (raw == null || raw <= 0) return null;
-    return switch (mode) {
-      _EffortMode.minutes => raw,
-      _EffortMode.pages => (raw * estimator.minutesPerPage).round(),
-      _EffortMode.problems => (raw * estimator.minutesPerProblem).round(),
-    };
+    return raw;
+  }
+
+  int? computeMinutes() {
+    final raw = amountEntered();
+    if (raw == null) return null;
+    return (raw * estimator.rateFor(mode)).round();
   }
 
   await showModalBottomSheet<void>(
@@ -170,14 +177,14 @@ Future<void> showTopicSheet(
                   ),
                 ),
                 const SizedBox(height: 16),
-                SegmentedButton<_EffortMode>(
+                SegmentedButton<EffortUnit>(
                   segments: const [
                     ButtonSegment(
-                        value: _EffortMode.pages, label: Text('Pages')),
+                        value: EffortUnit.pages, label: Text('Pages')),
                     ButtonSegment(
-                        value: _EffortMode.problems, label: Text('Problems')),
+                        value: EffortUnit.problems, label: Text('Problems')),
                     ButtonSegment(
-                        value: _EffortMode.minutes, label: Text('Minutes')),
+                        value: EffortUnit.minutes, label: Text('Minutes')),
                   ],
                   selected: {mode},
                   // Convert the figure when the unit changes. Without this,
@@ -186,18 +193,12 @@ Future<void> showTopicSheet(
                   // 3x inflation with no warning.
                   onSelectionChanged: (s) => setState(() {
                     final next = s.first;
-                    final current = computeMinutes();
-                    mode = next;
-                    if (current != null && current > 0) {
-                      final converted = switch (next) {
-                        _EffortMode.minutes => current,
-                        _EffortMode.pages =>
-                          (current / estimator.minutesPerPage).round(),
-                        _EffortMode.problems =>
-                          (current / estimator.minutesPerProblem).round(),
-                      };
-                      amountController.text = '${converted.clamp(1, 100000)}';
+                    final current = amountEntered();
+                    if (current != null) {
+                      amountController.text =
+                          '${estimator.convert(current, mode, next)}';
                     }
+                    mode = next;
                   }),
                 ),
                 const SizedBox(height: 12),
@@ -208,9 +209,9 @@ Future<void> showTopicSheet(
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
                     labelText: switch (mode) {
-                      _EffortMode.pages => 'How many pages?',
-                      _EffortMode.problems => 'How many problems?',
-                      _EffortMode.minutes => 'How many minutes?',
+                      EffortUnit.pages => 'How many pages?',
+                      EffortUnit.problems => 'How many problems?',
+                      EffortUnit.minutes => 'How many minutes?',
                     },
                     border: const OutlineInputBorder(),
                     helperText: minutes == null
@@ -246,11 +247,15 @@ Future<void> showTopicSheet(
                         ? null
                         : () async {
                             final title = titleController.text.trim();
+                            final amount = amountEntered()!;
+                            final rate = estimator.rateFor(mode);
                             if (existing == null) {
                               await state.addTopic(
                                 subjectId: subjectId,
                                 title: title,
-                                estimatedMinutes: minutes,
+                                unit: mode,
+                                amount: amount,
+                                rate: rate,
                                 difficulty: difficulty,
                               );
                             } else {
@@ -258,6 +263,9 @@ Future<void> showTopicSheet(
                                 title: title,
                                 estimatedMinutes: minutes,
                                 difficulty: difficulty,
+                                estimateUnit: mode,
+                                estimateAmount: amount,
+                                estimateRate: rate,
                               ));
                             }
                             if (context.mounted) Navigator.pop(context);
@@ -275,4 +283,3 @@ Future<void> showTopicSheet(
   );
 }
 
-enum _EffortMode { pages, problems, minutes }

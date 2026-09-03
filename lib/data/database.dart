@@ -15,7 +15,10 @@ import '../domain/schedule.dart';
 /// can never be recomputed.
 class PraharDatabase {
   static const _fileName = 'prahar.db';
-  static const _version = 1;
+
+  /// 1 -> 2 recorded how an estimate was entered (unit, amount, rate) and added
+  /// the settings table for the study window.
+  static const _version = 2;
 
   late final Database _db;
 
@@ -25,8 +28,70 @@ class PraharDatabase {
       p.join(dir, _fileName),
       version: _version,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
-      onCreate: _create,
+      onCreate: (db, version) async {
+        await _create(db, version);
+        await _v2(db);
+      },
+      onUpgrade: _upgrade,
     );
+  }
+
+  /// Migrations run once, on real data, with no second chance — so each step is
+  /// additive and backfills rather than rewriting.
+  Future<void> _upgrade(Database db, int from, int to) async {
+    if (from < 2) await _v2(db);
+  }
+
+  Future<void> _v2(Database db) async {
+    final cols = await db.rawQuery('PRAGMA table_info(topics)');
+    final has = cols.map((c) => c['name'] as String).toSet();
+
+    // SQLite permits ADD COLUMN ... NOT NULL only with a DEFAULT.
+    if (!has.contains('estimate_unit')) {
+      await db.execute(
+          "ALTER TABLE topics ADD COLUMN estimate_unit TEXT NOT NULL DEFAULT 'minutes'");
+    }
+    if (!has.contains('estimate_amount')) {
+      await db.execute('ALTER TABLE topics ADD COLUMN estimate_amount INTEGER');
+    }
+    if (!has.contains('estimate_rate')) {
+      await db.execute('ALTER TABLE topics ADD COLUMN estimate_rate REAL');
+    }
+
+    // Existing rows were entered in minutes, which is exactly what they were.
+    await db.execute('''
+      UPDATE topics
+         SET estimate_amount = COALESCE(estimate_amount, estimated_minutes),
+             estimate_rate   = COALESCE(estimate_rate, 1.0)
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )''');
+  }
+
+  // ------------------------------------------------------------- settings
+
+  Future<Map<String, String>> settings() async {
+    final rows = await _db.query('settings');
+    return {
+      for (final r in rows) r['key'] as String: r['value'] as String,
+    };
+  }
+
+  Future<void> putSetting(String key, String value) => _upsertKeyed(
+        'settings',
+        'key',
+        {'key': key, 'value': value},
+      );
+
+  Future<void> _upsertKeyed(
+      String table, String keyColumn, Map<String, Object?> values) async {
+    final updated = await _db.update(table, values,
+        where: '$keyColumn = ?', whereArgs: [values[keyColumn]]);
+    if (updated == 0) await _db.insert(table, values);
   }
 
   Future<void> close() => _db.close();
@@ -187,6 +252,9 @@ class PraharDatabase {
         'first_completed_on':
             t.firstCompletedOn == null ? null : dateKey(t.firstCompletedOn!),
         'sort_order': sortOrder,
+        'estimate_unit': t.estimateUnit.name,
+        'estimate_amount': t.estimateAmount,
+        'estimate_rate': t.estimateRate,
       });
 
   Future<void> deleteTopic(String id) =>
@@ -210,6 +278,15 @@ class PraharDatabase {
       firstCompletedOn: r['first_completed_on'] == null
           ? null
           : parseDateKey(r['first_completed_on'] as String),
+      estimateUnit: EffortUnit.values.firstWhere(
+        (v) => v.name == r['estimate_unit'],
+        orElse: () => EffortUnit.minutes,
+      ),
+      // Null for rows written before v2, and for any row the migration could
+      // not backfill; falling back to the minutes figure is always truthful.
+      estimateAmount:
+          (r['estimate_amount'] as int?) ?? (r['estimated_minutes'] as int),
+      estimateRate: (r['estimate_rate'] as num?)?.toDouble() ?? 1.0,
     );
   }
 
@@ -300,6 +377,9 @@ class PraharDatabase {
         'kind': session.kind.name,
         'status': session.status.name,
       });
+
+  Future<void> deleteLogEntry(String id) =>
+      _db.delete('session_log', where: 'id = ?', whereArgs: [id]);
 
   /// Everything logged on [day], newest last.
   Future<List<LoggedSession>> logEntriesOn(DateTime day) async {

@@ -64,6 +64,17 @@ class TodayScreen extends StatelessWidget {
             entry: entry,
             color: Color(
                 state.subjectFor(entry.subjectId)?.colorValue ?? 0xFF4F46E5),
+            onUndo: () async {
+              await state.undoLogged(entry);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Undone — ${entry.topicTitle} is back'),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
+            },
           ),
         if (sessions.isEmpty)
           Padding(
