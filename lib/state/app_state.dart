@@ -123,9 +123,14 @@ class AppState extends ChangeNotifier {
       await notifier.syncFromPlan(plan!);
     }
 
-    // Keep the home-screen widget in step. Cheap; runs on every replan.
+    // Keep the home-screen widgets in step. Cheap; runs on every replan.
+    // done/planned drive the progress bar on the wider widget.
     if (plan != null) {
-      await WidgetBridge.updateNextBlock(plan!.onDate(today));
+      await WidgetBridge.updateNextBlock(
+        plan!.onDate(today),
+        doneMinutes: doneMinutesToday,
+        plannedMinutes: plannedMinutesToday,
+      );
     }
   }
 

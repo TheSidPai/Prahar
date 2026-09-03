@@ -3,16 +3,15 @@ package com.siddhantpai.prahar
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
 
 /**
- * A minimal home-screen widget showing today's next study block.
+ * The compact "next block" tile.
  *
- * Deliberately small: title, subject, one line of time. Widgets are read at a
- * glance and any layout richer than that fails on a stock 2x2 tile. Tapping
+ * Deliberately narrow: subject / title / one line of time. Widgets are read at
+ * a glance and any layout richer than this fails on a stock 2x1 cell. Tapping
  * it opens the app.
  */
 class NextBlockWidget : AppWidgetProvider() {

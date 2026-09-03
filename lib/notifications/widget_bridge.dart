@@ -15,40 +15,62 @@ import '../domain/schedule.dart';
 class WidgetBridge {
   static const _channel = MethodChannel('prahar/widget');
 
-  /// Called after every plan rebuild. Cheap enough (four short strings + one
-  /// broadcast) to run on each replan rather than trying to diff.
-  static Future<void> updateNextBlock(List<StudySession> todaySessions,
-      {DateTime? now}) async {
+  /// Called after every plan rebuild. Sends both the "next block" fields
+  /// and the "today" extras (block 2 + progress) in one payload — the two
+  /// widget flavours share the same store and pick the fields they need.
+  static Future<void> updateNextBlock(
+    List<StudySession> todaySessions, {
+    DateTime? now,
+    int doneMinutes = 0,
+    int plannedMinutes = 0,
+  }) async {
     if (!Platform.isAndroid) return;
     final at = now ?? DateTime.now();
-    final upcoming = todaySessions
-        .where((s) => s.endsAt.isAfter(at))
-        .toList();
+    final upcoming =
+        todaySessions.where((s) => s.endsAt.isAfter(at)).toList();
+
+    final progress = plannedMinutes <= 0
+        ? 0
+        : ((doneMinutes / plannedMinutes) * 100)
+            .clamp(0, 100)
+            .round();
+    final progressText = plannedMinutes <= 0
+        ? 'No plan today'
+        : '${formatMinutes(doneMinutes)} of ${formatMinutes(plannedMinutes)}';
 
     if (upcoming.isEmpty) {
-      await _push(null, null, null, 'none');
+      await _push({
+        'title': '', 'subject': '', 'time': '',
+        'title2': '', 'subject2': '', 'time2': '',
+        'status': 'none',
+        'progress': progress,
+        'progressText': progressText,
+      });
       return;
     }
-    final next = upcoming.first;
-    final ongoing = !next.startsAt.isAfter(at);
-    await _push(
-      next.topicTitle,
-      next.subjectName,
-      '${formatClock(next.startMinuteOfDay)} · '
-          '${formatMinutes(next.durationMinutes)}',
-      ongoing ? 'now' : 'next',
-    );
+    final first = upcoming[0];
+    final second = upcoming.length > 1 ? upcoming[1] : null;
+    final ongoing = !first.startsAt.isAfter(at);
+
+    String fmt(StudySession s) =>
+        '${formatClock(s.startMinuteOfDay)} · ${formatMinutes(s.durationMinutes)}';
+
+    await _push({
+      'title': first.topicTitle,
+      'subject': first.subjectName,
+      'time': fmt(first),
+      'title2': second?.topicTitle ?? '',
+      'subject2': second?.subjectName ?? '',
+      'time2': second == null ? '' : fmt(second),
+      'status': ongoing ? 'now' : 'next',
+      'progress': progress,
+      'progressText': progressText,
+    });
   }
 
-  static Future<void> _push(
-      String? title, String? subject, String? time, String status) async {
+  static Future<void> _push(Map<String, Object?> payload) async {
     try {
-      await _channel.invokeMethod('update', {
-        'title': title,
-        'subject': subject,
-        'time': time,
-        'status': status,
-      });
+      await _channel.invokeMethod('update', payload);
     } catch (e) {
       // The widget is a nicety; a failed push must never break the app.
       debugPrint('Prahar: widget update failed: $e');

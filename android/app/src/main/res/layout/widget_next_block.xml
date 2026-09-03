@@ -3,44 +3,63 @@
   Restrained by design: two lines of copy over a solid tile. Widgets have a
   narrow palette of allowed views, so this stays inside the safe subset.
 -->
+<!--
+  Sized to fit inside a MIUI 2x1 widget cell, which is genuinely tight:
+  MIUI enforces a strict cell height and clips overflow instead of growing.
+  Every dimension here is trimmed for that constraint.
+
+  - Padding is 10dp, not 14dp, to reclaim vertical space for the third line.
+  - The title is centreVertical inside a weight=1 row, so if the host does
+    hand us more vertical space we absorb it there instead of stacking more
+    at the top.
+  - The time line is single-line and includeFontPadding=false, which removes
+    the invisible metric padding TextView adds around glyphs — that padding
+    was the last half-line that got clipped.
+-->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="14dp"
+    android:padding="10dp"
     android:background="@drawable/widget_background">
 
     <TextView
         android:id="@+id/widget_subject"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="11sp"
+        android:textSize="10sp"
         android:letterSpacing="0.08"
         android:textAllCaps="true"
         android:textColor="#B8B4C8"
         android:textStyle="bold"
+        android:includeFontPadding="false"
         android:text=""/>
 
     <TextView
         android:id="@+id/widget_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:textSize="18sp"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="2dp"
+        android:textSize="16sp"
         android:textStyle="bold"
         android:textColor="#F5F4FC"
         android:maxLines="2"
         android:ellipsize="end"
+        android:includeFontPadding="false"
+        android:gravity="center_vertical"
         android:text="Prahar"/>
 
     <TextView
         android:id="@+id/widget_time"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:textSize="13sp"
+        android:layout_marginTop="2dp"
+        android:textSize="12sp"
         android:textColor="#B8B4C8"
+        android:maxLines="1"
+        android:includeFontPadding="false"
         android:text=""/>
 </LinearLayout>

@@ -48,13 +48,9 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "prahar/widget")
             .setMethodCallHandler { call, result ->
                 if (call.method == "update") {
-                    WidgetBridge.update(
-                        applicationContext,
-                        call.argument<String?>("title"),
-                        call.argument<String?>("subject"),
-                        call.argument<String?>("time"),
-                        call.argument<String>("status") ?: "none",
-                    )
+                    @Suppress("UNCHECKED_CAST")
+                    val payload = (call.arguments as? Map<String, Any?>) ?: emptyMap()
+                    WidgetBridge.update(applicationContext, payload)
                     result.success(true)
                 } else {
                     result.notImplemented()

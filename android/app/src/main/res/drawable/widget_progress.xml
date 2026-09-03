@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Thin progress bar. Track is a semi-transparent white; the fill uses the
+  amber accent so a glance at the widget gives you both "how much left" and
+  a colour that matches the app's identity.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape>
+            <corners android:radius="3dp"/>
+            <solid android:color="#22FFFFFF"/>
+        </shape>
+    </item>
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape>
+                <corners android:radius="3dp"/>
+                <solid android:color="#FAB074"/>
+            </shape>
+        </clip>
+    </item>
+</layer-list>
