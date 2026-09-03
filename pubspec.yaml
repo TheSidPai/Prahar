@@ -29,6 +29,12 @@ dependencies:
   # for "android-37" and fails outright. Two methods of Kotlin in
   # MainActivity.kt do the same job with no dependency and no SDK bump.
 
+  # Streams a family from fonts.google.com on first use and caches it. Pinned
+  # tight to avoid another SDK-version surprise. The offline path is the
+  # system default, so a failed fetch degrades cleanly rather than blanking
+  # the app.
+  google_fonts: '>=6.2.0 <7.0.0'
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -26,16 +26,15 @@ class BusySlotsScreen extends StatelessWidget {
         label: const Text('Add'),
       ),
       body: slots.isEmpty
-          ? EmptyState(
+          ? const EmptyState(
+              // The FAB below is the add affordance; a second button in the
+              // centre pointing at the same sheet is redundant and looks like
+              // a different action.
               icon: Icons.event_busy_outlined,
-              title: 'No busy slots',
-              message: 'Add class hours, lunch, a shift — anything the schedule '
-                  'should route around. Weekly repeats or a single date.',
-              action: FilledButton.icon(
-                onPressed: () => _showSheet(context),
-                icon: const Icon(Icons.add),
-                label: const Text('Add a slot'),
-              ),
+              title: 'No busy slots yet',
+              message: 'Tap Add to record class hours, lunch, a shift — '
+                  'anything the schedule should route around. Weekly repeats '
+                  'or a single date.',
             )
           : ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -98,7 +97,13 @@ Future<void> _showSheet(BuildContext context, {BusySlot? existing}) async {
   var start = existing?.startMinute ?? 13 * 60;
   var end = existing?.endMinute ?? 15 * 60;
   var repeat = (existing?.repeatsWeekly ?? true) ? _Repeat.weekly : _Repeat.oneOff;
-  var weekday = existing?.weekday ?? DateTime.now().weekday;
+  // A set, because "class every Mon–Fri" is one slot to a student, not five.
+  // When editing a single-day slot the set starts with that one day; when
+  // adding, it starts with today so a tap-tap-save works.
+  final weekdays = <int>{
+    if (existing?.weekday != null) existing!.weekday!,
+    if (existing == null) DateTime.now().weekday,
+  };
   var date = existing?.date ?? dateOnly(DateTime.now());
 
   Future<void> pick(BuildContext ctx, bool isStart, StateSetter set) async {
@@ -178,7 +183,18 @@ Future<void> _showSheet(BuildContext context, {BusySlot? existing}) async {
               const SizedBox(height: 12),
               if (repeat == _Repeat.weekly)
                 _WeekdayPicker(
-                    selected: weekday, onChanged: (w) => set(() => weekday = w))
+                  selected: weekdays,
+                  onToggled: (w) => set(() {
+                    weekdays.contains(w)
+                        ? weekdays.remove(w)
+                        : weekdays.add(w);
+                  }),
+                  onPreset: (days) => set(() {
+                    weekdays
+                      ..clear()
+                      ..addAll(days);
+                  }),
+                )
               else
                 ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -208,26 +224,67 @@ Future<void> _showSheet(BuildContext context, {BusySlot? existing}) async {
                   ),
                 const Spacer(),
                 FilledButton(
-                  onPressed: end > start
-                      ? () async {
-                          final slot = BusySlot(
-                            id: existing?.id ?? _slotId(),
-                            label: label.text.trim().isEmpty
-                                ? 'Busy'
-                                : label.text.trim(),
-                            startMinute: start,
-                            endMinute: end,
-                            weekday: repeat == _Repeat.weekly ? weekday : null,
-                            date: repeat == _Repeat.oneOff ? date : null,
-                          );
-                          if (existing == null) {
-                            await state.addBusySlot(slot);
-                          } else {
-                            await state.updateBusySlot(slot);
-                          }
-                          if (context.mounted) Navigator.pop(context);
-                        }
-                      : null,
+                  // The button reveals its own failure conditions: end after
+                  // start, and — for weekly slots — at least one day picked.
+                  // Otherwise a tap saved nothing and looked broken.
+                  onPressed:
+                      end > start && (repeat == _Repeat.oneOff || weekdays.isNotEmpty)
+                          ? () async {
+                              final labelText = label.text.trim().isEmpty
+                                  ? 'Busy'
+                                  : label.text.trim();
+                              try {
+                                // A weekly multi-day selection is fanned out
+                                // into one slot per day — the storage model
+                                // is one weekday per row, and this is the
+                                // only place that translation happens.
+                                if (repeat == _Repeat.oneOff) {
+                                  await _saveOne(
+                                    state: state,
+                                    existing: existing,
+                                    label: labelText,
+                                    start: start,
+                                    end: end,
+                                    weekday: null,
+                                    date: date,
+                                  );
+                                } else if (existing != null) {
+                                  await _saveOne(
+                                    state: state,
+                                    existing: existing,
+                                    label: labelText,
+                                    start: start,
+                                    end: end,
+                                    weekday: weekdays.first,
+                                    date: null,
+                                  );
+                                } else {
+                                  for (final w in weekdays) {
+                                    await state.addBusySlot(BusySlot(
+                                      id: _slotId(),
+                                      label: labelText,
+                                      startMinute: start,
+                                      endMinute: end,
+                                      weekday: w,
+                                    ));
+                                  }
+                                }
+                                if (context.mounted) Navigator.pop(context);
+                              } catch (e) {
+                                // Every previous save silently swallowed its
+                                // exception, which is how a broken migration
+                                // went unreported. Surface it.
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Could not save: $e'),
+                                      duration: const Duration(seconds: 6),
+                                    ),
+                                  );
+                                }
+                              }
+                            }
+                          : null,
                   child: const Text('Save'),
                 ),
               ]),
@@ -243,44 +300,126 @@ Future<void> _showSheet(BuildContext context, {BusySlot? existing}) async {
 String _slotId() =>
     'b${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}';
 
-class _WeekdayPicker extends StatelessWidget {
-  const _WeekdayPicker({required this.selected, required this.onChanged});
+Future<void> _saveOne({
+  required AppState state,
+  required BusySlot? existing,
+  required String label,
+  required int start,
+  required int end,
+  required int? weekday,
+  required DateTime? date,
+}) async {
+  final slot = BusySlot(
+    id: existing?.id ?? _slotId(),
+    label: label,
+    startMinute: start,
+    endMinute: end,
+    weekday: weekday,
+    date: date,
+  );
+  if (existing == null) {
+    await state.addBusySlot(slot);
+  } else {
+    await state.updateBusySlot(slot);
+  }
+}
 
-  final int selected;
-  final ValueChanged<int> onChanged;
+class _WeekdayPicker extends StatelessWidget {
+  const _WeekdayPicker({
+    required this.selected,
+    required this.onToggled,
+    required this.onPreset,
+  });
+
+  final Set<int> selected;
+  final ValueChanged<int> onToggled;
+  final ValueChanged<Set<int>> onPreset;
 
   static const _names = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var i = 1; i <= 7; i++)
-          GestureDetector(
-            onTap: () => onChanged(i),
-            child: Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: i == selected
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.surfaceContainerHighest,
-              ),
-              child: Text(
-                _names[i - 1],
-                style: TextStyle(
-                  color: i == selected
-                      ? Theme.of(context).colorScheme.onPrimary
-                      : Theme.of(context).colorScheme.onSurface,
-                  fontWeight: FontWeight.w600,
+        Text('Days', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            for (var i = 1; i <= 7; i++)
+              GestureDetector(
+                onTap: () => onToggled(i),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: selected.contains(i)
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.surfaceContainerHighest,
+                  ),
+                  child: Text(
+                    _names[i - 1],
+                    style: TextStyle(
+                      color: selected.contains(i)
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        // Two-tap presets for what a student actually wants — a college week
+        // in one gesture rather than five.
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            _Preset(
+              label: 'Mon–Fri',
+              onTap: () => onPreset({1, 2, 3, 4, 5}),
             ),
-          ),
+            _Preset(
+              label: 'Weekends',
+              onTap: () => onPreset({6, 7}),
+            ),
+            _Preset(
+              label: 'Every day',
+              onTap: () => onPreset({1, 2, 3, 4, 5, 6, 7}),
+            ),
+            _Preset(
+              label: 'Clear',
+              onTap: () => onPreset({}),
+            ),
+          ],
+        ),
       ],
+    );
+  }
+}
+
+class _Preset extends StatelessWidget {
+  const _Preset({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 32),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        textStyle: Theme.of(context).textTheme.bodySmall,
+      ),
+      child: Text(label),
     );
   }
 }

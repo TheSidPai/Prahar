@@ -18,7 +18,14 @@ class PraharDatabase {
 
   /// 1 -> 2 recorded how an estimate was entered (unit, amount, rate) and added
   /// the settings table for the study window.
-  static const _version = 2;
+  ///
+  /// 2 -> 3 added the busy_slots table. It had been slipped into the _v2
+  /// migration after that version had already shipped, so on any device
+  /// upgraded through v2 the table was missing and every save threw silently.
+  /// The lesson is written in blood: once a version has run on a real device,
+  /// editing that version's code does nothing. Every schema change gets its
+  /// own version, always.
+  static const _version = 3;
 
   late final Database _db;
 
@@ -31,15 +38,19 @@ class PraharDatabase {
       onCreate: (db, version) async {
         await _create(db, version);
         await _v2(db);
+        await _v3(db);
       },
       onUpgrade: _upgrade,
     );
   }
 
   /// Migrations run once, on real data, with no second chance — so each step is
-  /// additive and backfills rather than rewriting.
+  /// additive and backfills rather than rewriting. Each version's function
+  /// is also idempotent (CREATE IF NOT EXISTS, ADD COLUMN guarded by
+  /// PRAGMA table_info) so a redundant call cannot break an install.
   Future<void> _upgrade(Database db, int from, int to) async {
     if (from < 2) await _v2(db);
+    if (from < 3) await _v3(db);
   }
 
   Future<void> _v2(Database db) async {
@@ -71,6 +82,10 @@ class PraharDatabase {
         value TEXT NOT NULL
       )''');
 
+  }
+
+  Future<void> _v3(Database db) async {
+    // Belongs in its own version so devices already at v2 pick this up.
     await db.execute('''
       CREATE TABLE IF NOT EXISTS busy_slots (
         id            TEXT PRIMARY KEY,

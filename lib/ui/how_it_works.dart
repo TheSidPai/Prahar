@@ -41,10 +41,11 @@ class HowItWorks extends StatelessWidget {
         ),
         _Step(
           n: '3',
-          title: 'Say how much time you have',
-          body: 'In Settings, set the minutes you can genuinely study each '
-              'weekday and weekend. Be honest: an optimistic number just '
-              'produces a plan you fall behind on.',
+          title: 'Say when you are free',
+          body: 'In Settings → Study window, set the hours blocks may be '
+              'placed between. In Busy slots, mark class hours, lunch, a shift '
+              '— anything the schedule should route around. Then Study time '
+              'says how many minutes you can genuinely spend each day.',
         ),
         _Step(
           n: '4',
@@ -124,10 +125,14 @@ class _TabGuide extends StatelessWidget {
 
   static const _tabs = [
     (Icons.today_outlined, 'Today', 'What to study now, and nothing else.'),
-    (Icons.calendar_month_outlined, 'Plan', 'The next two weeks, so you can see what is coming.'),
-    (Icons.insights_outlined, 'Progress', 'How far through each subject you are, and whether you are on track.'),
-    (Icons.library_books_outlined, 'Subjects', 'Your syllabus: subjects, their topics, and what is left.'),
-    (Icons.settings_outlined, 'Settings', 'Your available time and how reminders behave.'),
+    (Icons.calendar_month_outlined, 'Plan',
+        'Two views: Days shows the next fortnight; Month shows the exam calendar.'),
+    (Icons.insights_outlined, 'Progress',
+        'How far through each subject you are, and how many minutes a day it now needs.'),
+    (Icons.library_books_outlined, 'Subjects',
+        'Your syllabus: subjects, their topics, and what is left.'),
+    (Icons.settings_outlined, 'Settings',
+        'Study time, busy slots, appearance, and reminders.'),
   ];
 
   @override

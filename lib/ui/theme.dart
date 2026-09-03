@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../domain/preferences.dart';
 
 /// The visual language: restrained, quiet, and legible at a glance.
 ///
@@ -20,7 +23,41 @@ class PraharTheme {
   /// product"; muting it lets subject colours stand out against it.
   static const seed = Color(0xFF5A63D8);
 
-  static ThemeData of(Brightness brightness) {
+  /// Applies [choice] to [base], preserving every weight / size / colour the
+  /// theme already assigned. Google Fonts caches on first fetch; if a fetch
+  /// fails the platform default renders instead, which is the correct fallback
+  /// for a font pick that cannot be resolved.
+  static TextTheme fontFor(FontChoice choice, TextTheme base) {
+    switch (choice) {
+      case FontChoice.system:
+        return base;
+      case FontChoice.inter:
+        return GoogleFonts.interTextTheme(base);
+      case FontChoice.manrope:
+        return GoogleFonts.manropeTextTheme(base);
+      case FontChoice.interTight:
+        return GoogleFonts.interTightTextTheme(base);
+      case FontChoice.spaceGrotesk:
+        return GoogleFonts.spaceGroteskTextTheme(base);
+      case FontChoice.fraunces:
+        return GoogleFonts.frauncesTextTheme(base);
+      case FontChoice.ibmPlexSerif:
+        return GoogleFonts.ibmPlexSerifTextTheme(base);
+    }
+  }
+
+  /// A short label plus a one-line character of each face.
+  static (String name, String flavour) describe(FontChoice c) => switch (c) {
+        FontChoice.system => ('System', 'Your phone’s own UI font'),
+        FontChoice.inter => ('Inter', 'Contemporary, neutral, ubiquitous'),
+        FontChoice.manrope => ('Manrope', 'Softer humanist sans'),
+        FontChoice.interTight => ('Inter Tight', 'Editorial, close-set'),
+        FontChoice.spaceGrotesk => ('Space Grotesk', 'Geometric with quirks'),
+        FontChoice.fraunces => ('Fraunces', 'Warm serif with optical care'),
+        FontChoice.ibmPlexSerif => ('IBM Plex Serif', 'Editorial serif'),
+      };
+
+  static ThemeData of(Brightness brightness, {FontChoice font = FontChoice.inter}) {
     final dark = brightness == Brightness.dark;
 
     final scheme = ColorScheme.fromSeed(
@@ -41,21 +78,30 @@ class PraharTheme {
     );
 
     final base = ThemeData(colorScheme: scheme, useMaterial3: true);
+    // Apply the font pick over the base text theme *before* our own weight
+    // and spacing overrides, so those overrides win. This is what preserves
+    // the negative tracking on large sizes across every face.
+    final withFont = base.copyWith(textTheme: fontFor(font, base.textTheme));
 
-    return base.copyWith(
+    return withFont.copyWith(
       scaffoldBackgroundColor: scheme.surface,
-      textTheme: _text(base.textTheme, scheme),
+      textTheme: _text(withFont.textTheme, scheme),
 
       appBarTheme: AppBarTheme(
-        centerTitle: false,
+        // Centred and heavier: left-aligned at title size felt undersized and
+        // adrift on wide screens. Centred with weight reads as a considered
+        // header even at a small point size.
+        centerTitle: true,
         elevation: 0,
         scrolledUnderElevation: 0,
         backgroundColor: scheme.surface,
-        titleTextStyle: base.textTheme.titleLarge?.copyWith(
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.3,
+        titleTextStyle: base.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.4,
+          fontSize: 15,
           color: scheme.onSurface,
         ),
+        toolbarHeight: 52,
       ),
 
       // Hairline-bordered cards. Elevation and tinted fills both add noise
