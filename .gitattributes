@@ -1,0 +1,13 @@
+# Store text as LF in the repository regardless of the platform it was written
+# on. Without this, Windows checkouts commit CRLF and every file shows as
+# wholly rewritten the first time anyone on another machine touches it.
+* text=auto eol=lf
+
+# PowerShell handles LF fine, so the tooling scripts are normalised too.
+*.ps1 text eol=lf
+
+# Never let these be line-ending mangled.
+*.png binary
+*.jks binary
+*.keystore binary
+*.jar binary

@@ -1,0 +1,64 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Widget Preview related
+.widget_preview/
+
+# Signing material, wherever it lands. android/.gitignore covers the android
+# subtree; these repeat it at the root so a keystore dropped anywhere else
+# cannot be committed by accident. Losing a keystore means never being able to
+# update a published app again — and leaking one is worse.
+*.jks
+*.keystore
+key.properties
+
+# Local scratch output from tools\dev.ps1 screenshot (also under /build/).
+screen.png
+
+# Personal Claude Code settings. The permission rules must contain absolute
+# paths to match the command strings they allow, so they are machine-specific
+# and belong here rather than in the shared .claude/settings.json.
+.claude/settings.local.json
