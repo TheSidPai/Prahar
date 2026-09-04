@@ -24,6 +24,7 @@ class GlassSurface extends StatelessWidget {
     this.borderRadius = BorderRadius.zero,
     this.padding = EdgeInsets.zero,
     this.tint,
+    this.tintAlpha,
   });
 
   final Widget child;
@@ -33,6 +34,12 @@ class GlassSurface extends StatelessWidget {
   /// Overrides the theme-derived tint. Useful for a slightly warmer nav bar,
   /// say, without introducing a second primitive.
   final Color? tint;
+
+  /// Overrides just the *opacity* of the theme-derived tint, keeping its
+  /// colour. Thinner glass suits a pane that is permanently on screen with
+  /// content moving under it — the app bar — where the standard weight reads
+  /// as a solid header that happens to blur.
+  final double? tintAlpha;
 
   static const _sigma = 24.0; // radius that reads as "frosted", not "smeared"
 
@@ -45,9 +52,10 @@ class GlassSurface extends StatelessWidget {
             // not a heavy panel — the point is to see the layer beneath.
             // Lowered from 0.55/0.60: at those values the tint was carrying
             // the surface and the blur was decoration. Below about 0.40 the
-            // text on top starts to fight whatever scrolls under it.
-            ? scheme.surface.withValues(alpha: 0.42)
-            : scheme.surface.withValues(alpha: 0.45));
+            // text on top starts to fight whatever scrolls under it — which
+            // is why [tintAlpha] is opt-in rather than the default.
+            ? scheme.surface.withValues(alpha: tintAlpha ?? 0.42)
+            : scheme.surface.withValues(alpha: tintAlpha ?? 0.45));
 
     return ClipRRect(
       borderRadius: borderRadius,

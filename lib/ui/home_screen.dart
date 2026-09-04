@@ -75,8 +75,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
+    // A glass app bar that content passes *under*, rather than an opaque
+    // header that content stops at. Scoped to the editorial tab while the two
+    // Todays are being compared: extending the body behind the bar means every
+    // screen must inset its own scroll view by the bar's height, and doing
+    // that to five screens for a trial that may be reverted is not a trade
+    // worth making. If the editorial Today wins, this moves with it.
+    final glassBar = _todayTabs.contains(_index) &&
+        _index != 0 &&
+        state.prefs.materialChoice == MaterialChoice.glass;
+
     return Scaffold(
+      extendBodyBehindAppBar: glassBar,
       appBar: AppBar(
+        // The wrapper paints the tint; the bar's own fill would sit on top of
+        // the blur and defeat it.
+        backgroundColor: glassBar ? Colors.transparent : null,
+        flexibleSpace: glassBar
+            ? const GlassSurface(
+                // Thinner than the app's other glass. This pane is always on
+                // screen with text moving beneath it, so it has to read as a
+                // sheet of glass rather than as a panel — at the standard
+                // 0.42/0.45 it looked like an opaque header that happened to
+                // blur.
+                tintAlpha: 0.28,
+                child: SizedBox.expand(),
+              )
+            : null,
         // Today carries the mark instead of the word "Today". The tab is
         // already labelled in the nav bar and the full date sits in the
         // header just below, so that title line was spending itself on a

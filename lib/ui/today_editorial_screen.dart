@@ -75,7 +75,16 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
     final state = context.watch<AppState>();
     final theme = Theme.of(context);
 
-    if (state.subjects.isEmpty) return const _FirstRun();
+    // With a glass app bar the body extends behind it, so the list has to
+    // start below the status bar plus the bar's own height or the date would
+    // spend its life underneath the wordmark. 60 is the toolbarHeight set in
+    // PraharTheme; read from the theme rather than assumed.
+    final glass = state.prefs.materialChoice == MaterialChoice.glass;
+    final barHeight = theme.appBarTheme.toolbarHeight ?? kToolbarHeight;
+    final topInset =
+        glass ? MediaQuery.paddingOf(context).top + barHeight : 0.0;
+
+    if (state.subjects.isEmpty) return _FirstRun(topInset: topInset);
 
     final now = DateTime.now();
     final focus = focusFor(
@@ -90,7 +99,7 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
       ..sort((a, b) => a.startMinuteOfDay.compareTo(b.startMinuteOfDay));
 
     return ListView(
-      padding: const EdgeInsets.only(bottom: 100),
+      padding: EdgeInsets.only(top: topInset, bottom: 100),
       children: [
         _DayHeader(state: state),
 
@@ -122,6 +131,8 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
               color: Color(
                   state.subjectFor(s.subjectId)?.colorValue ?? 0xFF4F46E5),
               onTap: () => _openTimer(s),
+              onDone: () => confirmDone(context, state, s),
+              onSkip: () => confirmSkip(context, state, s),
             ),
         ],
 
@@ -372,18 +383,29 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-/// A later block: one line, no card, no buttons. Everything about it is
-/// context for the hero above.
+/// A later block: one line, no card. Everything about it is context for the
+/// hero above — but it must still be *actionable*, because plenty of work
+/// gets done or abandoned out of order, and a row you can only look at forces
+/// a trip back to the old screen.
+///
+/// The actions hide behind a single overflow button rather than sitting as two
+/// more buttons on the line. Two visible buttons per row is what the original
+/// Today does, and it is precisely what makes every block look equally
+/// important.
 class _RailRow extends StatelessWidget {
   const _RailRow({
     required this.session,
     required this.color,
     required this.onTap,
+    required this.onDone,
+    required this.onSkip,
   });
 
   final StudySession session;
   final Color color;
   final VoidCallback onTap;
+  final VoidCallback onDone;
+  final VoidCallback onSkip;
 
   @override
   Widget build(BuildContext context) {
@@ -430,6 +452,47 @@ class _RailRow extends StatelessWidget {
             Text(
               formatMinutes(session.durationMinutes),
               style: theme.textTheme.bodySmall,
+            ),
+            PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert,
+                  size: 18, color: theme.colorScheme.outline),
+              tooltip: 'Block actions',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 40),
+              onSelected: (v) => switch (v) {
+                'start' => onTap(),
+                'done' => onDone(),
+                _ => onSkip(),
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'start',
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.play_arrow, size: 20),
+                    title: Text('Start focus'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'done',
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.check, size: 20),
+                    title: Text('Done'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'skip',
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.redo, size: 20),
+                    title: Text('Skip'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -520,13 +583,15 @@ class _DoneStripState extends State<_DoneStrip> {
 /// Unchanged from the original screen: the one moment a new user meets the app
 /// cold is not the place to experiment.
 class _FirstRun extends StatelessWidget {
-  const _FirstRun();
+  const _FirstRun({required this.topInset});
+
+  final double topInset;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ListView(
-      padding: EdgeInsets.zero,
+      padding: EdgeInsets.only(top: topInset),
       children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(20, 28, 20, 8),
