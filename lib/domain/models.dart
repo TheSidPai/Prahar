@@ -322,6 +322,61 @@ class Subject {
         );
   }
 
+  /// What finishing [remainingMinutes] before the exam demands each day.
+  ///
+  /// Returns a figure only when there is an honest one to give:
+  ///
+  ///  * `perDay` — the minutes a day needed, when that is a number a person
+  ///    could act on.
+  ///  * `impossible` — the work cannot fit before the exam at all: the exam
+  ///    has started or passed, or the demand exceeds a whole study day.
+  ///
+  /// Both null and false means there is simply nothing to say — no deadline,
+  /// or no work left.
+  ///
+  /// The guard exists because dividing by [prepDaysFrom] means dividing by a
+  /// fraction of a day once an exam is hours away, and the result explodes.
+  /// A subject with 4h left and an exam at 9am this morning reported "needs
+  /// 56h a day", which is not information — it is an artefact. The honest
+  /// answer is that it does not fit, which is also what the feasibility
+  /// banner says about the same subject.
+  ///
+  /// [studyMinutesPerDay] is the ceiling: the width of the student's study
+  /// window, the most that could physically be done in a day. Deliberately
+  /// not their *stated* daily availability, which is smaller — falling short
+  /// of what you intended is a normal state the banner already reports,
+  /// whereas needing more hours than the day contains is impossible.
+  ({int? perDay, bool impossible}) examDemand({
+    required int remainingMinutes,
+    required DateTime from,
+    required int studyMinutesPerDay,
+    required int windowStartMinute,
+    required int windowEndMinute,
+  }) {
+    final prep = prepDaysFrom(
+      from,
+      windowStartMinute: windowStartMinute,
+      windowEndMinute: windowEndMinute,
+    );
+    if (remainingMinutes <= 0 || prep == null) {
+      return (perDay: null, impossible: false);
+    }
+    if (prep <= 0) return (perDay: null, impossible: true);
+
+    final demand = (remainingMinutes / prep).ceil();
+    if (demand > studyMinutesPerDay) return (perDay: null, impossible: true);
+    return (perDay: demand, impossible: false);
+  }
+
+  /// Whether the exam is behind us. Distinct from [examDemand]'s `impossible`:
+  /// a subject whose exam was last week needs no advice, only a note that it
+  /// is over.
+  bool examHasPassed(DateTime now) {
+    final exam = examDate;
+    if (exam == null) return false;
+    return dateOnly(exam).isBefore(dateOnly(now));
+  }
+
   Subject copyWith({
     String? name,
     DateTime? examDate,

@@ -114,7 +114,7 @@ user's call to make.
 
 ## Current state (verified, 4 Sep 2026)
 
-- 96/96 tests pass; `analyze` reports no issues.
+- 106/106 tests pass; `analyze` reports no issues.
 - Release APK builds and installs on device (52.3 MB, ~120 s warm; it was
   52.9 MB before the six unused fonts came out).
 - Flutter 3.47.2 / Dart 3.13.2 at `C:\src\flutter`. JDK 17 (Temurin) and
@@ -134,7 +134,8 @@ Features shipped and on the device:
   exam day counting as a whole day of preparation and bars that subject's
   blocks from being scheduled after the paper starts.
 - **Card style** picker (Settings > Cards): hairline / plain / lifted /
-  tinted / open, each previewed as a real card.
+  tinted / open, each previewed as a real card. All five are keepers — the
+  user's call on 4 Sep was to leave them customisable rather than pick one.
 - Study window + busy slots (weekly and one-off, multi-day picker).
 - Topic units stored with rate — pages/problems/minutes; conversion is honest.
 - Undo on logged blocks; skip has a confirm; midnight rollover is handled.
@@ -190,7 +191,14 @@ undo without reason.
   `make_v2_launcher.ps1`) so future retunes have the same ladder view.
 - **Brand widget**: `PraharMark` is CustomPainter, not a bundled PNG.
   Proportions match the launcher script exactly and are commented as such;
-  the two must stay in sync when the mark is retuned.
+  the two must stay in sync when the mark is retuned. Two deliberate
+  departures, both because the icon is drawn once at 1024px and the widget at
+  24–56px: the stroke widths have a floor in logical pixels (ticks 1.0, hand
+  1.4), and the light palette uses a darker ink at near-full alpha. A
+  proportional 0.0165 stroke is 0.4px at 24px, which anti-aliases to a ghost —
+  the hour ticks were invisible in light mode until both were fixed. Pale
+  strokes on a dark ground bloom and dark strokes on white do not, so the two
+  palettes are *not* mirror images of each other.
 - **Exam time is a separate optional column, not a timestamp.** `exam_date`
   stays a plain date and `exam_minute` (nullable) carries the hour, so every
   date comparison in the app — calendar grouping, the archive check, the
@@ -202,6 +210,21 @@ undo without reason.
   urgency score and both "needs X a day" figures divide by it; three copies
   would disagree and the app would tell the student two different stories
   about the same exam. `test/subject_test.dart` pins it.
+- **Never quote a rate no day could hold.** Dividing remaining work by
+  `prepDaysFrom` means dividing by a *fraction* of a day once an exam is
+  hours away, and the figure explodes — 4h of work against a 9am exam
+  reported "needs 56h a day". `Subject.examDemand` is the only place allowed
+  to answer this: it returns a rate, or `impossible`, and the UI says
+  "won't fit before the exam" instead of a number nobody can act on. The
+  ceiling is the study *window*, not stated availability — falling short of
+  what you intended is normal and the feasibility banner already reports it;
+  needing more hours than a day contains is not.
+- **Do not claim irreversibility the app does not have.** The skip dialog
+  warned in red that skipping "cannot be undone" while a skipped block sat in
+  Today's list with an Undo button next to it. It also promised the work
+  would not be offered again "this afternoon", which is only true if you skip
+  in the morning. Copy that describes behaviour has to be re-read whenever
+  that behaviour changes.
 - **Card styles are five different ideas, not five weights.** An outline, a
   tonal step, a shadow, a colour wash, and nothing at all. Anything subtler
   is a preference nobody can see. The picker draws each one as two stacked

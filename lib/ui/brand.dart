@@ -146,12 +146,18 @@ class MarkPalette {
   /// For placement on light surfaces. The sun keeps its warmth so the mark
   /// still reads as Prahar; ticks darken so they are visible against a light
   /// background instead of disappearing.
+  ///
+  /// The first attempt at this used a mid-grey at 55%, which is the same
+  /// relationship the dark palette has to its own background — and it was
+  /// nearly invisible. Pale strokes on a dark ground bloom; dark strokes on a
+  /// white one do not, so light mode needs both a darker ink and near-full
+  /// alpha to arrive at the same apparent weight.
   static const onLight = MarkPalette(
     sun: Color(0xFFF6A662),
     hand: Color(0xFFD9612F),
     pivot: Color(0xFF2A2032),
-    tick: Color(0xFF585268),
-    tickAlpha: 0.55,
+    tick: Color(0xFF4A4460),
+    tickAlpha: 0.92,
   );
 }
 
@@ -170,6 +176,15 @@ class _MarkPainter extends CustomPainter {
     // Every number is the original T3+K4 tuning multiplied by 0.26/0.22 =
     // 1.182 — a uniform zoom, not a retune. If the mark is ever rescaled
     // again, scale all six together or the two artefacts stop matching.
+    //
+    // One deliberate departure: the two stroke widths have a floor in logical
+    // pixels. The proportions were tuned on a 1024px master that is then
+    // downsampled, where 0.0165 of the side is a 17px stroke. In the app the
+    // mark is drawn at 24 to 56px, where the same fraction is 0.4 to 0.9px —
+    // a sub-pixel line that anti-aliases to a ghost, which is why the hour
+    // ticks were invisible in light mode. The floors bind only below about
+    // 76px and converge to the tuned ratio above it, so the launcher icon,
+    // rendered at 1024, is untouched by them.
     final side = s.shortestSide;
     final cx = s.width / 2;
     final cy = s.height / 2;
@@ -180,7 +195,7 @@ class _MarkPainter extends CustomPainter {
 
     final tickPaint = Paint()
       ..color = palette.tick.withValues(alpha: palette.tickAlpha)
-      ..strokeWidth = side * 0.0165
+      ..strokeWidth = math.max(side * 0.0165, 1.0)
       ..strokeCap = StrokeCap.round;
     for (var i = 0; i < 12; i++) {
       final a = math.pi * 2 * (i / 12.0) - math.pi / 2;
@@ -196,7 +211,9 @@ class _MarkPainter extends CustomPainter {
     final handAngle = math.pi * 2 * (2 / 12.0) - math.pi / 2;
     final handPaint = Paint()
       ..color = palette.hand
-      ..strokeWidth = side * 0.0355
+      // Floored too, and higher than the ticks: without it the hand would end
+      // up thinner than they are at 24px and the hierarchy would invert.
+      ..strokeWidth = math.max(side * 0.0355, 1.4)
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(
       Offset(cx, cy),

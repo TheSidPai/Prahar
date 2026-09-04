@@ -255,7 +255,7 @@ class LoggedSession {
   /// Time this entry consumed from the day.
   ///
   /// A skipped block still costs its slot — "skip" means *not today*, so the
-  /// planner must not immediately offer the same work again this afternoon.
+  /// planner must not immediately offer the same work again later the same day.
   int get consumedMinutes => wasSkipped ? plannedMinutes : actualMinutes;
 }
 

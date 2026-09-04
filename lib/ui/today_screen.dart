@@ -124,10 +124,14 @@ class TodayScreen extends StatelessWidget {
         minute < s.startMinuteOfDay + s.durationMinutes;
   }
 
-  /// Skipping is irreversible *and* costs the slot: the block's time is
-  /// subtracted from today so the work rolls to tomorrow rather than being
-  /// offered again this afternoon. Two consequences behind one tap, so it asks
-  /// first and says what will happen.
+  /// Skipping costs the slot as well as the block: the time is subtracted from
+  /// today, so the work rolls to a later day rather than being offered again
+  /// in the hours that are left. That second consequence is invisible, so the
+  /// dialog says it before the tap rather than after.
+  ///
+  /// It does *not* claim to be irreversible — it once did, which was simply
+  /// untrue: a skipped block appears in today's list with an Undo button like
+  /// any other logged one, and [AppState.undoLogged] removes it.
   Future<void> _confirmSkip(
       BuildContext context, AppState state, StudySession session) async {
     final ok = await showDialog<bool>(
@@ -143,15 +147,15 @@ class TodayScreen extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'The work moves to a later day, and today loses '
-              '${formatMinutes(session.durationMinutes)} of study time so it '
-              "isn't offered again this afternoon.",
+              '${formatMinutes(session.durationMinutes)} of study time, so it '
+              "won't be offered again today.",
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 10),
             Text(
-              'This cannot be undone.',
+              'You can undo it from today’s list.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.error,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
             ),
           ],

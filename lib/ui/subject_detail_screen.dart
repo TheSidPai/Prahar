@@ -83,21 +83,24 @@ class _SubjectStatus extends StatelessWidget {
     final total = topics.fold(0, (a, t) => a + t.estimatedMinutes);
     final remaining = topics.fold(0, (a, t) => a + t.remainingMinutes);
 
+    final now = DateTime.now();
     final exam = subject.examDate;
     final daysLeft =
-        exam == null ? null : dateOnly(exam).difference(dateOnly(DateTime.now())).inDays;
+        exam == null ? null : dateOnly(exam).difference(dateOnly(now)).inDays;
 
-    // Same divisor as the planner and the Progress card: whole days plus
-    // whatever part of the exam day comes before the exam.
+    // Asked exactly as the Progress card asks it, through the one method that
+    // knows when the question has stopped having a sensible answer.
     final prefs = context.select<AppState, Prefs>((s) => s.prefs);
-    final prepDays = subject.prepDaysFrom(
-      DateTime.now(),
+    final demand = subject.examDemand(
+      remainingMinutes: remaining,
+      from: now,
+      studyMinutesPerDay: prefs.windowMinutes,
       windowStartMinute: prefs.dayStartMinute,
       windowEndMinute: prefs.dayEndMinute,
     );
-    final perDay = (prepDays != null && prepDays > 0 && remaining > 0)
-        ? (remaining / prepDays).ceil()
-        : null;
+    final perDay = demand.perDay;
+    // The past-exam nudge below already covers a finished exam.
+    final impossible = demand.impossible && !subject.examHasPassed(now);
 
     // Glass here for the same reason the Today header has it: this is the one
     // panel on the screen that summarises rather than lists, and the material
@@ -149,10 +152,36 @@ class _SubjectStatus extends StatelessWidget {
                           '${formatDate(dateOnly(exam!))}'
                           '${subject.examMinuteOfDay == null ? '' : ', '
                               '${formatClock(subject.examMinuteOfDay!)}'}'
-                          '  ·  ${examLabel(subject, DateTime.now())}',
+                          '  ·  ${examLabel(subject, now)}',
                     ),
                   ],
                 ),
+              ),
+            ),
+          ],
+          // Said plainly rather than as an enormous per-day number. There is
+          // no rate that rescues this, so quoting one would be advice the
+          // student cannot take.
+          if (impossible) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.error.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                formatMinutes(remaining) +
+                    (daysLeft == 0
+                        ? ' still to do, and the exam is today'
+                            '${subject.examMinuteOfDay == null ? '' : ' at '
+                                '${formatClock(subject.examMinuteOfDay!)}'}'
+                            ". It won't fit — cover what matters most."
+                        : " left, which won't fit before the exam. Cut scope "
+                            'or move the date.'),
+                style: theme.textTheme.bodyMedium,
               ),
             ),
           ],

@@ -400,20 +400,24 @@ class _SubjectProgress extends StatelessWidget {
     final total = topics.fold(0, (a, t) => a + t.estimatedMinutes);
     final done = topics.fold(0, (a, t) => a + t.completedMinutes);
     final progress = total == 0 ? 0.0 : (done / total).clamp(0.0, 1.0);
-    final deadline = examLabel(subject, DateTime.now());
+    final now = DateTime.now();
+    final deadline = examLabel(subject, now);
 
     // The question a student actually has: at this rate, do I finish in time?
-    // Divided by the same figure the planner's urgency score uses, so the two
-    // can never tell the student different stories about the same deadline.
+    // Asked through Subject.examDemand so that every screen answers it the
+    // same way — including the case where the answer is "it doesn't".
     final remaining = total - done;
-    final prepDays = subject.prepDaysFrom(
-      DateTime.now(),
+    final demand = subject.examDemand(
+      remainingMinutes: remaining,
+      from: now,
+      studyMinutesPerDay: prefs.windowMinutes,
       windowStartMinute: prefs.dayStartMinute,
       windowEndMinute: prefs.dayEndMinute,
     );
-    final perDay = (prepDays != null && prepDays > 0 && remaining > 0)
-        ? (remaining / prepDays).ceil()
-        : null;
+    // A past exam needs no advice: "exam passed" already says everything, and
+    // adding "won't fit" to it would be piling on.
+    final impossible = demand.impossible && !subject.examHasPassed(now);
+    final perDay = demand.perDay;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -472,16 +476,19 @@ class _SubjectProgress extends StatelessWidget {
               ),
               // Deadline and demand read as one thought, on a line of their
               // own that is free to wrap. Both are about time remaining.
-              if (deadline != null || perDay != null) ...[
+              if (deadline != null || perDay != null || impossible) ...[
                 const SizedBox(height: 4),
                 Text(
                   [
                     ?deadline,
                     if (perDay != null)
                       'needs ${formatMinutes(perDay)} a day to finish in time',
+                    if (impossible) "won't fit before the exam",
                   ].join('  ·  '),
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
+                    color: impossible
+                        ? theme.colorScheme.error
+                        : theme.colorScheme.primary,
                   ),
                 ),
               ],
