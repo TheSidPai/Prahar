@@ -53,13 +53,14 @@
             android:id="@+id/today_now_badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="8dp"
-            android:paddingVertical="3dp"
-            android:layout_marginStart="8dp"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:layout_marginLeft="8dp"
             android:text="NOW"
             android:textSize="10sp"
             android:textStyle="bold"
-            android:letterSpacing="0.12"
             android:textColor="#292E60"
             android:background="@drawable/widget_now_badge"
             android:includeFontPadding="false"
@@ -70,7 +71,8 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:layout_marginVertical="10dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="10dp"
         android:background="#33FFFFFF"/>
 
     <!-- Block 2 -->
@@ -117,7 +119,6 @@
             android:layout_height="4dp"
             android:layout_marginTop="10dp"
             android:progressDrawable="@drawable/widget_progress"
-            android:min="0"
             android:max="100"
             android:progress="0"/>
 
@@ -127,8 +128,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:textSize="10sp"
-            android:letterSpacing="0.06"
-            android:textAllCaps="true"
+android:textAllCaps="true"
             android:textColor="#B8B4C8"
             android:includeFontPadding="false"/>
     </LinearLayout>

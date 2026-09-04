@@ -445,6 +445,17 @@ switch ($Task.ToLower()) {
         exit 0
     }
 
+    'adb' {
+        # Pass-through to adb so ad-hoc debugging goes through one command
+        # shape instead of a new allow rule per invocation.
+        #   tools\dev.ps1 adb logcat -d -t 200
+        #   tools\dev.ps1 adb shell input keyevent KEYCODE_HOME
+        $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+        if (-not (Test-Path $adb)) { Write-Output 'adb not installed'; exit 1 }
+        & $adb @Rest
+        exit $LASTEXITCODE
+    }
+
     'exempt' {
         # Add/remove the battery-optimisation exemption over adb, to test
         # whether Doze is what stops background alarms being delivered before
