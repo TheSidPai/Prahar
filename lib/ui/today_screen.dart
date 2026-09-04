@@ -61,8 +61,8 @@ class TodayScreen extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 90),
       children: [
         _Header(state: state),
-        if (!state.batteryExempt) _BatteryWarning(state: state),
-        if (!state.exactAlarmsAllowed) const _ExactAlarmWarning(),
+        if (!state.batteryExempt) BatteryWarning(state: state),
+        if (!state.exactAlarmsAllowed) const ExactAlarmWarning(),
         if (state.feasibility != null)
           FeasibilityBanner(feasibility: state.feasibility!),
         const SizedBox(height: 8),
@@ -109,8 +109,8 @@ class TodayScreen extends StatelessWidget {
                   builder: (_) => TimerScreen(session: s),
                 ),
               ),
-              onDone: () => _confirmDone(context, state, s),
-              onSkip: () => _confirmSkip(context, state, s),
+              onDone: () => confirmDone(context, state, s),
+              onSkip: () => confirmSkip(context, state, s),
             ),
       ],
     );
@@ -131,102 +131,6 @@ class TodayScreen extends StatelessWidget {
         minute < s.startMinuteOfDay + s.durationMinutes;
   }
 
-  /// Skipping costs the slot as well as the block: the time is subtracted from
-  /// today, so the work rolls to a later day rather than being offered again
-  /// in the hours that are left. That second consequence is invisible, so the
-  /// dialog says it before the tap rather than after.
-  ///
-  /// It does *not* claim to be irreversible — it once did, which was simply
-  /// untrue: a skipped block appears in today's list with an Undo button like
-  /// any other logged one, and [AppState.undoLogged] removes it.
-  Future<void> _confirmSkip(
-      BuildContext context, AppState state, StudySession session) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Skip this block?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(session.topicTitle,
-                style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 12),
-            Text(
-              'The work moves to a later day, and today loses '
-              '${formatMinutes(session.durationMinutes)} of study time, so it '
-              "won't be offered again today.",
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'You can undo it from today’s list.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep it'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Skip'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) await state.markSkipped(session);
-  }
-
-  /// Asks for the *actual* time spent rather than assuming the plan was
-  /// followed. That single number is what keeps future estimates honest.
-  Future<void> _confirmDone(
-      BuildContext context, AppState state, StudySession session) async {
-    var minutes = session.durationMinutes;
-
-    final result = await showDialog<int>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('How long did it take?'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(session.topicTitle),
-              const SizedBox(height: 16),
-              Text(formatMinutes(minutes),
-                  style: Theme.of(context).textTheme.headlineSmall),
-              Slider(
-                value: minutes.toDouble(),
-                min: 5,
-                max: 180,
-                divisions: 35,
-                onChanged: (v) => setState(() => minutes = v.round()),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, minutes),
-              child: const Text('Log it'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (result != null) {
-      await state.markDone(session, actualMinutes: result);
-    }
-  }
 }
 
 class _Header extends StatelessWidget {
@@ -295,104 +199,6 @@ class _Header extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         child: content,
       ),
-    );
-  }
-}
-
-/// The single most important warning in the app.
-///
-/// Without a battery-optimisation exemption Android freezes the process, and a
-/// perfectly registered exact alarm wakes nothing. The reminder then appears
-/// only when the app is next opened by hand — which is exactly when it is
-/// worthless. Confirmed on a Xiaomi device: identical code, exemption off,
-/// nothing arrived; exemption on, it arrived to the minute.
-class _BatteryWarning extends StatelessWidget {
-  const _BatteryWarning({required this.state});
-
-  final AppState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            const Icon(Icons.battery_alert, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text('Reminders will not arrive',
-                  style: theme.textTheme.titleSmall),
-            ),
-          ]),
-          const SizedBox(height: 6),
-          Text(
-            'Android is allowed to freeze Prahar in the background, so study '
-            'reminders will only appear when you open the app yourself. Allow '
-            'it to run unrestricted and they arrive on time.',
-            style: theme.textTheme.bodySmall,
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton(
-              onPressed: () async {
-                final ok = await state.requestBatteryExemption();
-                if (context.mounted && !ok) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Still restricted. Settings > Apps > Prahar > Battery '
-                        '> No restrictions, and turn on Autostart.',
-                      ),
-                      duration: Duration(seconds: 8),
-                    ),
-                  );
-                }
-              },
-              child: const Text('Fix this'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Android 12+ silently downgrades alarms to inexact ones unless the user
-/// grants this. A 6pm reminder arriving at 7:20pm is how a study app loses a
-/// student's trust, so it gets called out rather than failing quietly.
-class _ExactAlarmWarning extends StatelessWidget {
-  const _ExactAlarmWarning();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.tertiaryContainer,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(children: [
-        const Icon(Icons.alarm_off, size: 20),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            'Exact alarms are off, so reminders may arrive late. Enable '
-            '"Alarms & reminders" for Prahar in Android settings.',
-            style: theme.textTheme.bodySmall,
-          ),
-        ),
-      ]),
     );
   }
 }

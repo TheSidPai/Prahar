@@ -114,7 +114,7 @@ user's call to make.
 
 ## Current state (verified, 4 Sep 2026)
 
-- 126/126 tests pass; `analyze` reports no issues.
+- 137/137 tests pass; `analyze` reports no issues.
 - Release APK builds and installs on device (52.3 MB, ~120 s warm; it was
   52.9 MB before the six unused fonts came out).
 - Flutter 3.47.2 / Dart 3.13.2 at `C:\src\flutter`. JDK 17 (Temurin) and
@@ -142,6 +142,9 @@ Features shipped and on the device:
   slider dragged after the fact.
 - **Evening digest**: one notification a night with tomorrow's blocks. On by
   default at 21:00, switchable in Settings > Notifications.
+- **Six nav tabs, temporarily.** The sixth (`TestEd`) is the editorial Today
+  running beside the original for comparison. See *Open feedback* — one of
+  the two is meant to go.
 - Study window + busy slots (weekly and one-off, multi-day picker).
 - Topic units stored with rate — pages/problems/minutes; conversion is honest.
 - Undo on logged blocks; skip has a confirm; midnight rollover is handled.
@@ -291,15 +294,17 @@ sun bigger + font picker removal, glass tuning) **shipped on 4 Sep**, as did
 the study timer and the evening digest. All are recorded under *Recent
 decisions* above. What remains, in order:
 
-1. **Editorial Today screen**. The bigger design bet — Today is currently
-   a list dressed up. A single hero card for the current block, a smaller
-   "and after" row, a compressed strip of what's done, under the app-bar
-   mark that now sits there permanently. Fewer surfaces, more hierarchy.
-   This is the answer to *"looks standard, very common"*. It also subsumes
-   the `isNow` chip on `SessionTile`, which is a marker standing in for a
-   hero card and computes "now" at build time rather than on a ticker.
-   The hero card is also where the timer's Start button belongs; for now it
-   is the whole tile that is tappable.
+1. **Editorial Today — decide between the two.** Built on 5 Sep and running
+   as a sixth tab (`TestEd`) *beside* the original, so the two can be
+   compared on a real day rather than argued about. `TodayEditorialScreen`
+   leads with one hero block, compresses the rest to a rail, folds finished
+   work into a line, and condenses the "plan fits" banner. **This is a
+   deliberately temporary state**: one of the two Todays is meant to be
+   deleted. If the editorial one wins, delete `today_screen.dart`, move the
+   editorial screen to index 0 and drop the sixth destination; if it loses,
+   delete `today_editorial_screen.dart` and `domain/today_focus.dart`. Do
+   not leave both shipping — six nav destinations is one too many, and two
+   screens showing the same data will drift.
 2. **Landscape / tablet layout**. Two-pane splits: Subjects (list ↔
    topics), Plan (days ↔ month), Today (current block ↔ rail of next up).
    `LayoutBuilder`, not a whole new codebase. Horizontal-conducive extras:

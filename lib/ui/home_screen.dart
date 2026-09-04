@@ -8,6 +8,7 @@ import 'glass.dart';
 import 'plan_screen.dart';
 import 'settings_screen.dart';
 import 'subjects_screen.dart';
+import 'today_editorial_screen.dart';
 import 'today_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -20,7 +21,22 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _index = 0;
 
-  static const _titles = ['Today', 'Plan', 'Progress', 'Subjects', 'Settings'];
+  /// The editorial Today is appended rather than inserted next to the original
+  /// so every existing index — and the FAB's `_index == 3` — keeps its
+  /// meaning. It is a trial tab: one of the two Todays is meant to be deleted
+  /// once they have been compared on a real day, and this is the cheaper one
+  /// to remove.
+  static const _titles = [
+    'Today',
+    'Plan',
+    'Progress',
+    'Subjects',
+    'Settings',
+    'Today',
+  ];
+
+  /// Indices whose screen is a Today, and so carries the mark in the app bar.
+  static const _todayTabs = {0, 5};
 
   @override
   void initState() {
@@ -71,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // sits at exactly the weight and size "Plan" and "Progress" do.
         // On first run the empty state already shows the large filled logo,
         // so the bar stands down rather than stack two marks.
-        title: _index == 0 && state.subjects.isNotEmpty
+        title: _todayTabs.contains(_index) && state.subjects.isNotEmpty
             ? PraharLogo(
                 markSize: 24,
                 filled: false,
@@ -91,6 +107,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ProgressScreen(),
           SubjectsScreen(),
           SettingsScreen(),
+          TodayEditorialScreen(),
         ],
       ),
       floatingActionButton: _index == 3
@@ -129,6 +146,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
             label: 'Settings',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome),
+            label: 'TestEd',
           ),
         ],
       ),

@@ -9,6 +9,208 @@ import '../state/app_state.dart';
 import 'glass.dart';
 import 'theme.dart';
 
+/// Skipping costs the slot as well as the block: the time is subtracted from
+/// today, so the work rolls to a later day rather than being offered again in
+/// the hours that are left. That second consequence is invisible, so the
+/// dialog says it before the tap rather than after.
+///
+/// It does *not* claim to be irreversible — it once did, which was simply
+/// untrue: a skipped block appears in today's list with an Undo button like
+/// any other logged one, and [AppState.undoLogged] removes it.
+Future<void> confirmSkip(
+    BuildContext context, AppState state, StudySession session) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Skip this block?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(session.topicTitle,
+              style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 12),
+          Text(
+            'The work moves to a later day, and today loses '
+            '${formatMinutes(session.durationMinutes)} of study time, so it '
+            "won't be offered again today.",
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'You can undo it from today’s list.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Keep it'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Skip'),
+        ),
+      ],
+    ),
+  );
+  if (ok == true) await state.markSkipped(session);
+}
+
+/// Asks for the *actual* time spent rather than assuming the plan was
+/// followed. That single number is what keeps future estimates honest.
+///
+/// The study timer measures the same number instead of asking for it, which
+/// is strictly better evidence — this dialog remains for blocks done away
+/// from the app.
+Future<void> confirmDone(
+    BuildContext context, AppState state, StudySession session) async {
+  var minutes = session.durationMinutes;
+
+  final result = await showDialog<int>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: const Text('How long did it take?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(session.topicTitle),
+            const SizedBox(height: 16),
+            Text(formatMinutes(minutes),
+                style: Theme.of(context).textTheme.headlineSmall),
+            Slider(
+              value: minutes.toDouble(),
+              min: 5,
+              max: 180,
+              divisions: 35,
+              onChanged: (v) => setState(() => minutes = v.round()),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, minutes),
+            child: const Text('Log it'),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  if (result != null) {
+    await state.markDone(session, actualMinutes: result);
+  }
+}
+
+/// The single most important warning in the app.
+///
+/// Without a battery-optimisation exemption Android freezes the process, and a
+/// perfectly registered exact alarm wakes nothing. The reminder then appears
+/// only when the app is next opened by hand — which is exactly when it is
+/// worthless. Confirmed on a Xiaomi device: identical code, exemption off,
+/// nothing arrived; exemption on, it arrived to the minute.
+///
+/// Lives here rather than on one screen because both Today screens need it,
+/// and a warning this important must not exist in two versions that can drift.
+class BatteryWarning extends StatelessWidget {
+  const BatteryWarning({super.key, required this.state});
+
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.battery_alert, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Reminders will not arrive',
+                  style: theme.textTheme.titleSmall),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          Text(
+            'Android is allowed to freeze Prahar in the background, so study '
+            'reminders will only appear when you open the app yourself. Allow '
+            'it to run unrestricted and they arrive on time.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              onPressed: () async {
+                final ok = await state.requestBatteryExemption();
+                if (context.mounted && !ok) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Still restricted. Settings > Apps > Prahar > Battery '
+                        '> No restrictions, and turn on Autostart.',
+                      ),
+                      duration: Duration(seconds: 8),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Fix this'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Android 12+ silently downgrades alarms to inexact ones unless the user
+/// grants this. A 6pm reminder arriving at 7:20pm is how a study app loses a
+/// student's trust, so it gets called out rather than failing quietly.
+class ExactAlarmWarning extends StatelessWidget {
+  const ExactAlarmWarning({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(children: [
+        const Icon(Icons.alarm_off, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Exact alarms are off, so reminders may arrive late. Enable '
+            '"Alarms & reminders" for Prahar in Android settings.',
+            style: theme.textTheme.bodySmall,
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
 /// The deadline in the fewest words that are still true.
 ///
 /// Null when the subject has no exam date. Once a time is known it is worth
@@ -33,23 +235,50 @@ String? examLabel(Subject s, DateTime today) {
 /// generates an impossible schedule is worse than none at all — the student
 /// only finds out the week of the exam.
 class FeasibilityBanner extends StatelessWidget {
-  const FeasibilityBanner({super.key, required this.feasibility});
+  const FeasibilityBanner({
+    super.key,
+    required this.feasibility,
+    this.condensed = false,
+  });
 
   final Feasibility feasibility;
+
+  /// Shrinks the *passing* verdict to a single line. A whole panel spent
+  /// saying "everything is fine" is the most expensive reassurance on the
+  /// screen. The failing verdict is never condensed — being blunt about an
+  /// impossible plan is the single most valuable thing this app does, and the
+  /// student only finds out otherwise in the week of the exam.
+  final bool condensed;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (feasibility.fits) {
       if (feasibility.requiredMinutes == 0) return const SizedBox.shrink();
+
+      final summary = '${formatMinutes(feasibility.requiredMinutes)} of work '
+          'across ${formatMinutes(feasibility.availableMinutes)} of study time.';
+
+      if (condensed) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
+          child: Row(children: [
+            Icon(Icons.check_circle_outline,
+                size: 14, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text('The plan fits · $summary',
+                  style: theme.textTheme.bodySmall),
+            ),
+          ]),
+        );
+      }
+
       return _Card(
         color: theme.colorScheme.secondaryContainer,
         icon: Icons.check_circle_outline,
         title: 'The plan fits',
-        lines: [
-          '${formatMinutes(feasibility.requiredMinutes)} of work across '
-              '${formatMinutes(feasibility.availableMinutes)} of study time.',
-        ],
+        lines: [summary],
       );
     }
 
