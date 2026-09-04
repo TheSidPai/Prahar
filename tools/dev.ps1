@@ -267,25 +267,24 @@ switch ($Task.ToLower()) {
     }
 
     'fonts' {
-        # Fetch each family's variable-font TTF from the google/fonts mirror
-        # and bundle it under assets/fonts. Google's own files are variable
-        # ("Inter[opsz,wght].ttf") - one file per family carrying every
-        # weight - so the picker gets four weights per family from one asset.
-        # Downloaded here rather than at runtime because the release build has
-        # no INTERNET permission and runtime fonts silently fall back to the
-        # system default, which was the bug.
+        # Fetch the bundled family's variable-font TTF from the google/fonts
+        # mirror into assets/fonts. Google's own file is variable
+        # ("Inter[opsz,wght].ttf") - one file carrying every weight - so the
+        # theme's four weights come from one asset. Downloaded here rather
+        # than at runtime because the release build has no INTERNET permission
+        # and runtime fonts silently fall back to the system default, which
+        # was the bug that put them in the repo in the first place.
+        #
+        # The list stays a table because it once held seven families for the
+        # font picker; Inter won that and the rest are gone. Adding a face
+        # back is a one-line change here plus a pubspec entry.
         $target = Join-Path $Project 'assets\fonts'
         New-Item -ItemType Directory -Force $target | Out-Null
 
         $base = 'https://raw.githubusercontent.com/google/fonts/main/ofl'
         # (family, source basename on the repo, local filename)
         $families = @(
-            @('Inter',        'Inter[opsz,wght].ttf',                     'Inter.ttf'),
-            @('Manrope',      'Manrope[wght].ttf',                        'Manrope.ttf'),
-            @('InterTight',   'InterTight[wght].ttf',                     'InterTight.ttf'),
-            @('SpaceGrotesk', 'SpaceGrotesk[wght].ttf',                   'SpaceGrotesk.ttf'),
-            @('Fraunces',     'Fraunces[SOFT,WONK,opsz,wght].ttf',        'Fraunces.ttf'),
-            @('IBMPlexSerif', 'IBMPlexSerif-Regular.ttf',                 'IBMPlexSerif.ttf')
+            @('Inter',        'Inter[opsz,wght].ttf',                     'Inter.ttf')
         )
 
         foreach ($f in $families) {

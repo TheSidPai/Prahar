@@ -52,26 +52,14 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # Bundled variable fonts. Each TTF carries the whole weight range, so one
-  # asset per family is enough for the four weights the theme uses (400 / 500
-  # / 600 / 700). Files are fetched with tools\dev.ps1 fonts, from the
-  # google/fonts repo.
+  # Inter, bundled. One variable TTF carries the whole weight range, so a
+  # single asset covers the four weights the theme uses (400 / 500 / 600 /
+  # 700). Fetched with tools\dev.ps1 fonts, from the google/fonts repo.
+  #
+  # Six other families shipped alongside it while the choice was still open,
+  # behind a live-preview picker in Settings. Inter won; the picker and the
+  # other TTFs are gone, which is ~2 MB off the APK.
   fonts:
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter.ttf
-    - family: Manrope
-      fonts:
-        - asset: assets/fonts/Manrope.ttf
-    - family: InterTight
-      fonts:
-        - asset: assets/fonts/InterTight.ttf
-    - family: SpaceGrotesk
-      fonts:
-        - asset: assets/fonts/SpaceGrotesk.ttf
-    - family: Fraunces
-      fonts:
-        - asset: assets/fonts/Fraunces.ttf
-    - family: IBMPlexSerif
-      fonts:
-        - asset: assets/fonts/IBMPlexSerif.ttf

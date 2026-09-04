@@ -22,10 +22,8 @@ class PraharApp extends StatelessWidget {
         ThemeChoice.light => ThemeMode.light,
         ThemeChoice.dark => ThemeMode.dark,
       },
-      theme: PraharTheme.of(Brightness.light,
-          font: prefs.fontChoice, material: prefs.materialChoice),
-      darkTheme: PraharTheme.of(Brightness.dark,
-          font: prefs.fontChoice, material: prefs.materialChoice),
+      theme: PraharTheme.of(Brightness.light, material: prefs.materialChoice),
+      darkTheme: PraharTheme.of(Brightness.dark, material: prefs.materialChoice),
       home: const HomeScreen(),
     );
   }

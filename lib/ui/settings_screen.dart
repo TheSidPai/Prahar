@@ -11,7 +11,6 @@ import '../state/app_state.dart';
 import 'brand.dart';
 import 'busy_slots_screen.dart';
 import 'how_it_works.dart';
-import 'theme.dart';
 
 /// A compact index of settings, not a wall of controls.
 ///
@@ -121,17 +120,10 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
         row(
-          icon: Icons.text_fields_outlined,
-          title: 'Font',
-          value: PraharTheme.describe(state.prefs.fontChoice).$1,
-          onTap: () => Navigator.push(context,
-              MaterialPageRoute<void>(builder: (_) => const _FontPage())),
-        ),
-        row(
           icon: Icons.blur_on,
           title: 'Materials',
           value: state.prefs.materialChoice == MaterialChoice.glass
-              ? 'Glass (preview) — nav, sheets, Today header'
+              ? 'Glass (preview) — nav, sheets, panels'
               : 'Matte',
           onTap: () => Navigator.push(context,
               MaterialPageRoute<void>(builder: (_) => const _MaterialPage())),
@@ -402,9 +394,10 @@ class _MaterialPage extends StatelessWidget {
         children: [
           Text(
             'Two visual languages. Toggle to preview — the change is instant. '
-            'Glass affects the bottom nav, the Today header and every modal '
-            'sheet; everything else stays matte on purpose (contrast between '
-            'materials is what carries the effect).',
+            'Glass affects the bottom nav, every modal sheet, and the three '
+            'summary panels: the Today header, the feasibility banner and a '
+            "subject's status. Lists and cards stay matte on purpose — the "
+            'contrast between materials is what carries the effect.',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
@@ -554,121 +547,6 @@ class _BackupPageState extends State<_BackupPage> {
     } catch (e) {
       if (mounted) setState(() => _message = 'Restore failed: $e');
     }
-  }
-}
-
-class _FontPage extends StatelessWidget {
-  const _FontPage();
-
-  @override
-  Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
-    final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Font')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 8, 4, 16),
-            child: Text(
-              'Every option shows a real specimen. Tap to try — the whole app '
-              'restyles immediately, so you can browse other tabs and come '
-              'back.',
-              style: theme.textTheme.bodySmall,
-            ),
-          ),
-          for (final choice in FontChoice.values)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _FontCard(
-                choice: choice,
-                selected: choice == state.prefs.fontChoice,
-                onTap: () => _savePrefs(
-                    context, state, state.prefs.copyWith(fontChoice: choice)),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A live specimen of the family, so the choice is made on how it looks and
-/// not on the name. Two lines rendered at heading and body sizes cover most
-/// of what the reader will encounter in the app.
-class _FontCard extends StatelessWidget {
-  const _FontCard({
-    required this.choice,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final FontChoice choice;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final desc = PraharTheme.describe(choice);
-    final baseText = theme.textTheme;
-    // Render the specimen in the family being previewed, so this card is a
-    // true representation regardless of the currently applied font.
-    final family = PraharTheme.fontFor(choice, baseText);
-
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: selected
-              ? theme.colorScheme.primary
-              : theme.colorScheme.outlineVariant,
-          width: selected ? 2 : 1,
-        ),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Expanded(
-                  child: Text(desc.$1, style: baseText.titleMedium),
-                ),
-                if (selected)
-                  Icon(Icons.check_circle,
-                      color: theme.colorScheme.primary, size: 20),
-              ]),
-              Text(
-                desc.$2,
-                style: baseText.bodySmall
-                    ?.copyWith(color: theme.colorScheme.outline),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Ch 4 — Aldehydes',
-                style: family.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.6,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Physics needs 47 min a day to be ready by 24 Oct',
-                style: family.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

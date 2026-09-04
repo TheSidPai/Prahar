@@ -277,6 +277,13 @@ class _CalibrationCard extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: FilledButton.tonal(
+                  // See SessionTile's Done button: the theme's amber fill
+                  // reaches the tonal variant, so a genuinely secondary
+                  // action asks for the soft container back.
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.secondaryContainer,
+                    foregroundColor: theme.colorScheme.onSecondaryContainer,
+                  ),
                   onPressed: () async {
                     await state.applyCalibration(suggestion);
                     if (context.mounted) {
@@ -342,9 +349,14 @@ class _OverallCard extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(children: [
-                      const Icon(Icons.local_fire_department, size: 18),
+                      Icon(Icons.local_fire_department,
+                          size: 18, color: theme.colorScheme.tertiary),
                       const SizedBox(width: 4),
-                      Text('$streak d', style: theme.textTheme.titleMedium),
+                      Text(
+                        '$streak d',
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(color: theme.colorScheme.tertiary),
+                      ),
                     ]),
                   ),
               ],

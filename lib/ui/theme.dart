@@ -22,43 +22,38 @@ class PraharTheme {
   /// product"; muting it lets subject colours stand out against it.
   static const seed = Color(0xFF5A63D8);
 
-  /// The bundled family name for a picker choice, matching the entries in
-  /// pubspec.yaml. Null means "use the platform default", which is the
-  /// meaning of FontChoice.system.
-  static String? _familyOf(FontChoice choice) => switch (choice) {
-        FontChoice.system => null,
-        FontChoice.inter => 'Inter',
-        FontChoice.manrope => 'Manrope',
-        FontChoice.interTight => 'InterTight',
-        FontChoice.spaceGrotesk => 'SpaceGrotesk',
-        FontChoice.fraunces => 'Fraunces',
-        FontChoice.ibmPlexSerif => 'IBMPlexSerif',
-      };
+  /// Amber, the warm accent.
+  ///
+  /// The launcher icon and both home-screen widgets have always been warm —
+  /// navy ground, amber hand, amber progress bar — while the interior was
+  /// cool indigo with no amber anywhere, so the app and its own icon read as
+  /// two different products. The split is now by *meaning* rather than by
+  /// artefact: indigo stays structural (navigation, selection, focus, "this
+  /// is today"), and amber marks effort and intent — the streak, the block
+  /// happening right now, and the one button that is the point of a screen.
+  ///
+  /// The value is taken from the icon itself, between its sun (0xFFFAD294)
+  /// and its hand (0xFFF69460).
+  static const accent = Color(0xFFF0A055);
 
-  /// Retypes every style in [base] with the chosen family, preserving the
-  /// weights, sizes and colours the theme has already set. Falls back to the
-  /// platform default (null family) for [FontChoice.system], which is the
-  /// correct meaning of "use the system font".
-  static TextTheme fontFor(FontChoice choice, TextTheme base) {
-    final family = _familyOf(choice);
-    if (family == null) return base;
-    return base.apply(fontFamily: family);
-  }
+  /// Ink for anything drawn *on* [accent]. Dark rather than white: amber is a
+  /// light colour and white on it fails contrast at label sizes in both
+  /// themes, which is how amber buttons usually end up looking cheap.
+  static const accentInk = Color(0xFF2A1A0E);
 
-  /// A short label plus a one-line character of each face.
-  static (String name, String flavour) describe(FontChoice c) => switch (c) {
-        FontChoice.system => ('System', 'Your phone’s own UI font'),
-        FontChoice.inter => ('Inter', 'Contemporary, neutral, ubiquitous'),
-        FontChoice.manrope => ('Manrope', 'Softer humanist sans'),
-        FontChoice.interTight => ('Inter Tight', 'Editorial, close-set'),
-        FontChoice.spaceGrotesk => ('Space Grotesk', 'Geometric with quirks'),
-        FontChoice.fraunces => ('Fraunces', 'Warm serif with optical care'),
-        FontChoice.ibmPlexSerif => ('IBM Plex Serif', 'Editorial serif'),
-      };
+  /// Amber used *as text* on a light surface. [accent] is too pale to read
+  /// against white, so light mode borrows the mark's darker hand colour —
+  /// the same one `MarkPalette.onLight` uses, for the same reason.
+  static const accentOnLight = Color(0xFFC2661F);
+
+  /// The one bundled family. A seven-font picker shipped while the choice was
+  /// still open; Inter won it on a live preview, so the picker and the six
+  /// unused TTFs are gone. Bundled, never fetched — the release build has no
+  /// INTERNET permission and a runtime fetch silently yields the system font.
+  static const fontFamily = 'Inter';
 
   static ThemeData of(
     Brightness brightness, {
-    FontChoice font = FontChoice.inter,
     MaterialChoice material = MaterialChoice.matte,
   }) {
     final dark = brightness == Brightness.dark;
@@ -78,13 +73,34 @@ class PraharTheme {
       outlineVariant: dark
           ? const Color(0xFF2A2F38)
           : const Color(0xFFE3E5EA),
+
+      // Amber lives in the scheme rather than in a constant each widget
+      // imports, so "the accent" is reachable from any BuildContext and can
+      // never be half-applied. `tertiary` is amber-as-text and so differs by
+      // brightness; the containers stay pale/deep in the M3 sense, because
+      // the text drawn on them is ordinary onSurface text.
+      tertiary: dark ? const Color(0xFFF3A968) : accentOnLight,
+      onTertiary: accentInk,
+      tertiaryContainer:
+          dark ? const Color(0xFF4A3418) : const Color(0xFFFBE7CE),
+      onTertiaryContainer:
+          dark ? const Color(0xFFF7D9AE) : const Color(0xFF5A3312),
+
+      // Warm-soft: the quieter half of the accent family. Carries the tonal
+      // "Done" button and the "plan fits" banner, which want to belong to the
+      // amber family without competing with a full-strength CTA.
+      secondaryContainer:
+          dark ? const Color(0xFF3B2C1C) : const Color(0xFFF7E4CE),
+      onSecondaryContainer:
+          dark ? const Color(0xFFF3D6B0) : const Color(0xFF4A2E12),
     );
 
     final base = ThemeData(colorScheme: scheme, useMaterial3: true);
-    // Apply the font pick over the base text theme *before* our own weight
-    // and spacing overrides, so those overrides win. This is what preserves
-    // the negative tracking on large sizes across every face.
-    final withFont = base.copyWith(textTheme: fontFor(font, base.textTheme));
+    // Apply the family over the base text theme *before* our own weight and
+    // spacing overrides, so those overrides win. This is what preserves the
+    // negative tracking on the large sizes.
+    final withFont =
+        base.copyWith(textTheme: base.textTheme.apply(fontFamily: fontFamily));
 
     return withFont.copyWith(
       scaffoldBackgroundColor: scheme.surface,
@@ -138,8 +154,14 @@ class PraharTheme {
         ),
       ),
 
+      // Primary CTAs are amber. Note this reaches FilledButton.tonal too —
+      // one FilledButtonThemeData serves both variants and a theme background
+      // beats the tonal default — so the two tonal call sites pass the
+      // secondaryContainer pair explicitly to stay the quieter option.
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: accentInk,
           minimumSize: const Size(0, 44),
           padding: const EdgeInsets.symmetric(horizontal: 20),
           shape: RoundedRectangleBorder(
@@ -223,7 +245,19 @@ class PraharTheme {
         ),
       ),
 
+      // The FAB is the one CTA of the screen it appears on, so it joins the
+      // amber family rather than sitting in indigo next to an amber button.
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: accent,
+        foregroundColor: accentInk,
+      ),
+
+      // Amber measures effort: the day's progress here, the overall bar on
+      // Progress, and — not by coincidence — the widget's own bar, which has
+      // been amber since it shipped. Subject bars pass their own colour and
+      // are unaffected.
       progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: accent,
         linearTrackColor: scheme.surfaceContainerHighest,
         linearMinHeight: 6,
       ),

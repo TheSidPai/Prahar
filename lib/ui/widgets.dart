@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../domain/format.dart';
+import '../domain/preferences.dart';
 import '../domain/schedule.dart';
+import '../state/app_state.dart';
+import 'glass.dart';
+import 'theme.dart';
 
 /// The feasibility verdict, shown wherever a plan is shown.
 ///
@@ -54,29 +59,49 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Icon(icon, size: 20),
-            const SizedBox(width: 8),
-            Text(title, style: theme.textTheme.titleSmall),
-          ]),
-          const SizedBox(height: 6),
-          for (final line in lines)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(line, style: theme.textTheme.bodySmall),
-            ),
-        ],
+    final glass = context.select<AppState, MaterialChoice>(
+            (s) => s.prefs.materialChoice) ==
+        MaterialChoice.glass;
+    final radius = BorderRadius.circular(14);
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Icon(icon, size: 20),
+          const SizedBox(width: 8),
+          Text(title, style: theme.textTheme.titleSmall),
+        ]),
+        const SizedBox(height: 6),
+        for (final line in lines)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(line, style: theme.textTheme.bodySmall),
+          ),
+      ],
+    );
+
+    if (!glass) {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: color, borderRadius: radius),
+        child: content,
+      );
+    }
+
+    // The verdict is the one panel on Today that must not read as another
+    // card in the list, so it gets glass. The tint keeps its semantic colour
+    // — warm for "fits", error for "doesn't" — at an alpha low enough that
+    // the blur is still doing the work.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: GlassSurface(
+        borderRadius: radius,
+        padding: const EdgeInsets.all(14),
+        tint: color.withValues(alpha: 0.45),
+        child: SizedBox(width: double.infinity, child: content),
       ),
     );
   }
@@ -88,6 +113,7 @@ class SessionTile extends StatelessWidget {
     required this.session,
     required this.color,
     this.handled = false,
+    this.isNow = false,
     this.onDone,
     this.onSkip,
   });
@@ -95,6 +121,12 @@ class SessionTile extends StatelessWidget {
   final StudySession session;
   final Color color;
   final bool handled;
+
+  /// Whether the clock is currently inside this block. Marks the one tile
+  /// that is about the present rather than the plan — the same thing the
+  /// home-screen widget calls NOW, in the same colour.
+  final bool isNow;
+
   final VoidCallback? onDone;
   final VoidCallback? onSkip;
 
@@ -132,6 +164,10 @@ class SessionTile extends StatelessWidget {
                         formatMinutes(session.durationMinutes),
                         style: theme.textTheme.bodySmall,
                       ),
+                      if (isNow) ...[
+                        const SizedBox(width: 8),
+                        const _Chip(label: 'now', accented: true),
+                      ],
                       if (session.isReview) ...[
                         const SizedBox(width: 8),
                         const _Chip(label: 'review'),
@@ -165,7 +201,13 @@ class SessionTile extends StatelessWidget {
               if (!handled && onDone != null)
                 FilledButton.tonal(
                   onPressed: onDone,
+                  // The theme paints every FilledButton in full amber, and
+                  // one FilledButtonThemeData serves the tonal variant too.
+                  // A tile carries one of these per block, so it asks for the
+                  // quiet half of the accent family back explicitly.
                   style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.secondaryContainer,
+                    foregroundColor: theme.colorScheme.onSecondaryContainer,
                     minimumSize: const Size(0, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                   ),
@@ -265,8 +307,14 @@ class LoggedTile extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({required this.label});
+  const _Chip({required this.label, this.accented = false});
+
   final String label;
+
+  /// Full-strength amber rather than the quiet container. Reserved for "now":
+  /// a chip that means *the present moment* has to out-rank one that merely
+  /// classifies the block.
+  final bool accented;
 
   @override
   Widget build(BuildContext context) {
@@ -274,10 +322,19 @@ class _Chip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        color: theme.colorScheme.tertiaryContainer,
+        color:
+            accented ? PraharTheme.accent : theme.colorScheme.tertiaryContainer,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(label, style: theme.textTheme.labelSmall),
+      child: Text(
+        label,
+        style: accented
+            ? theme.textTheme.labelSmall?.copyWith(
+                color: PraharTheme.accentInk,
+                fontWeight: FontWeight.w700,
+              )
+            : theme.textTheme.labelSmall,
+      ),
     );
   }
 }

@@ -12,6 +12,12 @@
 # Numbers here are the result of the T3 (hand) + K4 (tick) tuning pass;
 # see tools\make_v2_thickness.ps1 and tools\make_t3_tick_variants.ps1 for
 # the previews that led here.
+#
+# The whole mark was then scaled up by 0.26/0.22 = 1.182 - the sun read too
+# small inside the tile. Every measurement below is multiplied by that one
+# factor, ticks and stroke widths included, so this is the same drawing seen
+# closer rather than a fatter sun inside the old ring. The T3+K4 ratios are
+# therefore untouched; only the zoom changed.
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
@@ -41,11 +47,12 @@ function New-Icon([int]$size) {
     $cx = $size * 0.50
     $cy = $size * 0.50
 
-    # Hour ticks - K4 tuning. Thickness 0.014, alpha 135. Chosen so a stroke
-    # survives at mdpi (48px) without dominating at xxxhdpi (192px).
-    $rIn = $size * 0.30
-    $rOut = $size * 0.34
-    $tick = New-Object System.Drawing.Pen((Argb 135 245 244 252), [float]($size * 0.014))
+    # Hour ticks - K4 tuning at 1.182x zoom. Thickness 0.014 -> 0.0165, ring
+    # 0.30..0.34 -> 0.3545..0.4018. The ring keeps its 4-unit width relative to
+    # the sun, so the gap between sun edge and ticks reads exactly as before.
+    $rIn = $size * 0.3545
+    $rOut = $size * 0.4018
+    $tick = New-Object System.Drawing.Pen((Argb 135 245 244 252), [float]($size * 0.0165))
     $tick.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
     $tick.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
     for ($i = 0; $i -lt 12; $i++) {
@@ -58,18 +65,18 @@ function New-Icon([int]$size) {
     }
     $tick.Dispose()
 
-    # Sun disc.
-    $sunR = $size * 0.22
+    # Sun disc. 0.22 -> 0.26; the zoom factor every other number here follows.
+    $sunR = $size * 0.26
     $sun = New-Object System.Drawing.SolidBrush((Argb 255 250 210 148))
     $g.FillEllipse($sun,
         [float]($cx - $sunR), [float]($cy - $sunR),
         [float]($sunR * 2), [float]($sunR * 2))
     $sun.Dispose()
 
-    # Clock hand - T3 tuning. Stroke 0.030, length 78% of sun radius so the
-    # tip never approaches the sun's edge, hand at "2 o'clock".
+    # Clock hand - T3 tuning at 1.182x zoom. Stroke 0.030 -> 0.0355; the length
+    # stays 78% of the sun radius, which scales with the sun on its own.
     $a = [Math]::PI * 2 * (2 / 12.0) - [Math]::PI / 2
-    $hand = New-Object System.Drawing.Pen((Argb 255 246 148 96), [float]($size * 0.030))
+    $hand = New-Object System.Drawing.Pen((Argb 255 246 148 96), [float]($size * 0.0355))
     $hand.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
     $hand.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
     $g.DrawLine($hand,
@@ -81,7 +88,7 @@ function New-Icon([int]$size) {
     # Pivot: a dark disc at the hand's origin. Reads as intentional anchor
     # rather than an artefact.
     $pivot = New-Object System.Drawing.SolidBrush((Argb 255 60 40 40))
-    $pr = $size * 0.020
+    $pr = $size * 0.0236   # 0.020 * 1.182
     $g.FillEllipse($pivot,
         [float]($cx - $pr), [float]($cy - $pr),
         [float]($pr * 2), [float]($pr * 2))

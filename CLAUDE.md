@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## For a fresh session
 
 If you are just picking this up, read in this order: **Current state** →
-**Open feedback (4 Sep)** → **Recent decisions worth carrying forward** →
+**Open feedback** → **Recent decisions worth carrying forward** →
 whatever section your task touches. The whole file is here because every
 paragraph was learned the hard way, but the state + feedback + decisions
 are what let a new session act, not just understand.
@@ -89,10 +89,20 @@ gitignored.
 the tests import, so a passing suite leaves the entire `lib/ui` tree unchecked.
 Always run `analyze` as well — that is what actually type-checks the app.
 
+**Do not run `tools\dev.ps1 format`.** The tree is committed in the old
+`dart format` style; the formatter bundled with Dart 3.13 is the new "tall
+style" one, so a single run rewrites *every* file — 31 of 32, thousands of
+lines — and buries whatever the commit was actually about. It was run once by
+accident on 4 Sep and reverted with `git checkout -- lib test`. Match the
+surrounding style by hand instead. Adopting the new style is a fine decision,
+but it belongs in its own commit that changes nothing else, and it is the
+user's call to make.
+
 ## Current state (verified, 4 Sep 2026)
 
 - 77/77 tests pass; `analyze` reports no issues.
-- Release APK builds and installs on device (~53 MB, ~90 s warm).
+- Release APK builds and installs on device (52.2 MB, ~90 s warm; it was
+  52.9 MB before the six unused fonts came out).
 - Flutter 3.47.2 / Dart 3.13.2 at `C:\src\flutter`. JDK 17 (Temurin) and
   Android Studio installed. SDK at `%LOCALAPPDATA%\Android\Sdk`: platforms
   35+36, build-tools 36.0.0, platform-tools, cmdline-tools, NDK 28.2.13676358.
@@ -113,12 +123,16 @@ Features shipped and on the device:
 - Post-exam archive collapse. Backup/restore to `/Download/Prahar/`.
 - Calibration loop: on Progress, per-subject recommendations from finished
   topics. Only fires for >=3 samples and >15% drift.
-- **PraharMark / PraharLogo** brand widget (CustomPainter). Three placements:
-  first-run Today, top of How Prahar Works, Settings footer.
+- **PraharMark / PraharLogo** brand widget (CustomPainter). Four placements:
+  the Today app bar (always, once a subject exists), the first-run Today
+  screen, the top of How Prahar Works, and the Settings footer.
 - Theme toggle (Light / Auto / Dark) as a custom pill slider in Settings.
-- Font picker with seven bundled variable-font TTFs (Settings > Font).
-- **Materials toggle** (Matte / Glass): frosted-glass surface applied to
-  bottom nav, Today header, and modal sheets. Everything else stays matte.
+- Inter, bundled and fixed. The picker is gone — see decisions below.
+- **Amber accent** alongside the indigo primary: streak, "now" chip, filled
+  CTAs, FAB and the two progress bars that measure effort.
+- **Materials toggle** (Matte / Glass): frosted glass on the bottom nav, modal
+  sheets, the Today header, the feasibility banner and the subject-detail
+  status panel. Everything else stays matte.
 - Notification permissions, exact-alarm request, battery-exemption prompt.
 
 ## Recent decisions worth carrying forward
@@ -126,23 +140,46 @@ Features shipped and on the device:
 Each was made after real feedback and previewed against alternatives; don't
 undo without reason.
 
-- **Font: Inter** won a live-preview picker against six alternatives. Ship
-  the app on Inter. Feedback on 4 Sep asked to remove the picker now that
-  the choice is made — dropping the six unused fonts saves ~2 MB.
-- **Icon: T3+K4 tuning**. Hand stroke 0.030s ending at 78% of sun radius,
-  ticks 0.014s at alpha 135, pivot 0.020s. Sun radius currently 0.22 but
-  latest feedback asks for it to be **bigger — try 0.26**. Numbers live in
-  `tools\make_icon.ps1`; the tuning tools are checked in
+- **Font: Inter**, and only Inter. It won a live-preview picker against six
+  alternatives, so on 4 Sep the picker, the `FontChoice` enum and the six
+  unused TTFs came out. `PraharTheme.fontFamily` is the single answer now.
+  Bundled, never fetched: the release build has no INTERNET permission, and
+  a runtime fetch silently yields the system font — that was a real bug.
+- **Colour: indigo is structure, amber is effort.** The icon and both
+  home-screen widgets were always warm while the interior was cool indigo,
+  so the app and its own icon read as two products. Rather than repaint the
+  interior, the split is now by meaning: indigo carries navigation,
+  selection, focus and "this is today"; amber (`PraharTheme.accent`,
+  `accentInk`, `accentOnLight`) carries the streak, the "now" chip, filled
+  CTAs, the FAB and the progress bars. Amber lives in the `ColorScheme`
+  (`tertiary` for text, the warm `secondaryContainer` for the quiet half) so
+  it is reachable from any context and cannot be half-applied.
+  **Watch out:** one `FilledButtonThemeData` serves `FilledButton` *and*
+  `FilledButton.tonal`, so the theme's amber fill reaches tonal buttons too.
+  The two tonal call sites (SessionTile's Done, the calibration card) pass
+  `secondaryContainer` back explicitly. A third tonal button will need the
+  same treatment.
+- **Icon: T3+K4 tuning, zoomed 1.182x.** Sun 0.26, ticks 0.0165 thick on a
+  0.3545..0.4018 ring at alpha 135, hand 0.0355 ending at 78% of sun radius,
+  pivot 0.0236. The zoom came from "make the sun bigger", which means the
+  *whole mark* larger — same proportions and spacing, seen closer — not a
+  fatter sun inside the old tick ring. Every number is the original tuning
+  times 0.26/0.22; rescale all six together or the two artefacts diverge.
+  Numbers live in `tools\make_icon.ps1` and are mirrored in
+  `_MarkPainter`; the tuning tools are checked in
   (`make_v2_thickness.ps1`, `make_t3_tick_variants.ps1`,
   `make_v2_launcher.ps1`) so future retunes have the same ladder view.
 - **Brand widget**: `PraharMark` is CustomPainter, not a bundled PNG.
   Proportions match the launcher script exactly and are commented as such;
   the two must stay in sync when the mark is retuned.
-- **Glass**: applied only to bottom nav, Today header, modal sheets. Contrast
-  between matte and glass is what carries the effect; do not spread it to
-  cards, list rows or Progress. Feedback asked to **increase transparency**
-  slightly (surface alpha from 0.55/0.60 to ~0.40/0.45) and consider two more
-  surfaces: feasibility banner, subject-detail header.
+- **Glass**: bottom nav, modal sheets, and the three summary panels — Today
+  header, feasibility banner, subject-detail status. Surface alpha is
+  0.42 dark / 0.45 light (down from 0.55/0.60, where the tint was carrying
+  the surface and the blur was decoration); below ~0.40 the text starts to
+  fight whatever scrolls under it. Contrast between matte and glass is what
+  carries the effect, so do not spread it to cards, list rows or Progress.
+  The rule that emerged: glass marks a panel that *summarises*, matte is for
+  anything that *lists*.
 - **Calibration model**: uses only completed topics. In-progress work is
   tempting evidence but prorating by minutes cancels arithmetically and
   always recovers the prior rate. This bug hid in the first draft; the test
@@ -154,44 +191,30 @@ undo without reason.
   Use `paddingLeft/Right/Top/Bottom` and legacy variants only; the
   `TodayWidget` layout was rewritten twice before this rule stuck.
 
-## Open feedback (4 Sep) — start here
+## Open feedback — start here
 
-Ordered by ratio (impact / effort). Full discussion in the last chat's
-handoff message; short version:
+Items 1–4 of the 4 Sep list (colour harmonisation, persistent mark on Today,
+sun bigger + font picker removal, glass tuning) **shipped on 4 Sep** and are
+recorded under *Recent decisions* above. What remains, in order:
 
-1. **Colour harmonisation**. Launcher icon is warm (navy → amber); app
-   interior is cool indigo with no amber. Two identities. Shift accent
-   colours warm — amber for streak, "now" pill, primary CTAs — while
-   keeping indigo as structural primary. Biggest visual impact per line
-   of code.
-2. **Persistent Prahar mark on Today**. Today has the mark only on the
-   first-run empty state; after first subject it disappears and the screen
-   feels generic. Put a small `PraharLogo(markSize: 24, filled: false)`
-   in the Today app bar (or a tight top strip) so the brand is always
-   visible.
-3. **Sun bigger + remove font picker**. Cheap. Sun radius 0.22 → 0.26 in
-   `make_icon.ps1`; pivot up to 0.024 to match. Drop `FontChoice` enum,
-   the picker page, the font row in Settings, and the six unused TTFs
-   from `assets/fonts/` (keep Inter). Update `pubspec.yaml` fonts block.
-4. **Glass tuning**: alphas down to ~0.42/0.45, add glass to the
-   feasibility banner and the subject-detail header. Don't add elsewhere.
-5. **Pomodoro / Study Timer**. New capability, not a menu of options —
+1. **Pomodoro / Study Timer**. New capability, not a menu of options —
    two modes (Pomodoro 25/5, Deep 50/10), starts from the current block
    tile on Today, runs full-screen (glass), auto-logs `actual_minutes` on
    completion. Feeds calibration honestly.
-6. **Editorial Today screen**. The bigger design bet — Today is currently
+2. **Editorial Today screen**. The bigger design bet — Today is currently
    a list dressed up. A single hero card for the current block, a smaller
-   "and after" row, a compressed strip of what's done, plus the persistent
-   header from #2. Fewer surfaces, more hierarchy. This is the answer to
-   *"looks standard, very common"*.
-7. **Landscape / tablet layout**. Two-pane splits: Subjects (list ↔
+   "and after" row, a compressed strip of what's done, under the app-bar
+   mark that now sits there permanently. Fewer surfaces, more hierarchy.
+   This is the answer to *"looks standard, very common"*. It also subsumes
+   the `isNow` chip on `SessionTile`, which is a marker standing in for a
+   hero card and computes "now" at build time rather than on a ticker.
+3. **Landscape / tablet layout**. Two-pane splits: Subjects (list ↔
    topics), Plan (days ↔ month), Today (current block ↔ rail of next up).
    `LayoutBuilder`, not a whole new codebase. Horizontal-conducive extras:
    a week timetable grid, a subject timeline (Gantt-style).
 
-Recommended order for a fresh session: **1, 2, 3, 4 together** (one round,
-mostly cosmetic), then **5** on its own, then **6** as a considered
-redesign, then **7** when the phone experience is settled.
+Recommended order: **1** on its own, then **2** as a considered redesign,
+then **3** when the phone experience is settled.
 
 ## Architecture
 

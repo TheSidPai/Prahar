@@ -101,11 +101,27 @@ class TodayScreen extends StatelessWidget {
               session: s,
               color: Color(
                   state.subjectFor(s.subjectId)?.colorValue ?? 0xFF4F46E5),
+              isNow: _isNow(s),
               onDone: () => _confirmDone(context, state, s),
               onSkip: () => _confirmSkip(context, state, s),
             ),
       ],
     );
+  }
+
+  /// Whether the clock is inside [s] right now.
+  ///
+  /// Read at build time rather than driven by a ticker: the pill is a marker,
+  /// not a countdown, and a per-second rebuild of the whole list to move one
+  /// chip is a poor trade. It refreshes on every state change and whenever
+  /// the screen is rebuilt, which covers every moment a student is looking
+  /// at it. The proper treatment of "the block happening now" is the hero
+  /// card in the editorial Today redesign, not this.
+  static bool _isNow(StudySession s) {
+    final now = DateTime.now();
+    final minute = now.hour * 60 + now.minute;
+    return minute >= s.startMinuteOfDay &&
+        minute < s.startMinuteOfDay + s.durationMinutes;
   }
 
   /// Skipping is irreversible *and* costs the slot: the block's time is
@@ -225,11 +241,18 @@ class _Header extends StatelessWidget {
             children: [
               Text(formatDateFull(state.today),
                   style: theme.textTheme.titleLarge),
+              // Amber: a streak is the one number here that is about effort
+              // spent rather than time available.
               if (state.streak > 0)
                 Row(children: [
-                  const Icon(Icons.local_fire_department, size: 18),
+                  Icon(Icons.local_fire_department,
+                      size: 18, color: theme.colorScheme.tertiary),
                   const SizedBox(width: 4),
-                  Text('${state.streak}', style: theme.textTheme.titleMedium),
+                  Text(
+                    '${state.streak}',
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(color: theme.colorScheme.tertiary),
+                  ),
                 ]),
             ],
           ),

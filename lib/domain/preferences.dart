@@ -15,19 +15,11 @@ enum ThemeChoice { system, light, dark }
 /// speaks; a continuous slider would be a demo reel.
 enum MaterialChoice { matte, glass }
 
-/// The seven candidates the picker offers. Each was chosen for a different
-/// kind of "elegant" — a serif, two humanist sans, a geometric grotesque, a
-/// slab, a display-scale sans that reads especially well on small screens.
-/// See `PraharTheme` for the pairing rationale.
-enum FontChoice {
-  system,      // The platform's own UI font — the honest default.
-  inter,       // Contemporary humanist sans, the current default of most quality apps.
-  manrope,     // Slightly softer humanist sans, more approachable than Inter.
-  interTight,  // The tight-tracking Inter cut — more editorial than the standard cut.
-  spaceGrotesk, // Geometric with quirks, distinctive without being loud.
-  fraunces,    // A workhorse serif with real optical warmth.
-  ibmPlexSerif, // Editorial serif that pairs cleanly with a sans body.
-}
+// There is no FontChoice any more. Seven faces were bundled behind a live
+// preview so the choice could be made on how they looked rather than on their
+// names; Inter won, so the picker, the enum and the six unused TTFs are gone
+// and `PraharTheme.fontFamily` is the single answer. Old saved preferences may
+// still carry a `font` key — it is simply ignored on read.
 
 /// The scheduling choices a student is allowed to make.
 ///
@@ -50,7 +42,6 @@ class Prefs {
   final int breakMinutes;
 
   final ThemeChoice themeChoice;
-  final FontChoice fontChoice;
   final MaterialChoice materialChoice;
 
   const Prefs({
@@ -59,7 +50,6 @@ class Prefs {
     this.blockMinutes = 50,
     this.breakMinutes = 10,
     this.themeChoice = ThemeChoice.system,
-    this.fontChoice = FontChoice.inter,
     this.materialChoice = MaterialChoice.matte,
   });
 
@@ -85,7 +75,6 @@ class Prefs {
     int? blockMinutes,
     int? breakMinutes,
     ThemeChoice? themeChoice,
-    FontChoice? fontChoice,
     MaterialChoice? materialChoice,
   }) =>
       Prefs(
@@ -94,7 +83,6 @@ class Prefs {
         blockMinutes: blockMinutes ?? this.blockMinutes,
         breakMinutes: breakMinutes ?? this.breakMinutes,
         themeChoice: themeChoice ?? this.themeChoice,
-        fontChoice: fontChoice ?? this.fontChoice,
         materialChoice: materialChoice ?? this.materialChoice,
       );
 
@@ -104,7 +92,6 @@ class Prefs {
         'block_minutes': '$blockMinutes',
         'break_minutes': '$breakMinutes',
         'theme': themeChoice.name,
-        'font': fontChoice.name,
         'material': materialChoice.name,
       };
 
@@ -129,10 +116,6 @@ class Prefs {
       (c) => c.name == m['theme'],
       orElse: () => ThemeChoice.system,
     );
-    final font = FontChoice.values.firstWhere(
-      (c) => c.name == m['font'],
-      orElse: () => FontChoice.inter,
-    );
     final material = MaterialChoice.values.firstWhere(
       (c) => c.name == m['material'],
       orElse: () => MaterialChoice.matte,
@@ -144,7 +127,6 @@ class Prefs {
       blockMinutes: read('block_minutes', 50, 10, 180),
       breakMinutes: read('break_minutes', 10, 0, 60),
       themeChoice: theme,
-      fontChoice: font,
       materialChoice: material,
     );
   }

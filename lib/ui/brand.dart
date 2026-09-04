@@ -163,20 +163,24 @@ class _MarkPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size s) {
     // The proportions below come straight from tools/make_icon.ps1 — sun at
-    // 0.22r, ticks at 0.30..0.34r, hand stroke 0.030s ending at 0.78 of the
-    // sun radius, pivot 0.020s. Keeping them literal means the two artefacts
-    // (PNG icon, Flutter mark) can never drift out of alignment.
+    // 0.26r, ticks at 0.3545..0.4018r, hand stroke 0.0355s ending at 0.78 of
+    // the sun radius, pivot 0.0236s. Keeping them literal means the two
+    // artefacts (PNG icon, Flutter mark) can never drift out of alignment.
+    //
+    // Every number is the original T3+K4 tuning multiplied by 0.26/0.22 =
+    // 1.182 — a uniform zoom, not a retune. If the mark is ever rescaled
+    // again, scale all six together or the two artefacts stop matching.
     final side = s.shortestSide;
     final cx = s.width / 2;
     final cy = s.height / 2;
-    final rIn = side * 0.30;
-    final rOut = side * 0.34;
-    final sunR = side * 0.22;
-    final pivotR = side * 0.020;
+    final rIn = side * 0.3545;
+    final rOut = side * 0.4018;
+    final sunR = side * 0.26;
+    final pivotR = side * 0.0236;
 
     final tickPaint = Paint()
       ..color = palette.tick.withValues(alpha: palette.tickAlpha)
-      ..strokeWidth = side * 0.014
+      ..strokeWidth = side * 0.0165
       ..strokeCap = StrokeCap.round;
     for (var i = 0; i < 12; i++) {
       final a = math.pi * 2 * (i / 12.0) - math.pi / 2;
@@ -192,7 +196,7 @@ class _MarkPainter extends CustomPainter {
     final handAngle = math.pi * 2 * (2 / 12.0) - math.pi / 2;
     final handPaint = Paint()
       ..color = palette.hand
-      ..strokeWidth = side * 0.030
+      ..strokeWidth = side * 0.0355
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(
       Offset(cx, cy),

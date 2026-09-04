@@ -7,6 +7,7 @@ import 'glass.dart';
 
 import '../domain/format.dart';
 import '../domain/models.dart';
+import '../domain/preferences.dart';
 import '../planner/estimator.dart';
 import '../state/app_state.dart';
 import 'subjects_screen.dart';
@@ -89,85 +90,97 @@ class _SubjectStatus extends StatelessWidget {
         ? (remaining / daysLeft).ceil()
         : null;
 
+    // Glass here for the same reason the Today header has it: this is the one
+    // panel on the screen that summarises rather than lists, and the material
+    // is what says so. The topic rows below stay matte cards.
+    final glass = context.select<AppState, MaterialChoice>(
+            (s) => s.prefs.materialChoice) ==
+        MaterialChoice.glass;
+
+    final content = Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            _Stat(label: 'Topics', value: '${topics.length}'),
+            const SizedBox(width: 28),
+            _Stat(label: 'Left', value: formatMinutes(remaining)),
+            const SizedBox(width: 28),
+            _Stat(
+              label: 'Total',
+              value: formatMinutes(total),
+              muted: true,
+            ),
+          ]),
+          if (perDay != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: RichText(
+                text: TextSpan(
+                  style: theme.textTheme.bodyMedium,
+                  children: [
+                    const TextSpan(text: 'Needs '),
+                    TextSpan(
+                      text: formatMinutes(perDay),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    TextSpan(
+                      text: ' a day to be ready by '
+                          '${formatDate(dateOnly(exam!))}'
+                          '  ·  $daysLeft days left',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          // An exam date is optional, but omitting it quietly parks the
+          // subject at the bottom of every priority list forever. That is
+          // too consequential to leave unsaid.
+          if (exam == null) ...[
+            const SizedBox(height: 16),
+            _Nudge(
+              icon: Icons.event_busy_outlined,
+              text: 'No exam date, so this is scheduled only after '
+                  'everything that has one. Add a date to give it '
+                  'priority.',
+              onTap: () => showSubjectSheet(context, existing: subject),
+              action: 'Add date',
+            ),
+          ],
+          if (daysLeft != null && daysLeft < 0) ...[
+            const SizedBox(height: 16),
+            _Nudge(
+              icon: Icons.history_toggle_off,
+              text: 'The exam date has passed, so nothing here is being '
+                  'scheduled any more.',
+              onTap: () => showSubjectSheet(context, existing: subject),
+              action: 'Update',
+            ),
+          ],
+        ],
+      ),
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                _Stat(label: 'Topics', value: '${topics.length}'),
-                const SizedBox(width: 28),
-                _Stat(label: 'Left', value: formatMinutes(remaining)),
-                const SizedBox(width: 28),
-                _Stat(
-                  label: 'Total',
-                  value: formatMinutes(total),
-                  muted: true,
-                ),
-              ]),
-              if (perDay != null) ...[
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: RichText(
-                    text: TextSpan(
-                      style: theme.textTheme.bodyMedium,
-                      children: [
-                        const TextSpan(text: 'Needs '),
-                        TextSpan(
-                          text: formatMinutes(perDay),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                        TextSpan(
-                          text: ' a day to be ready by '
-                              '${formatDate(dateOnly(exam!))}'
-                              '  ·  $daysLeft days left',
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-              // An exam date is optional, but omitting it quietly parks the
-              // subject at the bottom of every priority list forever. That is
-              // too consequential to leave unsaid.
-              if (exam == null) ...[
-                const SizedBox(height: 16),
-                _Nudge(
-                  icon: Icons.event_busy_outlined,
-                  text: 'No exam date, so this is scheduled only after '
-                      'everything that has one. Add a date to give it '
-                      'priority.',
-                  onTap: () => showSubjectSheet(context, existing: subject),
-                  action: 'Add date',
-                ),
-              ],
-              if (daysLeft != null && daysLeft < 0) ...[
-                const SizedBox(height: 16),
-                _Nudge(
-                  icon: Icons.history_toggle_off,
-                  text: 'The exam date has passed, so nothing here is being '
-                      'scheduled any more.',
-                  onTap: () => showSubjectSheet(context, existing: subject),
-                  action: 'Update',
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+      child: glass
+          ? GlassSurface(
+              borderRadius: BorderRadius.circular(16),
+              child: content,
+            )
+          : Card(child: content),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../domain/preferences.dart';
 import '../state/app_state.dart';
+import 'brand.dart';
 import 'glass.dart';
 import 'plan_screen.dart';
 import 'settings_screen.dart';
@@ -59,7 +60,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(_titles[_index])),
+      appBar: AppBar(
+        // Today carries the mark instead of the word "Today". The tab is
+        // already labelled in the nav bar and the full date sits in the
+        // header just below, so that title line was spending itself on a
+        // word nobody needed — and the brand was visible only on the
+        // first-run screen, disappearing for good once a subject existed.
+        //
+        // The wordmark borrows the app bar's own title style so "Prahar"
+        // sits at exactly the weight and size "Plan" and "Progress" do.
+        // On first run the empty state already shows the large filled logo,
+        // so the bar stands down rather than stack two marks.
+        title: _index == 0 && state.subjects.isNotEmpty
+            ? PraharLogo(
+                markSize: 24,
+                filled: false,
+                wordmarkStyle: Theme.of(context).appBarTheme.titleTextStyle,
+              )
+            : Text(_titles[_index]),
+      ),
       // When glass is on we want content to slide under the nav rather than
       // stopping short of it. `extendBody` does that; each screen already
       // reserves 90px of bottom padding for the nav's height.
