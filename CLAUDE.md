@@ -2,6 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## For a fresh session
+
+If you are just picking this up, read in this order: **Current state** →
+**Open feedback (4 Sep)** → **Recent decisions worth carrying forward** →
+whatever section your task touches. The whole file is here because every
+paragraph was learned the hard way, but the state + feedback + decisions
+are what let a new session act, not just understand.
+
+Files you will touch most:
+
+- `lib/planner/planner.dart` — the greedy scheduler
+- `lib/planner/calibration.dart` — the per-subject rate learning
+- `lib/state/app_state.dart` — the single `ChangeNotifier`
+- `lib/data/database.dart` — SQLite DAO + migrations (bump the version!)
+- `lib/ui/brand.dart` — `PraharMark`, `PraharLogo` CustomPainters
+- `lib/ui/glass.dart` — `GlassSurface`, `SheetBackground`
+- `lib/ui/theme.dart` — one place for every visual token
+- `tools/dev.ps1` — the only command shape allow-listed for this session
+- `tools/make_icon.ps1` — the launcher-icon generator (T3+K4 numbers live here)
+
 ## Run Claude from this directory
 
 `cd` into the project root before starting Claude. This file and
@@ -32,59 +52,146 @@ prompt on every run.
 tools\dev.ps1 setup        # scaffold android/ from a throwaway flutter create, then pub get
 tools\dev.ps1 androidsdk   # install the Android SDK headlessly via sdkmanager
 tools\dev.ps1 gradledist   # pre-fetch the Gradle distribution with curl
+tools\dev.ps1 fonts        # download bundled variable fonts to assets/fonts
 tools\dev.ps1 pubget
 tools\dev.ps1 test         # full suite
 tools\dev.ps1 test <name>  # one test by name substring
 tools\dev.ps1 analyze
 tools\dev.ps1 format
 tools\dev.ps1 doctor
-tools\dev.ps1 devices
+tools\dev.ps1 devices      # also diagnoses "no device" causes on MIUI
 tools\dev.ps1 run          # onto the connected phone
 tools\dev.ps1 apk          # release APK
+tools\dev.ps1 install      # apk + adb install + launch, one shot
+tools\dev.ps1 licenses     # accept Android SDK licences (cosmetic; see below)
+tools\dev.ps1 sdkpkg "<pkg;id>"   # install any sdkmanager package, quoting handled
+tools\dev.ps1 exempt [off] # toggle battery-optimisation exemption over adb
+tools\dev.ps1 notif        # diagnose notification channel + delivery state
+tools\dev.ps1 alarms       # list pending alarms with exact/inexact status
+tools\dev.ps1 check        # app process alive + last log lines
+tools\dev.ps1 screenshot   # pull the phone screen to build/screen.png
+tools\dev.ps1 launch       # bring the app to the foreground
+tools\dev.ps1 adb <args>   # passthrough for ad-hoc adb (one allow rule for all)
 tools\status.ps1           # read-only: toolchain, SDK components, project sanity, devices
+tools\make_icon.ps1        # regenerate every launcher icon density
+tools\make_logos.ps1       # render alternative logo concepts side by side
+tools\make_v2_thickness.ps1     # T2/T3 hand-thickness ladder
+tools\make_t3_tick_variants.ps1 # K1..K5 tick-thickness ladder
+tools\make_v2_launcher.ps1      # any icon variant at every launcher density
 ```
+
+**Screenshots capture whatever is on the phone**, not just the Prahar app.
+Ask before taking one if the user might have other content open, and delete
+the file from `build/` afterwards if you did. `build/screen.png` is
+gitignored.
 
 **`tools\dev.ps1 test` is not sufficient on its own.** Dart only compiles what
 the tests import, so a passing suite leaves the entire `lib/ui` tree unchecked.
 Always run `analyze` as well — that is what actually type-checks the app.
 
-## Current state (verified, 3 Sep 2026)
+## Current state (verified, 4 Sep 2026)
 
-- 39/39 tests pass; `analyze` reports no issues across all of `lib/` and `test/`.
-- Flutter 3.47.2 / Dart 3.13.2 at `C:\src\flutter`.
-- JDK 17 (Temurin) and Android Studio installed.
-- Android SDK at `%LOCALAPPDATA%\Android\Sdk`: platform 36 (plus 35, which AGP
-  pulled in for a plugin), build-tools 36.0.0, platform-tools, cmdline-tools,
-  NDK 28.2.13676358. `tools\status.ps1` verifies these directly, because
-  `sdkmanager` reports success even when it silently skips a package.
-- **`tools\dev.ps1 apk` succeeds** — `build\app\outputs\flutter-apk\app-release.apk`,
-  50.1 MB. So the Gradle build, core library desugaring, the manifest merge and
-  both notification receivers are all verified as *building*. First build took
-  ~7 minutes; later ones are far quicker with a warm daemon.
-- **Runs on hardware**: Xiaomi 23127PN0CG, Android 16 / API 36, arm64.
-  Installed, launched, no crash, `POST_NOTIFICATIONS` granted,
-  `SCHEDULE_EXACT_ALARM` appop = allow.
-- **The scheduling pipeline is verified on-device.** With one subject and a
-  200-page topic, `tools\dev.ps1 alarms` showed 16 pending alarms, all exact
-  (`window=0`, `exactAllowReason=permission`), and they matched the planner's
-  intent precisely: 600 minutes of work (200 pages x 3 min) spread 120/120/240/120
-  across Thu-Sun by weekday/weekend capacity, today starting at the current
-  time rather than 06:00, 50-minute blocks an hour apart, then reviews at +1,
-  +3 and +7 days. The +21 review was correctly absent, being outside the
-  14-day window.
-- **Delivery is proven, and it depends entirely on the battery exemption.**
-  With the app exempt, a scheduled reminder fires on time, vibrates and reaches
-  the lock screen. Without the exemption it does not arrive at all until the
-  app is opened by hand. See the device findings below — this is the single
-  most important fact about the app.
-- **Sound needed a second fix.** Even once delivered, reminders were silent
-  because the channel inherited a default notification sound that is unset on
-  this device.
+- 77/77 tests pass; `analyze` reports no issues.
+- Release APK builds and installs on device (~53 MB, ~90 s warm).
+- Flutter 3.47.2 / Dart 3.13.2 at `C:\src\flutter`. JDK 17 (Temurin) and
+  Android Studio installed. SDK at `%LOCALAPPDATA%\Android\Sdk`: platforms
+  35+36, build-tools 36.0.0, platform-tools, cmdline-tools, NDK 28.2.13676358.
+- **Runs on hardware**: Xiaomi 23127PN0CG, Android 16 / API 36. Reminders
+  fire on time, use the alarm-stream sound, reach the lock screen — end to
+  end verified. Battery exemption granted; `SCHEDULE_EXACT_ALARM` = allow.
+- Two home-screen widgets: `NextBlockWidget` (compact 2x1) and `TodayWidget`
+  (wider 4x2 with two blocks + a text-based progress bar).
 
-Next step: confirm a notification actually appears when a block falls due, then
-leave the phone idle overnight and check the next morning's 06:00 alarm fires.
-`tools\dev.ps1 check` shows liveness and logs; `tools\dev.ps1 alarms` shows what
-the OS still holds.
+Features shipped and on the device:
+
+- Planner (greedy, critical-ratio priority), feasibility banner, exam calendar
+  (month view under Plan tab), progress screen with per-subject "needs X/day".
+- Study window + busy slots (weekly and one-off, multi-day picker).
+- Topic units stored with rate — pages/problems/minutes; conversion is honest.
+- Undo on logged blocks; skip has a confirm; midnight rollover is handled.
+- Search across subjects and topics; long-press duplicate; single link per topic.
+- Post-exam archive collapse. Backup/restore to `/Download/Prahar/`.
+- Calibration loop: on Progress, per-subject recommendations from finished
+  topics. Only fires for >=3 samples and >15% drift.
+- **PraharMark / PraharLogo** brand widget (CustomPainter). Three placements:
+  first-run Today, top of How Prahar Works, Settings footer.
+- Theme toggle (Light / Auto / Dark) as a custom pill slider in Settings.
+- Font picker with seven bundled variable-font TTFs (Settings > Font).
+- **Materials toggle** (Matte / Glass): frosted-glass surface applied to
+  bottom nav, Today header, and modal sheets. Everything else stays matte.
+- Notification permissions, exact-alarm request, battery-exemption prompt.
+
+## Recent decisions worth carrying forward
+
+Each was made after real feedback and previewed against alternatives; don't
+undo without reason.
+
+- **Font: Inter** won a live-preview picker against six alternatives. Ship
+  the app on Inter. Feedback on 4 Sep asked to remove the picker now that
+  the choice is made — dropping the six unused fonts saves ~2 MB.
+- **Icon: T3+K4 tuning**. Hand stroke 0.030s ending at 78% of sun radius,
+  ticks 0.014s at alpha 135, pivot 0.020s. Sun radius currently 0.22 but
+  latest feedback asks for it to be **bigger — try 0.26**. Numbers live in
+  `tools\make_icon.ps1`; the tuning tools are checked in
+  (`make_v2_thickness.ps1`, `make_t3_tick_variants.ps1`,
+  `make_v2_launcher.ps1`) so future retunes have the same ladder view.
+- **Brand widget**: `PraharMark` is CustomPainter, not a bundled PNG.
+  Proportions match the launcher script exactly and are commented as such;
+  the two must stay in sync when the mark is retuned.
+- **Glass**: applied only to bottom nav, Today header, modal sheets. Contrast
+  between matte and glass is what carries the effect; do not spread it to
+  cards, list rows or Progress. Feedback asked to **increase transparency**
+  slightly (surface alpha from 0.55/0.60 to ~0.40/0.45) and consider two more
+  surfaces: feasibility banner, subject-detail header.
+- **Calibration model**: uses only completed topics. In-progress work is
+  tempting evidence but prorating by minutes cancels arithmetically and
+  always recovers the prior rate. This bug hid in the first draft; the test
+  suite pins it now — don't "improve" it back into a broken model.
+- **Widget layouts must use pre-API-26 XML only.** MIUI's widget host has a
+  stripped-down RemoteViews inflater that rejects `paddingHorizontal`,
+  `layout_marginVertical`, `letterSpacing`, ProgressBar `min`, and
+  `?android:attr/...` style refs — with a generic "Can't load widget" error.
+  Use `paddingLeft/Right/Top/Bottom` and legacy variants only; the
+  `TodayWidget` layout was rewritten twice before this rule stuck.
+
+## Open feedback (4 Sep) — start here
+
+Ordered by ratio (impact / effort). Full discussion in the last chat's
+handoff message; short version:
+
+1. **Colour harmonisation**. Launcher icon is warm (navy → amber); app
+   interior is cool indigo with no amber. Two identities. Shift accent
+   colours warm — amber for streak, "now" pill, primary CTAs — while
+   keeping indigo as structural primary. Biggest visual impact per line
+   of code.
+2. **Persistent Prahar mark on Today**. Today has the mark only on the
+   first-run empty state; after first subject it disappears and the screen
+   feels generic. Put a small `PraharLogo(markSize: 24, filled: false)`
+   in the Today app bar (or a tight top strip) so the brand is always
+   visible.
+3. **Sun bigger + remove font picker**. Cheap. Sun radius 0.22 → 0.26 in
+   `make_icon.ps1`; pivot up to 0.024 to match. Drop `FontChoice` enum,
+   the picker page, the font row in Settings, and the six unused TTFs
+   from `assets/fonts/` (keep Inter). Update `pubspec.yaml` fonts block.
+4. **Glass tuning**: alphas down to ~0.42/0.45, add glass to the
+   feasibility banner and the subject-detail header. Don't add elsewhere.
+5. **Pomodoro / Study Timer**. New capability, not a menu of options —
+   two modes (Pomodoro 25/5, Deep 50/10), starts from the current block
+   tile on Today, runs full-screen (glass), auto-logs `actual_minutes` on
+   completion. Feeds calibration honestly.
+6. **Editorial Today screen**. The bigger design bet — Today is currently
+   a list dressed up. A single hero card for the current block, a smaller
+   "and after" row, a compressed strip of what's done, plus the persistent
+   header from #2. Fewer surfaces, more hierarchy. This is the answer to
+   *"looks standard, very common"*.
+7. **Landscape / tablet layout**. Two-pane splits: Subjects (list ↔
+   topics), Plan (days ↔ month), Today (current block ↔ rail of next up).
+   `LayoutBuilder`, not a whole new codebase. Horizontal-conducive extras:
+   a week timetable grid, a subject timeline (Gantt-style).
+
+Recommended order for a fresh session: **1, 2, 3, 4 together** (one round,
+mostly cosmetic), then **5** on its own, then **6** as a considered
+redesign, then **7** when the phone experience is settled.
 
 ## Architecture
 
@@ -124,6 +231,22 @@ code, so they genuinely catch a regression rather than merely passing.
 
 Explicit `deleteSubject` / `deleteTopic` still cascade, which is intended, and
 is also covered.
+
+### Migrations: bump the version, never edit a shipped one
+
+**Once a schema version has run on a real device, editing that version's
+code does nothing** — `openDatabase` believes the migration completed and
+never re-runs it. I once slipped a new table into `_v2` after v2 had shipped;
+every device already at v2 was permanently missing the table, and every
+save into it threw silently. The bug looked like a broken feature.
+
+Every schema change now gets a new version and a new `_vN` function.
+`_upgrade` chains them (`if (from < N) await _vN(db);`). Each `_vN` is
+idempotent (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN` guarded
+by `PRAGMA table_info`) so a redundant call cannot break an install.
+
+Current version: **4**. `_v2` records estimate provenance (unit/amount/rate)
+and adds `settings`. `_v3` adds `busy_slots`. `_v4` adds `topics.link`.
 
 ### Sessions are derived, not stored
 
@@ -218,7 +341,11 @@ wakes nothing: the reminder appears only when the user next opens the app by
 hand, which is precisely when it is useless. Verified on a Xiaomi device —
 identical code, exemption off: nothing arrived; exemption on: it arrived to the
 minute. `_BatteryWarning` on Today is the loudest thing in the app for this
-reason, and `permission_handler` exists in the dependency list solely for it.
+reason. The prompt is a hand-written `MethodChannel` in
+`android/app/.../MainActivity.kt` — not a package. `permission_handler` was
+tried and removed because it requires Android SDK 37, which installs as
+`android-37.0` under Android's new minor-version scheme while Gradle looks
+for `android-37` and fails. Two Kotlin methods do the same job.
 `tools\dev.ps1 exempt [off]` toggles it over adb for testing.
 
 **A channel inherits the *default notification sound*, which may not exist.**
@@ -344,27 +471,39 @@ Exact for zones without DST (India included) and correct across the two weeks
 actually scheduled. Replace this if long-horizon scheduling across a DST
 boundary is ever needed.
 
-## Roadmap
+## Longer-term roadmap
 
-Ordered by value, not difficulty:
+Ranked, still valuable but behind the *Open feedback* list above:
 
-1. Run on a real device and verify alarms actually fire at the right minute.
-2. Apply per-subject calibration from `session_log` back into topic estimates.
-3. Resource tracking in the UI (the `resources` table and estimator support it;
-   no screen reads it yet).
-4. FSRS instead of the fixed `[1, 3, 7, 21]` review ladder, once recall quality
-   is logged.
-5. Wire `Notifier.scheduleDailyDigest` — the method exists, nothing calls it.
-6. Export/import for backup — still no server.
+1. **FSRS** instead of the fixed `[1, 3, 7, 21]` review ladder, once recall
+   quality is logged.
+2. **Wire `Notifier.scheduleDailyDigest`** — an evening "tomorrow's plan"
+   summary. The method exists, nothing calls it. Depends on the digest
+   channel id being separate from session ids (already is).
+3. **Full resources per topic** — the schema has a full resources table
+   supporting multiple entries (book/video/pdf/url/problem-set) with
+   progress; we currently expose one `link` string. Building the resource
+   sheet unlocks multi-source topics without a schema change.
+4. **Sound design** — a proprietary three-note chime instead of the
+   system alarm tone. Distinctive without being obnoxious.
 
-Deliberately *not* on the roadmap: accounts, sync, SMS, WhatsApp. WhatsApp needs
-Meta Business verification and per-conversation fees; if ever added, it goes
-behind a `NotificationChannel` interface so the planner never learns about it.
+Deliberately *not* on any roadmap: accounts, sync, SMS, WhatsApp. Local-first
+is a design commitment. If notifications ever get more channels, they go
+behind a `NotificationChannel` interface so the planner never learns about
+them; the planner stays a pure function of subjects, topics, availability
+and today's date.
 
 ## Version control
 
-Git repository on `main`, no remote. The initial commit (`c4006f2`) covers the
-whole project at the point everything was verified on hardware.
+Git repository on `main` with a public remote at
+**https://github.com/TheSidPai/Prahar**. Commits are attributed to a
+noreply address (`<id>+TheSidPai@users.noreply.github.com`), set repo-local
+only so the global git config is untouched. Author's real email must not
+appear in any commit; the noreply is the truth.
+
+Push cadence has been "one commit per meaningful round" rather than per file.
+Follow that — the commit log is intentionally a story of decisions, not a
+mechanical activity log.
 
 `android/local.properties` is untracked deliberately — it holds machine-specific
 SDK paths and is regenerated by the Flutter tool. If a fresh clone fails to
