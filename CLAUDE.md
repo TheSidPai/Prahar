@@ -142,9 +142,11 @@ Features shipped and on the device:
   slider dragged after the fact.
 - **Evening digest**: one notification a night with tomorrow's blocks. On by
   default at 21:00, switchable in Settings > Notifications.
-- **Six nav tabs, temporarily.** The sixth (`TestEd`) is the editorial Today
-  running beside the original for comparison. See *Open feedback* — one of
-  the two is meant to go.
+- **Today is the editorial screen** (`today_editorial_screen.dart`), chosen
+  over the original on 5 Sep after both shipped side by side for an evening.
+  The old `today_screen.dart` is deleted, along with the `SessionTile`
+  parameters that existed only for it (`isNow`, `onStart`) and the accented
+  chip they drove. Back in the nav bar's five destinations.
 - Study window + busy slots (weekly and one-off, multi-day picker).
 - Topic units stored with rate — pages/problems/minutes; conversion is honest.
 - Undo on logged blocks; skip has a confirm; midnight rollover is handled.
@@ -268,14 +270,29 @@ undo without reason.
   one string the app does not control, so it now takes the full width and
   the deadline moved to its own wrapping line. Check any new Row that mixes
   a user string with app text.
-- **Glass**: bottom nav, modal sheets, and the three summary panels — Today
-  header, feasibility banner, subject-detail status. Surface alpha is
-  0.42 dark / 0.45 light (down from 0.55/0.60, where the tint was carrying
-  the surface and the blur was decoration); below ~0.40 the text starts to
-  fight whatever scrolls under it. Contrast between matte and glass is what
-  carries the effect, so do not spread it to cards, list rows or Progress.
-  The rule that emerged: glass marks a panel that *summarises*, matte is for
-  anything that *lists*.
+- **Glass**: the Today app bar, the bottom nav, modal sheets, the Today hero,
+  the feasibility banner and the subject-detail status panel. Surface alpha is
+  **0.28**, arrived at in three steps — 0.55/0.60 had the tint carrying the
+  surface with the blur as decoration, 0.42/0.45 was better, and 0.28 is the
+  one that reads as glass rather than as a panel that happens to blur. The
+  trade is accepted deliberately: this thin, text on the glass has to hold its
+  own against what scrolls under it, which works because these surfaces carry
+  short high-contrast text. Dense body copy on glass would need the
+  `tintAlpha` override. Contrast between matte and glass is what carries the
+  effect, so do not spread it to cards, list rows or Progress. The rule that
+  emerged: glass marks a panel that *summarises*, matte is for anything that
+  *lists*.
+- **The Today app bar is glass and the body runs under it** — `Scaffold`'s
+  `extendBodyBehindAppBar` with a `GlassSurface` in `flexibleSpace`. Today
+  only: extending the body means that screen must inset its own scroll view by
+  the bar height (read from `appBarTheme.toolbarHeight`, not assumed), and
+  Today is the screen whose design is about content flowing under a fixed
+  mark. If another screen ever wants it, it needs its own inset.
+- **Every surface follows the card style.** The Today hero is a `Card` in
+  matte and the rail rows are `Card`s always, so both wear whatever Settings >
+  Cards is set to. A hand-rolled `Container` with `surfaceContainer` and an
+  `outlineVariant` border looks identical to the Hairline style and silently
+  ignores the other four — if a new surface needs a card, use `Card`.
 - **Calibration model**: uses only completed topics. In-progress work is
   tempting evidence but prorating by minutes cancels arithmetically and
   always recovers the prior rate. This bug hid in the first draft; the test
@@ -294,18 +311,7 @@ sun bigger + font picker removal, glass tuning) **shipped on 4 Sep**, as did
 the study timer and the evening digest. All are recorded under *Recent
 decisions* above. What remains, in order:
 
-1. **Editorial Today — decide between the two.** Built on 5 Sep and running
-   as a sixth tab (`TestEd`) *beside* the original, so the two can be
-   compared on a real day rather than argued about. `TodayEditorialScreen`
-   leads with one hero block, compresses the rest to a rail, folds finished
-   work into a line, and condenses the "plan fits" banner. **This is a
-   deliberately temporary state**: one of the two Todays is meant to be
-   deleted. If the editorial one wins, delete `today_screen.dart`, move the
-   editorial screen to index 0 and drop the sixth destination; if it loses,
-   delete `today_editorial_screen.dart` and `domain/today_focus.dart`. Do
-   not leave both shipping — six nav destinations is one too many, and two
-   screens showing the same data will drift.
-2. **Landscape / tablet layout**. Two-pane splits: Subjects (list ↔
+1. **Landscape / tablet layout**. Two-pane splits: Subjects (list ↔
    topics), Plan (days ↔ month), Today (current block ↔ rail of next up).
    `LayoutBuilder`, not a whole new codebase. Horizontal-conducive extras:
    a week timetable grid, a subject timeline (Gantt-style).

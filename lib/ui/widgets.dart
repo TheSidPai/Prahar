@@ -7,7 +7,6 @@ import '../domain/preferences.dart';
 import '../domain/schedule.dart';
 import '../state/app_state.dart';
 import 'glass.dart';
-import 'theme.dart';
 
 /// Skipping costs the slot as well as the block: the time is subtracted from
 /// today, so the work rolls to a later day rather than being offered again in
@@ -361,28 +360,15 @@ class SessionTile extends StatelessWidget {
     required this.session,
     required this.color,
     this.handled = false,
-    this.isNow = false,
     this.onDone,
     this.onSkip,
-    this.onStart,
   });
 
   final StudySession session;
   final Color color;
   final bool handled;
-
-  /// Whether the clock is currently inside this block. Marks the one tile
-  /// that is about the present rather than the plan — the same thing the
-  /// home-screen widget calls NOW, in the same colour.
-  final bool isNow;
-
   final VoidCallback? onDone;
   final VoidCallback? onSkip;
-
-  /// Opens the focus timer for this block. The whole tile is the target —
-  /// there is no room for a third button beside Skip and Done, and a tile you
-  /// can tap is a more forgiving target than an icon anyway.
-  final VoidCallback? onStart;
 
   @override
   Widget build(BuildContext context) {
@@ -414,10 +400,6 @@ class SessionTile extends StatelessWidget {
                         formatMinutes(session.durationMinutes),
                         style: theme.textTheme.bodySmall,
                       ),
-                      if (isNow) ...[
-                        const SizedBox(width: 8),
-                        const _Chip(label: 'now', accented: true),
-                      ],
                       if (session.isReview) ...[
                         const SizedBox(width: 8),
                         const _Chip(label: 'review'),
@@ -477,13 +459,7 @@ class SessionTile extends StatelessWidget {
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         clipBehavior: Clip.antiAlias,
-        child: onStart == null
-            ? inner
-            : InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: onStart,
-                child: inner,
-              ),
+        child: inner,
       ),
     );
   }
@@ -570,14 +546,9 @@ class LoggedTile extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({required this.label, this.accented = false});
+  const _Chip({required this.label});
 
   final String label;
-
-  /// Full-strength amber rather than the quiet container. Reserved for "now":
-  /// a chip that means *the present moment* has to out-rank one that merely
-  /// classifies the block.
-  final bool accented;
 
   @override
   Widget build(BuildContext context) {
@@ -585,19 +556,10 @@ class _Chip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        color:
-            accented ? PraharTheme.accent : theme.colorScheme.tertiaryContainer,
+        color: theme.colorScheme.tertiaryContainer,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(
-        label,
-        style: accented
-            ? theme.textTheme.labelSmall?.copyWith(
-                color: PraharTheme.accentInk,
-                fontWeight: FontWeight.w700,
-              )
-            : theme.textTheme.labelSmall,
-      ),
+      child: Text(label, style: theme.textTheme.labelSmall),
     );
   }
 }

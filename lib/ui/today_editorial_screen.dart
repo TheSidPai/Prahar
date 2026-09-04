@@ -46,6 +46,11 @@ class TodayEditorialScreen extends StatefulWidget {
 class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
   Timer? _minute;
 
+  /// The rail row currently showing its actions. One at a time: two open rows
+  /// is a list of half-cards, and the point of the rail is that it stays quiet
+  /// until spoken to.
+  String? _openRow;
+
   @override
   void initState() {
     super.initState();
@@ -130,9 +135,21 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
               session: s,
               color: Color(
                   state.subjectFor(s.subjectId)?.colorValue ?? 0xFF4F46E5),
-              onTap: () => _openTimer(s),
-              onDone: () => confirmDone(context, state, s),
-              onSkip: () => confirmSkip(context, state, s),
+              open: _openRow == s.id,
+              onToggle: () => setState(
+                  () => _openRow = _openRow == s.id ? null : s.id),
+              onStart: () {
+                setState(() => _openRow = null);
+                _openTimer(s);
+              },
+              onDone: () {
+                setState(() => _openRow = null);
+                confirmDone(context, state, s);
+              },
+              onSkip: () {
+                setState(() => _openRow = null);
+                confirmSkip(context, state, s);
+              },
             ),
         ],
 
@@ -228,20 +245,20 @@ class _Hero extends StatelessWidget {
         ? _emptyBody(theme)
         : _blockBody(context, theme, session);
 
+    // Matte: a Card, so the hero wears whichever style is chosen in Settings
+    // rather than a surface invented here that ignores it. Glass: the screen's
+    // one glass panel, which is what the material is reserved for.
     final panel = glass
         ? GlassSurface(
             borderRadius: BorderRadius.circular(24),
             padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
             child: content,
           )
-        : Container(
-            padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: theme.colorScheme.outlineVariant),
+        : Card(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+              child: content,
             ),
-            child: content,
           );
 
     return Padding(
@@ -383,120 +400,206 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-/// A later block: one line, no card. Everything about it is context for the
-/// hero above — but it must still be *actionable*, because plenty of work
-/// gets done or abandoned out of order, and a row you can only look at forces
-/// a trip back to the old screen.
+/// A later block: one compact line that opens in place when you touch it.
 ///
-/// The actions hide behind a single overflow button rather than sitting as two
-/// more buttons on the line. Two visible buttons per row is what the original
-/// Today does, and it is precisely what makes every block look equally
-/// important.
+/// It has to be *actionable* — plenty of work gets finished or abandoned out
+/// of order, and a row you can only look at is a row that sends you somewhere
+/// else to act. But two visible buttons per row is exactly what makes every
+/// block look equally important, which is the thing this screen exists to
+/// stop.
+///
+/// So the actions are not on the row and not in a menu either: the row itself
+/// unfolds. One tap expands it, the actions fade in beneath a hairline, a
+/// second tap folds it away, and opening one closes any other. Nothing leaves
+/// the page, nothing floats above it, and the row you touched stays exactly
+/// where it was under your finger.
+///
+/// The card comes from the theme, so it wears whichever style is chosen in
+/// Settings > Cards — including Open, where it correctly becomes a bare line.
 class _RailRow extends StatelessWidget {
   const _RailRow({
     required this.session,
     required this.color,
-    required this.onTap,
+    required this.open,
+    required this.onToggle,
+    required this.onStart,
     required this.onDone,
     required this.onSkip,
   });
 
   final StudySession session;
   final Color color;
-  final VoidCallback onTap;
+  final bool open;
+  final VoidCallback onToggle;
+  final VoidCallback onStart;
   final VoidCallback onDone;
   final VoidCallback onSkip;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 46,
-              child: Text(
-                formatClock(session.startMinuteOfDay),
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ),
-            Container(
-              width: 3,
-              height: 26,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    session.topicTitle,
-                    style: theme.textTheme.bodyLarge,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(session.subjectName,
-                      style: theme.textTheme.bodySmall),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              formatMinutes(session.durationMinutes),
-              style: theme.textTheme.bodySmall,
-            ),
-            PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert,
-                  size: 18, color: theme.colorScheme.outline),
-              tooltip: 'Block actions',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 40),
-              onSelected: (v) => switch (v) {
-                'start' => onTap(),
-                'done' => onDone(),
-                _ => onSkip(),
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: 'start',
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.play_arrow, size: 20),
-                    title: Text('Start focus'),
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'done',
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.check, size: 20),
-                    title: Text('Done'),
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onToggle,
+          // AnimatedSize measures the child, so the card grows and shrinks
+          // with the reveal rather than snapping to its open height.
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.fromLTRB(16, 12, 12, 12),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 46,
+                        child: Text(
+                          formatClock(session.startMinuteOfDay),
+                          style: theme.textTheme.labelLarge?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ),
+                      Container(
+                        width: 3,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              session.topicTitle,
+                              style: theme.textTheme.bodyLarge,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(session.subjectName,
+                                style: theme.textTheme.bodySmall),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        formatMinutes(session.durationMinutes),
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      const SizedBox(width: 6),
+                      // The only affordance on the line, and it turns to point
+                      // at what it just revealed.
+                      AnimatedRotation(
+                        turns: open ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutCubic,
+                        child: Icon(Icons.keyboard_arrow_down,
+                            size: 20, color: theme.colorScheme.outline),
+                      ),
+                    ],
                   ),
                 ),
-                PopupMenuItem(
-                  value: 'skip',
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.redo, size: 20),
-                    title: Text('Skip'),
+                if (open)
+                  _RailActions(
+                    onStart: onStart,
+                    onDone: onDone,
+                    onSkip: onSkip,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The revealed actions: three, evenly weighted by space but not by emphasis.
+/// Start focus carries the accent because starting is what this screen wants
+/// you to do; Done and Skip are quiet, because they are admissions rather than
+/// intentions.
+class _RailActions extends StatelessWidget {
+  const _RailActions({
+    required this.onStart,
+    required this.onDone,
+    required this.onSkip,
+  });
+
+  final VoidCallback onStart;
+  final VoidCallback onDone;
+  final VoidCallback onSkip;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    Widget action({
+      required IconData icon,
+      required String label,
+      required VoidCallback onTap,
+      bool accented = false,
+    }) {
+      final colour =
+          accented ? theme.colorScheme.tertiary : theme.colorScheme.onSurfaceVariant;
+      return Expanded(
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18, color: colour),
+                const SizedBox(width: 7),
+                Text(
+                  label,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: colour,
+                    fontWeight: accented ? FontWeight.w700 : FontWeight.w600,
                   ),
                 ),
               ],
             ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Inset so the divider reads as a fold in the card rather than a cut
+        // across it.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Divider(
+            height: 1,
+            thickness: 1,
+            color: theme.colorScheme.outlineVariant,
+          ),
+        ),
+        Row(
+          children: [
+            action(
+              icon: Icons.play_arrow_rounded,
+              label: 'Focus',
+              onTap: onStart,
+              accented: true,
+            ),
+            action(icon: Icons.check_rounded, label: 'Done', onTap: onDone),
+            action(icon: Icons.redo_rounded, label: 'Skip', onTap: onSkip),
           ],
         ),
-      ),
+      ],
     );
   }
 }
