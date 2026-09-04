@@ -5,16 +5,17 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.view.View
 import android.widget.RemoteViews
 
 /**
- * The larger "today" tile: next block, the one after that, and a progress bar
- * across the day.
+ * The wider "today" tile: next block, the one after that, and a two-view
+ * progress bar across the day.
  *
- * A distinct widget rather than a resize variant so each layout stays
- * hand-tuned. Sharing the payload with [NextBlockWidget] keeps the data path
- * single-sourced; the two widgets differ only in which fields they render.
+ * Deliberately narrow set of views (LinearLayout, TextView, View, FrameLayout)
+ * after MIUI rejected the earlier layout with a generic "Can't load widget"
+ * — its widget host has a stripped-down inflater that trips on framework
+ * style references, drawable references from ProgressBar, and API 26 XML
+ * attributes. Nothing here relies on any of those.
  */
 class TodayWidget : AppWidgetProvider() {
 
@@ -34,46 +35,46 @@ class TodayWidget : AppWidgetProvider() {
         val subject2 = prefs.getString(WidgetBridge.KEY_SUBJECT_2, "") ?: ""
         val time2 = prefs.getString(WidgetBridge.KEY_TIME_2, "") ?: ""
 
-        val progress = prefs.getInt(WidgetBridge.KEY_PROGRESS, 0)
+        val progress = prefs.getInt(WidgetBridge.KEY_PROGRESS, 0).coerceIn(0, 100)
         val progressText = prefs.getString(WidgetBridge.KEY_PROGRESS_TEXT, "") ?: ""
 
         for (id in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.widget_today)
 
-            // Empty state — no blocks left today.
             if (status == "none" || title.isEmpty()) {
+                views.setTextViewText(R.id.today_block1_subject, "")
                 views.setTextViewText(R.id.today_block1_title, "Nothing today")
-                views.setTextViewText(R.id.today_block1_meta,
+                views.setTextViewText(R.id.today_block1_time,
                     "Tap to open Prahar")
-                views.setViewVisibility(R.id.today_now_badge, View.GONE)
-                views.setViewVisibility(R.id.today_block2_row, View.GONE)
-                views.setViewVisibility(R.id.today_progress_row, View.GONE)
+                views.setTextViewText(R.id.today_block2_title, "")
+                views.setTextViewText(R.id.today_block2_meta, "")
+                views.setTextViewText(R.id.today_progress_text, "")
             } else {
+                views.setTextViewText(R.id.today_block1_subject, subject)
                 views.setTextViewText(R.id.today_block1_title, title)
                 views.setTextViewText(
-                    R.id.today_block1_meta, "$subject  ·  $time")
-
-                views.setViewVisibility(R.id.today_now_badge,
-                    if (status == "now") View.VISIBLE else View.GONE)
+                    R.id.today_block1_time,
+                    if (status == "now") "Now  ·  $time" else time,
+                )
 
                 if (title2.isEmpty()) {
-                    // Placeholder line rather than a jump — the widget's
-                    // height is fixed, so hiding a row leaves whitespace we
-                    // fill with an honest "nothing after" note.
-                    views.setViewVisibility(R.id.today_block2_row, View.VISIBLE)
                     views.setTextViewText(
                         R.id.today_block2_title, "Nothing after")
                     views.setTextViewText(R.id.today_block2_meta, "")
                 } else {
-                    views.setViewVisibility(R.id.today_block2_row, View.VISIBLE)
                     views.setTextViewText(R.id.today_block2_title, title2)
                     views.setTextViewText(
                         R.id.today_block2_meta, "$subject2  ·  $time2")
                 }
 
-                views.setViewVisibility(R.id.today_progress_row, View.VISIBLE)
-                views.setProgressBar(R.id.today_progress, 100, progress, false)
-                views.setTextViewText(R.id.today_progress_text, progressText)
+                // A block of ▮ characters as a low-tech progress bar; TextView
+                // renders these on every device without needing a runtime
+                // width change. Ten cells covers percent precision to 10%,
+                // which is as much as this format needs.
+                val filled = (progress / 10).coerceIn(0, 10)
+                val bar = "▮".repeat(filled) + "▯".repeat(10 - filled)
+                views.setTextViewText(
+                    R.id.today_progress_text, "$bar   $progressText")
             }
 
             val launch = Intent(context, MainActivity::class.java).apply {
@@ -90,4 +91,5 @@ class TodayWidget : AppWidgetProvider() {
             appWidgetManager.updateAppWidget(id, views)
         }
     }
+
 }

@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The "today" tile. Two blocks (next + the one after that) stacked above a
-  thin progress bar. Fixed row heights so nothing clips — a lesson from the
-  first widget, where wrap_content children got trimmed by the launcher.
+  Kept intentionally minimal after "Can't load widget" on MIUI. Only the
+  narrow subset of views RemoteViews always accepts: LinearLayout, TextView,
+  View. No ProgressBar (drawable references and framework styles are the
+  common inflate-fail culprits), no nested weight layouts, no ?android:attr
+  references. Progress is drawn as two coloured Views with dynamic widths set
+  from code in TodayWidget.
 -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -13,123 +16,81 @@
     android:padding="14dp"
     android:background="@drawable/widget_background">
 
-    <!-- Block 1 -->
-    <LinearLayout
+    <TextView
+        android:id="@+id/today_block1_subject"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="10sp"
+        android:textAllCaps="true"
+        android:textStyle="bold"
+        android:textColor="#B8B4C8"
+        android:includeFontPadding="false"
+        android:text=""/>
+
+    <TextView
+        android:id="@+id/today_block1_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:layout_marginTop="2dp"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#F5F4FC"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:includeFontPadding="false"/>
 
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+    <TextView
+        android:id="@+id/today_block1_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="12sp"
+        android:textColor="#B8B4C8"
+        android:maxLines="1"
+        android:includeFontPadding="false"
+        android:text=""/>
 
-            <TextView
-                android:id="@+id/today_block1_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="#F5F4FC"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:includeFontPadding="false"/>
-
-            <TextView
-                android:id="@+id/today_block1_meta"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textSize="12sp"
-                android:textColor="#B8B4C8"
-                android:maxLines="1"
-                android:includeFontPadding="false"/>
-        </LinearLayout>
-
-        <!-- "NOW" badge, hidden unless the current block is live -->
-        <TextView
-            android:id="@+id/today_now_badge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingLeft="8dp"
-            android:paddingRight="8dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp"
-            android:layout_marginLeft="8dp"
-            android:text="NOW"
-            android:textSize="10sp"
-            android:textStyle="bold"
-            android:textColor="#292E60"
-            android:background="@drawable/widget_now_badge"
-            android:includeFontPadding="false"
-            android:visibility="gone"/>
-    </LinearLayout>
-
-    <!-- Divider -->
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="10dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
         android:background="#33FFFFFF"/>
 
-    <!-- Block 2 -->
-    <LinearLayout
-        android:id="@+id/today_block2_row"
+    <TextView
+        android:id="@+id/today_block2_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:textSize="14sp"
+        android:textColor="#E4E1F0"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:includeFontPadding="false"/>
 
-        <TextView
-            android:id="@+id/today_block2_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:textColor="#E4E1F0"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:includeFontPadding="false"/>
+    <TextView
+        android:id="@+id/today_block2_meta"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="11sp"
+        android:textColor="#8E88A6"
+        android:maxLines="1"
+        android:includeFontPadding="false"
+        android:text=""/>
 
-        <TextView
-            android:id="@+id/today_block2_meta"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:textSize="11sp"
-            android:textColor="#8E88A6"
-            android:maxLines="1"
-            android:includeFontPadding="false"/>
-    </LinearLayout>
-
-    <!-- Progress bar and summary -->
-    <LinearLayout
-        android:id="@+id/today_progress_row"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:orientation="vertical"
-        android:gravity="bottom">
-
-        <ProgressBar
-            android:id="@+id/today_progress"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="4dp"
-            android:layout_marginTop="10dp"
-            android:progressDrawable="@drawable/widget_progress"
-            android:max="100"
-            android:progress="0"/>
-
-        <TextView
-            android:id="@+id/today_progress_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textSize="10sp"
-android:textAllCaps="true"
-            android:textColor="#B8B4C8"
-            android:includeFontPadding="false"/>
-    </LinearLayout>
+    <!-- Progress rendered as text. A visual bar needs either a ProgressBar
+         (drawable references fail on stripped-down inflaters) or a runtime
+         width change on a View (RemoteViews only offers that from API 31).
+         Text works on everything and is at least as informative. -->
+    <TextView
+        android:id="@+id/today_progress_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:textSize="11sp"
+        android:textAllCaps="true"
+        android:textStyle="bold"
+        android:textColor="#FAB074"
+        android:includeFontPadding="false"
+        android:text=""/>
 </LinearLayout>

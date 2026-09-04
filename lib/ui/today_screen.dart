@@ -5,6 +5,7 @@ import '../domain/format.dart';
 import '../domain/schedule.dart';
 import '../state/app_state.dart';
 import '../domain/preferences.dart';
+import 'brand.dart';
 import 'glass.dart';
 import 'how_it_works.dart';
 import 'subjects_screen.dart';
@@ -25,13 +26,16 @@ class TodayScreen extends StatelessWidget {
       return ListView(
         padding: EdgeInsets.zero,
         children: [
+          // The brand mark introduces the app on the one screen where a new
+          // user genuinely sees it for the first time. Kept generous — a
+          // 56px filled mark alongside the wordmark reads as a considered
+          // welcome, not a login screen.
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 4),
-            child: Text('Welcome to Prahar',
-                style: theme.textTheme.headlineSmall),
+            padding: const EdgeInsets.fromLTRB(20, 28, 20, 8),
+            child: PraharLogo(markSize: 56),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
             child: Text(
               'A study planner that tells you the truth about whether your '
               'plan is possible.',

@@ -8,6 +8,7 @@ import '../domain/format.dart';
 import '../domain/preferences.dart';
 import '../notifications/notifier.dart';
 import '../state/app_state.dart';
+import 'brand.dart';
 import 'busy_slots_screen.dart';
 import 'how_it_works.dart';
 import 'theme.dart';
@@ -152,8 +153,17 @@ class SettingsScreen extends StatelessWidget {
           value: 'Guide to the tabs and scheduling',
           onTap: () => HowItWorks.open(context),
         ),
+        // Brand footer. Mark + wordmark centred, one line of provenance
+        // beneath. Reads as a signature at the end of a document rather
+        // than an About card competing for attention.
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+          padding: const EdgeInsets.only(top: 40, bottom: 12),
+          child: Center(
+            child: PraharLogo(markSize: 40, filled: false),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
           child: Text(
             'Everything stays on this device. No account, no server, no '
             'subscription.',

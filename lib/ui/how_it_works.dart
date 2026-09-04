@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../planner/planner.dart';
+import 'brand.dart';
 
 /// Explains what the app does and why blocks land where they do.
 ///
@@ -24,8 +25,16 @@ class HowItWorks extends StatelessWidget {
   Widget build(BuildContext context) {
     final body = ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 90),
-      children: const [
-        _Step(
+      children: [
+        // Small brand header inside the guide — only when it opens as its
+        // own page (not when it appears inline on the first-run Today
+        // screen, which already carries the full logo above it).
+        if (showAppBar)
+          const Padding(
+            padding: EdgeInsets.only(top: 8, bottom: 20),
+            child: PraharLogo(markSize: 40, filled: false),
+          ),
+        const _Step(
           n: '1',
           title: 'Add a subject',
           body: 'Give it an exam date. That date is what makes the schedule '
@@ -47,7 +56,7 @@ class HowItWorks extends StatelessWidget {
               '— anything the schedule should route around. Then Study time '
               'says how many minutes you can genuinely spend each day.',
         ),
-        _Step(
+        const _Step(
           n: '4',
           title: 'Follow Today, and tell it the truth',
           body: 'Mark blocks done with the time they actually took. Missing a '
@@ -55,12 +64,12 @@ class HowItWorks extends StatelessWidget {
               'anything changes, so work moves forward instead of piling up '
               'as overdue.',
         ),
-        SizedBox(height: 8),
-        _TabGuide(),
-        SizedBox(height: 8),
-        _ScheduleRules(),
-        SizedBox(height: 8),
-        _Honesty(),
+        const SizedBox(height: 8),
+        const _TabGuide(),
+        const SizedBox(height: 8),
+        const _ScheduleRules(),
+        const SizedBox(height: 8),
+        const _Honesty(),
       ],
     );
 
