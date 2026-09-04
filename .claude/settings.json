@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar log --format=\"%h%x09%ad%x09%s\" --date=short)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar log --format=\"=== %h %ad %s%n%b\" --date=short 66a9e64 2348bd8 a7693e0 3c5fb1e 368cbbb -n 5)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar log --format=\"=== %h %ad %s%n%b\" --date=short --skip=5)",
+      "PowerShell(Get-ChildItem 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\assets\\\\fonts' | Select-Object Name, @{n='KB';e={[math]::Round\\($_.Length/1KB\\)}})",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' test 2>&1)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar diff --stat)",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' devices 2>&1)",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' install 2>&1)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar add -A -- lib tools pubspec.yaml CLAUDE.md android/app/src/main/res assets)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar commit -q -F 'C:\\\\Users\\\\THESID~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-TheSidPai-Prahar\\\\3dbb7f22-a85a-4242-adea-df596dbdee5a\\\\scratchpad\\\\commit-msg.txt')",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar log --oneline -3)",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' analyze 2>&1)",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' adb shell input tap 596 2544)",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' screenshot)",
+      "PowerShell(Get-Item 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\build\\\\app\\\\outputs\\\\flutter-apk\\\\app-release.apk' | Select-Object LastWriteTime, @{n='MB';e={[math]::Round\\($_.Length/1MB,1\\)}}; Get-Date)",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' adb shell date)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar add -A -- lib test tools CLAUDE.md)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar log --oneline -2)",
+      "PowerShell(& 'C:\\\\Users\\\\THESID~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-TheSidPai-Prahar\\\\3dbb7f22-a85a-4242-adea-df596dbdee5a\\\\scratchpad\\\\ticks.ps1')",
+      "Read(//c/Users/TheSidPai/AppData/Local/Temp/claude/c--Users-TheSidPai-Prahar/3dbb7f22-a85a-4242-adea-df596dbdee5a/scratchpad/**)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar add -A -- lib test CLAUDE.md)",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' test study 2>&1)",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' test 'a run through wall-clock time' 2>&1)",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' *)",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\status.ps1'*)",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\make_icon.ps1'*)",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\make_logos.ps1'*)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar status *)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar log *)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar diff *)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar show *)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar add -A -- lib test tools CLAUDE.md pubspec.yaml assets android)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar commit -q -F 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\build\\\\commit-msg.txt')",
+      "Read(//c/Users/TheSidPai/AppData/Local/Temp/claude/**)",
+      "Write(//c/Users/TheSidPai/Prahar/build/commit-msg.txt)"
+    ]
+  }
+}

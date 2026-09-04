@@ -80,6 +80,47 @@ tools\make_t3_tick_variants.ps1 # K1..K5 tick-thickness ladder
 tools\make_v2_launcher.ps1      # any icon variant at every launcher density
 ```
 
+### Use these exact command shapes, or the permission prompts come back
+
+`.claude/settings.json` allows commands by *prefix match on the literal
+string*. Every rule in it was originally an exact one-off — a particular
+`git log --format=...`, a particular test name, a commit path containing the
+session's UUID — so the next invocation differed by a character and prompted
+again. The user approved the same handful of commands dozens of times for
+this reason. The rules are prefix patterns now, but they only pay off if the
+prefix is stable. So:
+
+- **Tools scripts:** single quotes, lowercase drive letter, exactly
+  `& 'c:\Users\TheSidPai\Prahar\tools\dev.ps1' <task> [suffix]`. A rule for
+  the double-quoted `& "C:\..."` form already existed and never matched this
+  session's single-quoted calls. Any suffix (`2>&1`, `| Select-Object …`) is
+  covered by the trailing wildcard; the *prefix* is what must not vary.
+- **Commit messages:** write to `build\commit-msg.txt` — a fixed path, and
+  `/build/` is gitignored. Never the scratchpad: its path contains the
+  session id, so a scratchpad rule is dead the moment the session ends.
+- **Staging:** always
+  `git add -A -- lib test tools CLAUDE.md pubspec.yaml assets android`.
+  One fixed list, whatever the change; `-A` handles deletions within it.
+- **One command per call.** Chaining unrelated commands with `;` makes a
+  string that matches no single rule. Two calls cost nothing.
+- **Git reads:** the Bash tool auto-allows read-only git, the PowerShell tool
+  does not. Either is fine now that both are covered, but Bash needs no rule.
+
+### Working unattended
+
+The user sleeps; the machine does not have to. What makes overnight work
+possible is the above plus a few standing decisions:
+
+- **Decide and record, don't ask.** Make the reasonable call, state the
+  assumption in the commit message, and leave anything genuinely ambiguous
+  for the morning report rather than blocking on it overnight.
+- **Never push.** The user pushes. Commits accumulate locally.
+- **Device work is optional at night.** `install` is fine, but a screenshot
+  at 3am captures a locked black screen, and `dev.ps1 exempt` does not
+  survive a reboot. Anything needing eyes on the phone waits.
+- **Leave a morning report**: what landed, what was decided and why, what is
+  waiting on a human. The commit log is that report if the messages are good.
+
 **Screenshots capture whatever is on the phone**, not just the Prahar app.
 Ask before taking one if the user might have other content open, and delete
 the file from `build/` afterwards if you did. `build/screen.png` is
