@@ -135,6 +135,7 @@ class SessionTile extends StatelessWidget {
     this.isNow = false,
     this.onDone,
     this.onSkip,
+    this.onStart,
   });
 
   final StudySession session;
@@ -149,14 +150,15 @@ class SessionTile extends StatelessWidget {
   final VoidCallback? onDone;
   final VoidCallback? onSkip;
 
+  /// Opens the focus timer for this block. The whole tile is the target —
+  /// there is no room for a third button beside Skip and Done, and a tile you
+  /// can tap is a more forgiving target than an icon anyway.
+  final VoidCallback? onStart;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Opacity(
-      opacity: handled ? 0.45 : 1,
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-        child: Padding(
+    final inner = Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
           child: Row(
             children: [
@@ -239,7 +241,20 @@ class SessionTile extends StatelessWidget {
                 ),
             ],
           ),
-        ),
+        );
+
+    return Opacity(
+      opacity: handled ? 0.45 : 1,
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        clipBehavior: Clip.antiAlias,
+        child: onStart == null
+            ? inner
+            : InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: onStart,
+                child: inner,
+              ),
       ),
     );
   }

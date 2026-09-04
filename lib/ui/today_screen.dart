@@ -9,6 +9,7 @@ import 'brand.dart';
 import 'glass.dart';
 import 'how_it_works.dart';
 import 'subjects_screen.dart';
+import 'timer_screen.dart';
 import 'widgets.dart';
 
 class TodayScreen extends StatelessWidget {
@@ -102,6 +103,12 @@ class TodayScreen extends StatelessWidget {
               color: Color(
                   state.subjectFor(s.subjectId)?.colorValue ?? 0xFF4F46E5),
               isNow: _isNow(s),
+              onStart: () => Navigator.push(
+                context,
+                MaterialPageRoute<int>(
+                  builder: (_) => TimerScreen(session: s),
+                ),
+              ),
               onDone: () => _confirmDone(context, state, s),
               onSkip: () => _confirmSkip(context, state, s),
             ),

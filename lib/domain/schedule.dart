@@ -1,3 +1,4 @@
+import 'format.dart';
 import 'models.dart';
 
 /// A period the student cannot study: a lecture, lunch, a commute, a shift.
@@ -312,6 +313,39 @@ class Plan {
 
   int minutesOn(DateTime day) =>
       onDate(day).fold(0, (a, s) => a + s.durationMinutes);
+
+  /// One line describing [day], for the evening digest.
+  ///
+  /// English in the domain layer looks odd until you notice `Feasibility`
+  /// already does it: the sentence is a property of the plan, not of any
+  /// screen, and writing it here is what stops the notification and the app
+  /// disagreeing about what tomorrow holds.
+  ///
+  /// Names the subjects rather than the topics. At 21:00 the useful question
+  /// is "what am I in for", and three chapter titles is a wall of text on a
+  /// lock screen.
+  String digestFor(DateTime day) {
+    final blocks = onDate(day);
+    if (blocks.isEmpty) return 'Nothing scheduled. A clear day.';
+
+    final subjects = <String>[];
+    for (final s in blocks) {
+      if (s.subjectName.isNotEmpty && !subjects.contains(s.subjectName)) {
+        subjects.add(s.subjectName);
+      }
+    }
+
+    final count = '${blocks.length} block${blocks.length == 1 ? '' : 's'}';
+    final total = formatMinutes(minutesOn(day));
+    final first = formatClock(blocks.first.startMinuteOfDay);
+
+    // Three names is the most that reads at a glance; beyond that, count.
+    final named = subjects.length <= 3
+        ? subjects.join(', ')
+        : '${subjects.take(2).join(', ')} and ${subjects.length - 2} more';
+
+    return '$count · $total, from $first · $named';
+  }
 
   DateTime? get lastDate => sessions.isEmpty
       ? null

@@ -114,7 +114,7 @@ user's call to make.
 
 ## Current state (verified, 4 Sep 2026)
 
-- 106/106 tests pass; `analyze` reports no issues.
+- 126/126 tests pass; `analyze` reports no issues.
 - Release APK builds and installs on device (52.3 MB, ~120 s warm; it was
   52.9 MB before the six unused fonts came out).
 - Flutter 3.47.2 / Dart 3.13.2 at `C:\src\flutter`. JDK 17 (Temurin) and
@@ -136,6 +136,12 @@ Features shipped and on the device:
 - **Card style** picker (Settings > Cards): hairline / plain / lifted /
   tinted / open, each previewed as a real card. All five are keepers — the
   user's call on 4 Sep was to leave them customisable rather than pick one.
+- **Study timer** (`lib/ui/timer_screen.dart`): Pomodoro 25/5 or Deep 50/10,
+  opened by tapping a block on Today, logs the focused minutes into
+  `actual_minutes` so calibration learns from measurement rather than from a
+  slider dragged after the fact.
+- **Evening digest**: one notification a night with tomorrow's blocks. On by
+  default at 21:00, switchable in Settings > Notifications.
 - Study window + busy slots (weekly and one-off, multi-day picker).
 - Topic units stored with rate — pages/problems/minutes; conversion is honest.
 - Undo on logged blocks; skip has a confirm; midnight rollover is handled.
@@ -219,6 +225,27 @@ undo without reason.
   ceiling is the study *window*, not stated availability — falling short of
   what you intended is normal and the feasibility banner already reports it;
   needing more hours than a day contains is not.
+- **The timer is derived from the wall clock, never from ticks.**
+  `lib/domain/study_timer.dart` is pure: given a start instant, accumulated
+  pause and "now", it computes the phase, the seconds left and the focused
+  time. `Timer.periodic` in the screen exists only to repaint. This is not
+  fussiness — Android freezes the process when the screen goes off, which is
+  precisely when a focus timer is running, so a tick-counting implementation
+  loses every minute the phone spent asleep. `test/study_timer_test.dart`
+  jumps the clock the way a sleeping phone does, without a tick firing.
+  The end of each interval is handed to the OS as an alarm (id 3) for the
+  same reason.
+- **The digest is a rolling window, not a repeating alarm.**
+  `matchDateTimeComponents` would repeat one body forever — correct the first
+  night, and confidently wrong every night after, describing a day that had
+  already happened. `syncDigests` writes one notification per evening for a
+  week (ids 100+), each with its own summary, refreshed on every replan and
+  every resume. If the app goes unopened for a week the digests run out,
+  which is the right failure: silence beats a wrong summary.
+- **Notification ids are partitioned and the partitions matter.** 1 retired
+  digest, 2 test, 3 timer, 100–106 digests, 1000+ study blocks. Each sync
+  cancels only its own range. `cancelAll()` in `syncFromPlan` once destroyed
+  the digest and any test reminder on every single edit.
 - **Do not claim irreversibility the app does not have.** The skip dialog
   warned in red that skipping "cannot be undone" while a skipped block sat in
   Today's list with an Undo button next to it. It also promised the work
@@ -260,27 +287,26 @@ undo without reason.
 ## Open feedback — start here
 
 Items 1–4 of the 4 Sep list (colour harmonisation, persistent mark on Today,
-sun bigger + font picker removal, glass tuning) **shipped on 4 Sep** and are
-recorded under *Recent decisions* above. What remains, in order:
+sun bigger + font picker removal, glass tuning) **shipped on 4 Sep**, as did
+the study timer and the evening digest. All are recorded under *Recent
+decisions* above. What remains, in order:
 
-1. **Pomodoro / Study Timer**. New capability, not a menu of options —
-   two modes (Pomodoro 25/5, Deep 50/10), starts from the current block
-   tile on Today, runs full-screen (glass), auto-logs `actual_minutes` on
-   completion. Feeds calibration honestly.
-2. **Editorial Today screen**. The bigger design bet — Today is currently
+1. **Editorial Today screen**. The bigger design bet — Today is currently
    a list dressed up. A single hero card for the current block, a smaller
    "and after" row, a compressed strip of what's done, under the app-bar
    mark that now sits there permanently. Fewer surfaces, more hierarchy.
    This is the answer to *"looks standard, very common"*. It also subsumes
    the `isNow` chip on `SessionTile`, which is a marker standing in for a
    hero card and computes "now" at build time rather than on a ticker.
-3. **Landscape / tablet layout**. Two-pane splits: Subjects (list ↔
+   The hero card is also where the timer's Start button belongs; for now it
+   is the whole tile that is tappable.
+2. **Landscape / tablet layout**. Two-pane splits: Subjects (list ↔
    topics), Plan (days ↔ month), Today (current block ↔ rail of next up).
    `LayoutBuilder`, not a whole new codebase. Horizontal-conducive extras:
    a week timetable grid, a subject timeline (Gantt-style).
 
-Recommended order: **1** on its own, then **2** as a considered redesign,
-then **3** when the phone experience is settled.
+Recommended order: **1** as a considered redesign, then **2** when the phone
+experience is settled.
 
 ## Architecture
 
@@ -566,16 +592,19 @@ boundary is ever needed.
 Ranked, still valuable but behind the *Open feedback* list above:
 
 1. **FSRS** instead of the fixed `[1, 3, 7, 21]` review ladder, once recall
-   quality is logged.
-2. **Wire `Notifier.scheduleDailyDigest`** — an evening "tomorrow's plan"
-   summary. The method exists, nothing calls it. Depends on the digest
-   channel id being separate from session ids (already is).
-3. **Full resources per topic** — the schema has a full resources table
+   quality is logged. The timer is the natural place to ask "how did that
+   go?" now that one exists.
+2. **Full resources per topic** — the schema has a full resources table
    supporting multiple entries (book/video/pdf/url/problem-set) with
    progress; we currently expose one `link` string. Building the resource
    sheet unlocks multi-source topics without a schema change.
-4. **Sound design** — a proprietary three-note chime instead of the
+3. **Sound design** — a proprietary three-note chime instead of the
    system alarm tone. Distinctive without being obnoxious.
+4. **Keep the screen awake during a timer.** Currently it is not held, so the
+   display sleeps mid-session; the countdown survives (it is wall-clock
+   derived) but the phone has to be woken to glance at it. Needs
+   `wakelock_plus`, the first new dependency in a while — worth it only if
+   the timer proves itself in use.
 
 Deliberately *not* on any roadmap: accounts, sync, SMS, WhatsApp. Local-first
 is a design commitment. If notifications ever get more channels, they go

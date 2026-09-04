@@ -121,6 +121,7 @@ class AppState extends ChangeNotifier {
       exactAlarmsAllowed = await notifier.canScheduleExact();
       batteryExempt = await notifier.isBatteryExempt();
       await notifier.syncFromPlan(plan!);
+      await _syncDigests();
     }
 
     // Keep the home-screen widgets in step. Cheap; runs on every replan.
@@ -138,7 +139,38 @@ class AppState extends ChangeNotifier {
     exactAlarmsAllowed = await notifier.canScheduleExact();
     batteryExempt = await notifier.isBatteryExempt();
     if (plan != null) await notifier.syncFromPlan(plan!);
+    await _syncDigests();
     notifyListeners();
+  }
+
+  /// Queues one evening summary per night, each describing the day after it.
+  ///
+  /// Written out per evening rather than as a single repeating alarm because a
+  /// repeat carries the same text forever: right the first night, and wrong
+  /// every night after. Refreshed on every replan and every app resume, so the
+  /// summaries stay true as the plan changes under them.
+  Future<void> _syncDigests() async {
+    if (!prefs.digestEnabled || plan == null) {
+      await notifier.syncDigests(const []);
+      return;
+    }
+
+    final entries = <({DateTime when, String body})>[];
+    for (var i = 0; i < Notifier.digestDays; i++) {
+      // Constructor arithmetic, not Duration — adding 24 hours drifts off
+      // midnight across a DST boundary and lands two evenings on one date.
+      final evening = DateTime(
+        today.year,
+        today.month,
+        today.day + i,
+        prefs.digestMinute ~/ 60,
+        prefs.digestMinute % 60,
+      );
+      final tomorrow = DateTime(today.year, today.month, today.day + i + 1);
+      entries.add((when: evening, body: plan!.digestFor(tomorrow)));
+    }
+
+    await notifier.syncDigests(entries);
   }
 
   /// Prompts for the battery exemption and re-checks afterwards.

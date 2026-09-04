@@ -769,6 +769,44 @@ class _RemindersPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
+          SwitchListTile(
+            secondary: const Icon(Icons.nightlight_outlined),
+            title: const Text('Evening digest'),
+            subtitle: const Text(
+                "One quiet notification with tomorrow's blocks, so the plan "
+                'reaches you without you having to open anything'),
+            value: state.prefs.digestEnabled,
+            onChanged: (on) => _savePrefs(
+                context, state, state.prefs.copyWith(digestEnabled: on)),
+          ),
+          if (state.prefs.digestEnabled)
+            ListTile(
+              leading: const Icon(Icons.schedule_outlined),
+              title: const Text('Digest time'),
+              subtitle: const Text('Late enough that the day is done'),
+              trailing: Text(
+                formatClock(state.prefs.digestMinute),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              onTap: () async {
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay(
+                    hour: state.prefs.digestMinute ~/ 60,
+                    minute: state.prefs.digestMinute % 60,
+                  ),
+                );
+                if (picked != null && context.mounted) {
+                  await _savePrefs(
+                    context,
+                    state,
+                    state.prefs.copyWith(
+                        digestMinute: picked.hour * 60 + picked.minute),
+                  );
+                }
+              },
+            ),
+          const Divider(height: 24),
           ListTile(
             leading: const Icon(Icons.notifications_active_outlined),
             title: const Text('Re-request permissions'),

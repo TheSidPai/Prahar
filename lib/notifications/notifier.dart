@@ -256,44 +256,89 @@ class Notifier {
     }
   }
 
-  /// Evening summary of tomorrow's plan. Repeats daily at [hour]:[minute].
-  Future<void> scheduleDailyDigest({
-    required int hour,
-    required int minute,
+  /// Replaces the pending evening digests with [entries].
+  ///
+  /// One notification per evening, each carrying its own summary, rather than
+  /// a single daily-repeating alarm. `matchDateTimeComponents` would repeat
+  /// the *same body* forever, so the first night it fired would be right and
+  /// every night after it would confidently describe a day that had already
+  /// happened. A rolling window costs a handful of pending alarms and is
+  /// always true; if the app is not opened for a week the digests simply run
+  /// out, which is the right failure — silence beats a wrong summary.
+  ///
+  /// Ids live in their own range so [syncFromPlan] (≥ [_sessionIdBase]) never
+  /// touches them and vice versa.
+  Future<void> syncDigests(
+      List<({DateTime when, String body})> entries) async {
+    await init();
+
+    for (final p in await _plugin.pendingNotificationRequests()) {
+      if (p.id == _digestId ||
+          (p.id >= _digestIdBase && p.id < _digestIdBase + digestDays)) {
+        await _plugin.cancel(p.id);
+      }
+    }
+
+    final now = DateTime.now();
+    var slot = 0;
+    for (final e in entries.take(digestDays)) {
+      if (!e.when.isAfter(now)) continue;
+      try {
+        await _plugin.zonedSchedule(
+          _digestIdBase + slot,
+          "Tomorrow's plan",
+          e.body,
+          tz.TZDateTime.from(e.when, tz.local),
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              _digestChannelId,
+              'Daily digest',
+              channelDescription: 'An evening look at tomorrow',
+              importance: Importance.defaultImportance,
+            ),
+          ),
+          // Inexact on purpose: a summary is not time-critical, and inexact
+          // alarms are not rationed the way exact ones are.
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        );
+        slot++;
+      } catch (e) {
+        debugPrint('Prahar: could not schedule digest: $e');
+      }
+    }
+  }
+
+  /// Fires when a timer's work or break interval ends.
+  ///
+  /// The timer screen cannot be trusted to be visible — the phone will be face
+  /// down, which is rather the point of a focus timer — so the end of each
+  /// interval is handed to the OS as an alarm like everything else. Replaced
+  /// on every phase change and cancelled when the timer stops.
+  Future<void> scheduleTimerAlert({
+    required DateTime when,
+    required String title,
     required String body,
   }) async {
     await init();
-    var when = tz.TZDateTime.local(
-      tz.TZDateTime.now(tz.local).year,
-      tz.TZDateTime.now(tz.local).month,
-      tz.TZDateTime.now(tz.local).day,
-      hour,
-      minute,
-    );
-    if (when.isBefore(tz.TZDateTime.now(tz.local))) {
-      when = when.add(const Duration(days: 1));
-    }
-
+    await _plugin.cancel(_timerId);
+    if (!when.isAfter(DateTime.now())) return;
     try {
       await _plugin.zonedSchedule(
-        _digestId,
-        "Tomorrow's plan",
+        _timerId,
+        title,
         body,
-        when,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            _digestChannelId,
-            'Daily digest',
-            channelDescription: 'An evening look at tomorrow',
-            importance: Importance.defaultImportance,
-          ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.time,
+        tz.TZDateTime.from(when, tz.local),
+        _sessionDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
     } catch (e) {
-      debugPrint('Prahar: could not schedule digest: $e');
+      debugPrint('Prahar: could not schedule timer alert: $e');
     }
+  }
+
+  Future<void> cancelTimerAlert() async {
+    await init();
+    await _plugin.cancel(_timerId);
   }
 
   Future<void> cancelAll() => _plugin.cancelAll();
@@ -326,10 +371,27 @@ class Notifier {
     return when;
   }
 
-  // Reserved ids. Session alarms start at [_sessionIdBase] so they can be
-  // cancelled as a group without touching these.
+  // Reserved ids, partitioned so each kind can be cancelled as a group without
+  // destroying the others. An early version used cancelAll() in syncFromPlan,
+  // which — since a replan happens on every edit — quietly deleted the digest
+  // and any pending test reminder every time the student touched anything.
+  //
+  //     1        the original single repeating digest (retired; still
+  //              cancelled by syncDigests so old installs shed it)
+  //     2        test reminder
+  //     3        study-timer interval alert
+  //     100..106 the rolling evening digests
+  //     1000+    study block alarms
   static const _digestId = 1;
   static const _testId = 2;
+  static const _timerId = 3;
+  static const _digestIdBase = 100;
+
+  /// How many evenings of digest to keep pending. A week: long enough that a
+  /// few days without opening the app costs nothing, short enough that the
+  /// summaries are still true when they fire.
+  static const digestDays = 7;
+
   static const _sessionIdBase = 1000;
 
   /// Deterministic 32-bit id from the session's slot, so rescheduling the same

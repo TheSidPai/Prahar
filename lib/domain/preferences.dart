@@ -72,6 +72,22 @@ class Prefs {
   final MaterialChoice materialChoice;
   final CardStyle cardStyle;
 
+  /// The focus timer's last-used pattern, by `TimerMode.name`. Stored as a
+  /// string rather than an enum because the modes are pairs of durations that
+  /// live in `domain/study_timer.dart`; an enum here would be a second list to
+  /// keep in step. Unknown values fall back to Pomodoro.
+  final String timerMode;
+
+  /// Whether the evening digest is scheduled at all, and when it fires.
+  ///
+  /// On by default: a planner that never speaks first is a planner you forget
+  /// to open. It is a single quiet notification a day, and one switch away.
+  final bool digestEnabled;
+
+  /// Minutes from midnight. 21:00 — late enough that the day is done, early
+  /// enough to still act on what it says.
+  final int digestMinute;
+
   const Prefs({
     this.dayStartMinute = 6 * 60,
     this.dayEndMinute = 22 * 60,
@@ -80,6 +96,9 @@ class Prefs {
     this.themeChoice = ThemeChoice.system,
     this.materialChoice = MaterialChoice.matte,
     this.cardStyle = CardStyle.hairline,
+    this.timerMode = 'pomodoro',
+    this.digestEnabled = true,
+    this.digestMinute = 21 * 60,
   });
 
   /// The window must be wide enough for at least one block plus a break,
@@ -106,6 +125,9 @@ class Prefs {
     ThemeChoice? themeChoice,
     MaterialChoice? materialChoice,
     CardStyle? cardStyle,
+    String? timerMode,
+    bool? digestEnabled,
+    int? digestMinute,
   }) =>
       Prefs(
         dayStartMinute: dayStartMinute ?? this.dayStartMinute,
@@ -115,6 +137,9 @@ class Prefs {
         themeChoice: themeChoice ?? this.themeChoice,
         materialChoice: materialChoice ?? this.materialChoice,
         cardStyle: cardStyle ?? this.cardStyle,
+        timerMode: timerMode ?? this.timerMode,
+        digestEnabled: digestEnabled ?? this.digestEnabled,
+        digestMinute: digestMinute ?? this.digestMinute,
       );
 
   Map<String, String> toMap() => {
@@ -125,6 +150,9 @@ class Prefs {
         'theme': themeChoice.name,
         'material': materialChoice.name,
         'card_style': cardStyle.name,
+        'timer_mode': timerMode,
+        'digest': digestEnabled ? '1' : '0',
+        'digest_minute': '$digestMinute',
       };
 
   /// Tolerant of missing or malformed values: a corrupt preference should fall
@@ -165,6 +193,10 @@ class Prefs {
       themeChoice: theme,
       materialChoice: material,
       cardStyle: cards,
+      timerMode: m['timer_mode'] ?? 'pomodoro',
+      // Absent means "never set", which for a feature that ships on is on.
+      digestEnabled: (m['digest'] ?? '1') != '0',
+      digestMinute: read('digest_minute', 21 * 60, 0, 24 * 60 - 1),
     );
   }
 }
