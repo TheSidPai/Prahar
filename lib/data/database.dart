@@ -27,7 +27,10 @@ class PraharDatabase {
   /// own version, always.
   ///
   /// 3 -> 4 added the `link` column on topics.
-  static const _version = 4;
+  ///
+  /// 4 -> 5 added `exam_minute` on subjects — what time the exam starts, so
+  /// the exam day stops counting as a whole day of preparation.
+  static const _version = 5;
 
   late final Database _db;
 
@@ -42,6 +45,7 @@ class PraharDatabase {
         await _v2(db);
         await _v3(db);
         await _v4(db);
+        await _v5(db);
       },
       onUpgrade: _upgrade,
     );
@@ -55,6 +59,7 @@ class PraharDatabase {
     if (from < 2) await _v2(db);
     if (from < 3) await _v3(db);
     if (from < 4) await _v4(db);
+    if (from < 5) await _v5(db);
   }
 
   Future<void> _v2(Database db) async {
@@ -106,6 +111,18 @@ class PraharDatabase {
     final has = cols.map((c) => c['name'] as String).toSet();
     if (!has.contains('link')) {
       await db.execute('ALTER TABLE topics ADD COLUMN link TEXT');
+    }
+  }
+
+  /// The exam's time of day, in minutes from midnight. Nullable and left null
+  /// on every existing row: "date known, time unknown" is the honest reading
+  /// of a subject entered before this column existed, and it is also the
+  /// behaviour those subjects already had.
+  Future<void> _v5(Database db) async {
+    final cols = await db.rawQuery('PRAGMA table_info(subjects)');
+    final has = cols.map((c) => c['name'] as String).toSet();
+    if (!has.contains('exam_minute')) {
+      await db.execute('ALTER TABLE subjects ADD COLUMN exam_minute INTEGER');
     }
   }
 
@@ -293,6 +310,7 @@ class PraharDatabase {
         'id': s.id,
         'name': s.name,
         'exam_date': s.examDate == null ? null : dateKey(s.examDate!),
+        'exam_minute': s.examMinuteOfDay,
         'weight': s.weight,
         'color': s.colorValue,
       });
@@ -306,6 +324,7 @@ class PraharDatabase {
         examDate: r['exam_date'] == null
             ? null
             : parseDateKey(r['exam_date'] as String),
+        examMinuteOfDay: r['exam_minute'] as int?,
         weight: r['weight'] as int,
         colorValue: r['color'] as int,
       );

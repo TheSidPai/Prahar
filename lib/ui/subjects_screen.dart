@@ -235,7 +235,9 @@ class _SubjectRow extends StatelessWidget {
                           if (!needsTopics) '${topics.length} topics',
                           if (!needsTopics) '${formatMinutes(remaining)} left',
                           if (subject.examDate != null)
-                            'exam ${formatDate(subject.examDate!)}',
+                            'exam ${formatDate(subject.examDate!)}'
+                                '${subject.examMinuteOfDay == null ? '' : ' '
+                                    '${formatClock(subject.examMinuteOfDay!)}'}',
                         ].join('  ·  '),
                         style: theme.textTheme.bodySmall,
                       ),
@@ -277,6 +279,7 @@ Future<void> showSubjectSheet(BuildContext context, {Subject? existing}) async {
   final state = context.read<AppState>();
   final nameController = TextEditingController(text: existing?.name ?? '');
   var examDate = existing?.examDate;
+  var examMinute = existing?.examMinuteOfDay;
   var weight = existing?.weight ?? 3;
   var color = existing?.colorValue ?? subjectPalette.first;
 
@@ -320,7 +323,10 @@ Future<void> showSubjectSheet(BuildContext context, {Subject? existing}) async {
                     ? null
                     : IconButton(
                         icon: const Icon(Icons.clear),
-                        onPressed: () => setState(() => examDate = null),
+                        onPressed: () => setState(() {
+                          examDate = null;
+                          examMinute = null;
+                        }),
                       ),
                 onTap: () async {
                   final now = DateTime.now();
@@ -334,6 +340,41 @@ Future<void> showSubjectSheet(BuildContext context, {Subject? existing}) async {
                   if (picked != null) setState(() => examDate = picked);
                 },
               ),
+              // The time is optional and only offered once a date exists —
+              // a start time without a day is meaningless. Setting it stops
+              // the exam day from counting as a whole day of preparation,
+              // which is the whole reason it is here, so the row says so.
+              if (examDate != null)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.schedule_outlined),
+                  title: Text(examMinute == null
+                      ? 'Time not set'
+                      : 'Starts at ${formatClock(examMinute!)}'),
+                  subtitle: Text(examMinute == null
+                      ? 'The whole day counts as preparation time'
+                      : 'Only the hours before it count as preparation'),
+                  trailing: examMinute == null
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () => setState(() => examMinute = null),
+                        ),
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: examMinute == null
+                          ? const TimeOfDay(hour: 9, minute: 0)
+                          : TimeOfDay(
+                              hour: examMinute! ~/ 60,
+                              minute: examMinute! % 60,
+                            ),
+                    );
+                    if (picked != null) {
+                      setState(() => examMinute = picked.hour * 60 + picked.minute);
+                    }
+                  },
+                ),
               // Said before saving, not after: the consequence of omitting a
               // date is invisible once the sheet closes.
               if (examDate == null)
@@ -408,6 +449,7 @@ Future<void> showSubjectSheet(BuildContext context, {Subject? existing}) async {
                       await state.addSubject(
                         name: name,
                         examDate: examDate,
+                        examMinuteOfDay: examMinute,
                         weight: weight,
                         color: color,
                       );
@@ -416,6 +458,7 @@ Future<void> showSubjectSheet(BuildContext context, {Subject? existing}) async {
                         id: existing.id,
                         name: name,
                         examDate: examDate,
+                        examMinuteOfDay: examMinute,
                         weight: weight,
                         colorValue: color,
                       ));

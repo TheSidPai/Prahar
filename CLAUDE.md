@@ -62,7 +62,7 @@ tools\dev.ps1 doctor
 tools\dev.ps1 devices      # also diagnoses "no device" causes on MIUI
 tools\dev.ps1 run          # onto the connected phone
 tools\dev.ps1 apk          # release APK
-tools\dev.ps1 install      # apk + adb install + launch, one shot
+tools\dev.ps1 install      # build + adb install + launch, one shot
 tools\dev.ps1 licenses     # accept Android SDK licences (cosmetic; see below)
 tools\dev.ps1 sdkpkg "<pkg;id>"   # install any sdkmanager package, quoting handled
 tools\dev.ps1 exempt [off] # toggle battery-optimisation exemption over adb
@@ -85,6 +85,20 @@ Ask before taking one if the user might have other content open, and delete
 the file from `build/` afterwards if you did. `build/screen.png` is
 gitignored.
 
+**You cannot drive the UI from adb on this device.** `input tap` fails with
+`SecurityException: Injecting input events requires ... INJECT_EVENTS` —
+MIUI gates it behind a developer-option the phone does not have on. So a
+screenshot shows whichever screen the user left open; to see a particular
+screen, ask them to open it. Do not build a tap-based verification flow.
+
+**`install` builds first — it did not always.** Until 4 Sep it installed
+whatever APK was already sitting in `build/`, so after a code change it
+silently reinstalled the *previous* build. Everything looks correct, the
+change appears not to work, and the next hour goes into debugging code that
+was never on the phone. This happened. If a change seems absent from the
+running app, check `build\app\outputs\flutter-apk\app-release.apk`'s
+timestamp before suspecting the code.
+
 **`tools\dev.ps1 test` is not sufficient on its own.** Dart only compiles what
 the tests import, so a passing suite leaves the entire `lib/ui` tree unchecked.
 Always run `analyze` as well — that is what actually type-checks the app.
@@ -100,8 +114,8 @@ user's call to make.
 
 ## Current state (verified, 4 Sep 2026)
 
-- 77/77 tests pass; `analyze` reports no issues.
-- Release APK builds and installs on device (52.2 MB, ~90 s warm; it was
+- 96/96 tests pass; `analyze` reports no issues.
+- Release APK builds and installs on device (52.3 MB, ~120 s warm; it was
   52.9 MB before the six unused fonts came out).
 - Flutter 3.47.2 / Dart 3.13.2 at `C:\src\flutter`. JDK 17 (Temurin) and
   Android Studio installed. SDK at `%LOCALAPPDATA%\Android\Sdk`: platforms
@@ -116,6 +130,11 @@ Features shipped and on the device:
 
 - Planner (greedy, critical-ratio priority), feasibility banner, exam calendar
   (month view under Plan tab), progress screen with per-subject "needs X/day".
+- **Exam time** as well as date, optional per subject. A known time stops the
+  exam day counting as a whole day of preparation and bars that subject's
+  blocks from being scheduled after the paper starts.
+- **Card style** picker (Settings > Cards): hairline / plain / lifted /
+  tinted / open, each previewed as a real card.
 - Study window + busy slots (weekly and one-off, multi-day picker).
 - Topic units stored with rate — pages/problems/minutes; conversion is honest.
 - Undo on logged blocks; skip has a confirm; midnight rollover is handled.
@@ -172,6 +191,30 @@ undo without reason.
 - **Brand widget**: `PraharMark` is CustomPainter, not a bundled PNG.
   Proportions match the launcher script exactly and are commented as such;
   the two must stay in sync when the mark is retuned.
+- **Exam time is a separate optional column, not a timestamp.** `exam_date`
+  stays a plain date and `exam_minute` (nullable) carries the hour, so every
+  date comparison in the app — calendar grouping, the archive check, the
+  planner's day loop — keeps working on a date, and "I know the day but not
+  the time" stays expressible. Null means the whole exam day is preparation
+  time, which is exactly what every subject did before the column existed.
+  The arithmetic is `Subject.prepDaysFrom` — whole days plus the share of the
+  study window that precedes the exam. It is one method because the planner's
+  urgency score and both "needs X a day" figures divide by it; three copies
+  would disagree and the app would tell the student two different stories
+  about the same exam. `test/subject_test.dart` pins it.
+- **Card styles are five different ideas, not five weights.** An outline, a
+  tonal step, a shadow, a colour wash, and nothing at all. Anything subtler
+  is a preference nobody can see. The picker draws each one as two stacked
+  Progress cards on the real scaffold colour, because a single card in
+  isolation looks fine and only turns into a grid once it has a neighbour —
+  which is the failure mode that made hairlines the original choice. Hairline
+  is still the default.
+- **Long user strings need a line of their own.** A subject called "Data
+  Structures and Algorithms" collided with "49 days left" on Progress,
+  because the name shared a Row with a right-aligned meta. The name is the
+  one string the app does not control, so it now takes the full width and
+  the deadline moved to its own wrapping line. Check any new Row that mixes
+  a user string with app text.
 - **Glass**: bottom nav, modal sheets, and the three summary panels — Today
   header, feasibility banner, subject-detail status. Surface alpha is
   0.42 dark / 0.45 light (down from 0.55/0.60, where the tint was carrying
@@ -268,8 +311,9 @@ Every schema change now gets a new version and a new `_vN` function.
 idempotent (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN` guarded
 by `PRAGMA table_info`) so a redundant call cannot break an install.
 
-Current version: **4**. `_v2` records estimate provenance (unit/amount/rate)
+Current version: **5**. `_v2` records estimate provenance (unit/amount/rate)
 and adds `settings`. `_v3` adds `busy_slots`. `_v4` adds `topics.link`.
+`_v5` adds `subjects.exam_minute`.
 
 ### Sessions are derived, not stored
 

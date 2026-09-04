@@ -11,6 +11,7 @@ import '../state/app_state.dart';
 import 'brand.dart';
 import 'busy_slots_screen.dart';
 import 'how_it_works.dart';
+import 'theme.dart';
 
 /// A compact index of settings, not a wall of controls.
 ///
@@ -118,6 +119,13 @@ class SettingsScreen extends StatelessWidget {
             onChanged: (c) => _savePrefs(
                 context, state, state.prefs.copyWith(themeChoice: c)),
           ),
+        ),
+        row(
+          icon: Icons.dashboard_outlined,
+          title: 'Cards',
+          value: PraharTheme.describeCards(state.prefs.cardStyle).$1,
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute<void>(builder: (_) => const _CardStylePage())),
         ),
         row(
           icon: Icons.blur_on,
@@ -547,6 +555,206 @@ class _BackupPageState extends State<_BackupPage> {
     } catch (e) {
       if (mounted) setState(() => _message = 'Restore failed: $e');
     }
+  }
+}
+
+/// Five ideas about how a card separates itself from the page, each drawn as
+/// a real card rather than described in words.
+///
+/// The specimen is a Progress row — the densest card in the app and the one
+/// that appears most often — so the choice is made on the thing it actually
+/// affects. Tapping applies immediately, so the other tabs can be browsed
+/// before deciding: the font picker worked exactly this way, and being able to
+/// *use* the app in a style beats studying a swatch of it.
+class _CardStylePage extends StatelessWidget {
+  const _CardStylePage();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Cards')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 18),
+            child: Text(
+              'Every list in Prahar is made of cards, so this sets the texture '
+              'of the whole app. Each sample below is drawn in its own style. '
+              'Tap one to apply it everywhere — you can wander through the '
+              'other tabs and come back.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+          for (final style in CardStyle.values)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 22),
+              child: _CardSpecimen(
+                style: style,
+                selected: style == state.prefs.cardStyle,
+                onTap: () => _savePrefs(
+                    context, state, state.prefs.copyWith(cardStyle: style)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CardSpecimen extends StatelessWidget {
+  const _CardSpecimen({
+    required this.style,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final CardStyle style;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final outer = Theme.of(context);
+    final desc = PraharTheme.describeCards(style);
+
+    // The specimen is rendered under a theme built for *this* style, so it
+    // shows the real thing regardless of which style is currently applied.
+    final preview = PraharTheme.of(
+      outer.brightness,
+      material: context.select<AppState, MaterialChoice>(
+          (s) => s.prefs.materialChoice),
+      cardStyle: style,
+    );
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Text(
+              desc.$1,
+              style: outer.textTheme.titleSmall?.copyWith(
+                color: selected ? outer.colorScheme.tertiary : null,
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (selected)
+              Icon(Icons.check_circle,
+                  size: 16, color: outer.colorScheme.tertiary),
+            const Spacer(),
+            Text(desc.$2,
+                style: outer.textTheme.bodySmall
+                    ?.copyWith(color: outer.colorScheme.outline)),
+          ]),
+          const SizedBox(height: 10),
+          // Two stacked specimens: a single card can look fine in isolation
+          // and turn into a grid the moment it has a neighbour, which is the
+          // failure mode that made hairlines the original choice.
+          Theme(
+            data: preview,
+            child: Builder(
+              builder: (context) => Container(
+                // The page behind the cards must be the scaffold colour, or a
+                // borderless style is being judged against the wrong ground.
+                color: preview.scaffoldBackgroundColor,
+                padding: const EdgeInsets.all(12),
+                child: const Column(
+                  children: [
+                    _SpecimenCard(
+                      name: 'Data Structures and Algorithms',
+                      meta: '5h 10m of 10h · 0 of 1 topics done',
+                      deadline: '49 days left · needs 6m a day',
+                      progress: 0.52,
+                      color: Color(0xFFE07A3E),
+                    ),
+                    SizedBox(height: 12),
+                    _SpecimenCard(
+                      name: 'Indian Music',
+                      meta: '40m of 4h · 0 of 1 topics done',
+                      deadline: 'exam tomorrow at 09:00 · needs 47m a day',
+                      progress: 0.17,
+                      color: Color(0xFF3BA7C4),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A miniature of the Progress card, kept deliberately close to the real one:
+/// a specimen that flatters itself is worse than no specimen.
+class _SpecimenCard extends StatelessWidget {
+  const _SpecimenCard({
+    required this.name,
+    required this.meta,
+    required this.deadline,
+    required this.progress,
+    required this.color,
+  });
+
+  final String name;
+  final String meta;
+  final String deadline;
+  final double progress;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(name,
+                    style: theme.textTheme.titleMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right, size: 18),
+            ]),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 8,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(meta, style: theme.textTheme.bodySmall),
+            const SizedBox(height: 4),
+            Text(
+              deadline,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.primary),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

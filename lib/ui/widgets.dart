@@ -2,11 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../domain/format.dart';
+import '../domain/models.dart';
 import '../domain/preferences.dart';
 import '../domain/schedule.dart';
 import '../state/app_state.dart';
 import 'glass.dart';
 import 'theme.dart';
+
+/// The deadline in the fewest words that are still true.
+///
+/// Null when the subject has no exam date. Once a time is known it is worth
+/// saying on the last two days, when "today" and "tomorrow" are the difference
+/// between an evening of revision and none.
+String? examLabel(Subject s, DateTime today) {
+  final exam = s.examDate;
+  if (exam == null) return null;
+  final days = dateOnly(exam).difference(dateOnly(today)).inDays;
+  if (days < 0) return 'exam passed';
+
+  final at = s.examMinuteOfDay;
+  final clock = at == null ? '' : ' at ${formatClock(at)}';
+  if (days == 0) return 'exam today$clock';
+  if (days == 1) return 'exam tomorrow$clock';
+  return '$days days left';
+}
 
 /// The feasibility verdict, shown wherever a plan is shown.
 ///

@@ -245,8 +245,19 @@ class Subject {
   final String name;
 
   /// Null means "no deadline" — the planner treats it as low urgency rather
-  /// than refusing to schedule it.
+  /// than refusing to schedule it. Date only; the time of day, if known, is
+  /// [examMinuteOfDay].
   final DateTime? examDate;
+
+  /// What time the exam starts, in minutes from midnight. Null means the time
+  /// is unknown, and the exam day counts as a full day of preparation — which
+  /// is what every subject did before this field existed.
+  ///
+  /// Kept separate from [examDate] rather than folded into one timestamp so
+  /// that every date comparison in the app — calendar grouping, archive
+  /// checks, the planner's day loop — keeps working on a plain date, and so
+  /// "I know the day but not the time" stays expressible.
+  final int? examMinuteOfDay;
 
   /// 1 (minor) .. 5 (critical).
   final int weight;
@@ -258,13 +269,63 @@ class Subject {
     required this.id,
     required this.name,
     this.examDate,
+    this.examMinuteOfDay,
     this.weight = 3,
     this.colorValue = 0xFF4F46E5,
   });
 
+  /// The exam as a single moment, when the time is known.
+  DateTime? get examAt {
+    final d = examDate;
+    if (d == null) return null;
+    final m = examMinuteOfDay;
+    if (m == null) return d;
+    return DateTime(d.year, d.month, d.day, m ~/ 60, m % 60);
+  }
+
+  /// How much of the exam day is actually available to study in: all of it
+  /// when no time is known, otherwise the share of the study window that
+  /// falls before the exam starts.
+  ///
+  /// A 9am exam against a 06:00–22:00 window leaves 3 of 16 hours, so the
+  /// exam day is worth 0.19 of a day rather than a whole one.
+  double examDayShare({required int windowStartMinute, required int windowEndMinute}) {
+    final m = examMinuteOfDay;
+    if (m == null) return 1;
+    final span = windowEndMinute - windowStartMinute;
+    if (span <= 0) return 0;
+    return ((m - windowStartMinute) / span).clamp(0.0, 1.0);
+  }
+
+  /// Days of preparation between [from] and the exam.
+  ///
+  /// Whole days plus the usable share of the exam day itself. Null when there
+  /// is no exam date. This is what both the planner's urgency score and the
+  /// "needs X a day" figure divide by, so that the two can never disagree
+  /// about how much time is left.
+  ///
+  /// Only the date part of [from] is used: a day already begun still counts
+  /// as a day here, which is what "days left" has always meant in this app.
+  double? prepDaysFrom(
+    DateTime from, {
+    required int windowStartMinute,
+    required int windowEndMinute,
+  }) {
+    final exam = examDate;
+    if (exam == null) return null;
+    final days = dateOnly(exam).difference(dateOnly(from)).inDays;
+    if (days < 0) return 0;
+    return days +
+        examDayShare(
+          windowStartMinute: windowStartMinute,
+          windowEndMinute: windowEndMinute,
+        );
+  }
+
   Subject copyWith({
     String? name,
     DateTime? examDate,
+    int? examMinuteOfDay,
     int? weight,
     int? colorValue,
   }) =>
@@ -272,6 +333,7 @@ class Subject {
         id: id,
         name: name ?? this.name,
         examDate: examDate ?? this.examDate,
+        examMinuteOfDay: examMinuteOfDay ?? this.examMinuteOfDay,
         weight: weight ?? this.weight,
         colorValue: colorValue ?? this.colorValue,
       );

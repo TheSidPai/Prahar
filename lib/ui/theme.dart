@@ -52,9 +52,89 @@ class PraharTheme {
   /// INTERNET permission and a runtime fetch silently yields the system font.
   static const fontFamily = 'Inter';
 
+  /// A one-line name and character for each card style, for the picker.
+  static (String name, String flavour) describeCards(CardStyle c) =>
+      switch (c) {
+        CardStyle.hairline => ('Hairline', 'A thin outline. Precise, technical'),
+        CardStyle.plain => ('Plain', 'No border — separated by tone alone'),
+        CardStyle.shadow => ('Lifted', 'A soft shadow, no outline'),
+        CardStyle.tinted => ('Tinted', 'A warm wash through the fill'),
+        CardStyle.open => ('Open', 'No card at all. Only space between things'),
+      };
+
+  /// How cards separate themselves from the page.
+  ///
+  /// Every list in the app is cards, so this single object sets the texture of
+  /// the whole interface — which is exactly why it is worth being able to try
+  /// them side by side rather than arguing about them.
+  static CardThemeData _cards(CardStyle style, ColorScheme scheme, bool dark) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: style == CardStyle.hairline
+          ? BorderSide(color: scheme.outlineVariant, width: 1)
+          : BorderSide.none,
+    );
+
+    return switch (style) {
+      CardStyle.hairline => CardThemeData(
+          elevation: 0,
+          color: scheme.surfaceContainer,
+          margin: EdgeInsets.zero,
+          shape: shape,
+        ),
+
+      // One tonal step off the page, nothing else. In dark mode that step has
+      // to be larger than it looks on paper or the cards vanish.
+      CardStyle.plain => CardThemeData(
+          elevation: 0,
+          color: dark ? const Color(0xFF1A1E25) : const Color(0xFFF3F4F7),
+          margin: EdgeInsets.zero,
+          shape: shape,
+        ),
+
+      // A shadow does most of the work on light backgrounds and almost none on
+      // dark ones, so dark mode leans on a lighter fill and keeps a deep,
+      // wide shadow that reads as depth rather than as a grey halo.
+      CardStyle.shadow => CardThemeData(
+          elevation: dark ? 6 : 3,
+          color: dark ? const Color(0xFF191D24) : scheme.surfaceContainerLowest,
+          shadowColor: dark
+              ? Colors.black.withValues(alpha: 0.65)
+              : const Color(0xFF2A2F3A).withValues(alpha: 0.16),
+          // M3 would otherwise tint the fill by elevation, which fights the
+          // colour chosen above.
+          surfaceTintColor: Colors.transparent,
+          margin: EdgeInsets.zero,
+          shape: shape,
+        ),
+
+      // The accent, heavily diluted. Enough to warm the surface, not enough to
+      // read as a coloured card.
+      CardStyle.tinted => CardThemeData(
+          elevation: 0,
+          color: Color.alphaBlend(
+            accent.withValues(alpha: dark ? 0.07 : 0.10),
+            dark ? const Color(0xFF171A20) : const Color(0xFFFFFFFF),
+          ),
+          margin: EdgeInsets.zero,
+          shape: shape,
+        ),
+
+      // Nothing but spacing. The most editorial, and the one that shows
+      // whether the layout stands up without furniture holding it together.
+      CardStyle.open => CardThemeData(
+          elevation: 0,
+          color: Colors.transparent,
+          margin: EdgeInsets.zero,
+          shape: shape,
+        ),
+    };
+  }
+
   static ThemeData of(
     Brightness brightness, {
     MaterialChoice material = MaterialChoice.matte,
+    CardStyle cardStyle = CardStyle.hairline,
   }) {
     final dark = brightness == Brightness.dark;
 
@@ -124,17 +204,11 @@ class PraharTheme {
         toolbarHeight: 60,
       ),
 
-      // Hairline-bordered cards. Elevation and tinted fills both add noise
-      // when a dozen of them stack down a list.
-      cardTheme: CardThemeData(
-        elevation: 0,
-        color: scheme.surfaceContainer,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: scheme.outlineVariant, width: 1),
-        ),
-      ),
+      // Hairline borders were the original answer — elevation and tinted fills
+      // both add noise when a dozen cards stack down a list. That reasoning
+      // still holds, but it is a judgement rather than a fact, so the
+      // alternatives are selectable and previewable in Settings > Cards.
+      cardTheme: _cards(cardStyle, scheme, dark),
 
       dividerTheme: DividerThemeData(
         color: scheme.outlineVariant,

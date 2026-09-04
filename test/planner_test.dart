@@ -6,8 +6,14 @@ import 'package:prahar/planner/planner.dart';
 /// Fixed "today" so no test depends on the wall clock.
 final today = DateTime(2026, 9, 3);
 
-Subject subject(String id, {DateTime? exam, int weight = 3}) =>
-    Subject(id: id, name: id, examDate: exam, weight: weight);
+Subject subject(String id, {DateTime? exam, int? examMinute, int weight = 3}) =>
+    Subject(
+      id: id,
+      name: id,
+      examDate: exam,
+      examMinuteOfDay: examMinute,
+      weight: weight,
+    );
 
 Topic topic(
   String id,
@@ -435,6 +441,117 @@ void main() {
         expect(run, lessThanOrEqualTo(2),
             reason: 'more than two consecutive blocks of ${first[i]}');
       }
+    });
+  });
+
+  group('exam time', () {
+    test('nothing for that subject is scheduled after the exam starts', () {
+      final plan = planner.generate(
+        subjects: [subject('phys', exam: today, examMinute: 9 * 60)],
+        topics: [topic('p1', 'phys', 600)],
+        availability: flat(600),
+        today: today,
+      );
+
+      final onExamDay = plan.onDate(today);
+      expect(onExamDay, isNotEmpty, reason: 'the morning is still usable');
+      for (final s in onExamDay) {
+        expect(s.startMinuteOfDay + s.durationMinutes, lessThanOrEqualTo(9 * 60),
+            reason: 'revising after the paper has started is not preparation');
+      }
+    });
+
+    test('the rest of the exam day still goes to other subjects', () {
+      // The reason a subject whose exam has passed is retired for the day
+      // rather than ending the day outright.
+      final plan = planner.generate(
+        subjects: [
+          subject('phys', exam: today, examMinute: 9 * 60),
+          subject('math', exam: today.add(const Duration(days: 30))),
+        ],
+        topics: [topic('p1', 'phys', 600), topic('m1', 'math', 600)],
+        availability: flat(600),
+        today: today,
+      );
+
+      final afterTheExam = plan
+          .onDate(today)
+          .where((s) => s.startMinuteOfDay >= 9 * 60)
+          .toList();
+      expect(afterTheExam, isNotEmpty);
+      expect(afterTheExam.every((s) => s.subjectId == 'math'), isTrue);
+    });
+
+    test('an exam before the day opens gets no blocks on its own day', () {
+      final plan = planner.generate(
+        subjects: [subject('phys', exam: today, examMinute: 6 * 60)],
+        topics: [topic('p1', 'phys', 600)],
+        availability: flat(600),
+        today: today,
+      );
+
+      expect(plan.onDate(today), isEmpty);
+    });
+
+    test('without a time the whole exam day is still usable', () {
+      // The pre-existing contract. Every subject entered before exam times
+      // existed relies on it.
+      final plan = planner.generate(
+        subjects: [subject('phys', exam: today)],
+        topics: [topic('p1', 'phys', 600)],
+        availability: flat(600),
+        today: today,
+      );
+
+      expect(
+        plan.onDate(today).any((s) => s.startMinuteOfDay >= 12 * 60),
+        isTrue,
+        reason: 'a date-only exam must not lose the afternoon',
+      );
+    });
+
+    test('a morning exam outranks an identical one later in the day', () {
+      // Both subjects have the same work and the same exam date, so the only
+      // thing separating them is how much of today they have left. Least
+      // slack must win.
+      final plan = planner.generate(
+        subjects: [
+          subject('early', exam: today, examMinute: 10 * 60),
+          subject('late', exam: today, examMinute: 20 * 60),
+        ],
+        topics: [topic('e', 'early', 600), topic('l', 'late', 600)],
+        availability: flat(120),
+        today: today,
+      );
+
+      final first = plan.onDate(today).first;
+      expect(first.subjectId, 'early');
+    });
+
+    test('a busy morning does not push work past the exam', () {
+      // Class until 10:45, exam at 11:00. The 15 minutes between them cannot
+      // hold a block, and the planner must leave them alone rather than
+      // schedule across the exam — the case that made the cutoff a per-block
+      // check rather than a per-day one.
+      final plan = planner.generate(
+        subjects: [subject('phys', exam: today, examMinute: 11 * 60)],
+        topics: [topic('p1', 'phys', 600)],
+        availability: Availability(
+          minutesByWeekday: {for (var d = 1; d <= 7; d++) d: 600},
+          busy: [
+            BusySlot(
+              id: 'class',
+              label: 'class',
+              startMinute: 6 * 60,
+              endMinute: 10 * 60 + 45,
+              weekday: today.weekday,
+            ),
+          ],
+        ),
+        today: today,
+      );
+
+      expect(plan.onDate(today), isEmpty);
     });
   });
 

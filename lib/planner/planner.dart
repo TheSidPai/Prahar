@@ -181,6 +181,12 @@ class Planner {
 
       final placed = <String>[]; // subject ids, in the order placed today
 
+      // Subjects whose exam has already started by the time the cursor
+      // reaches them. Only ever non-empty on an exam day with a known exam
+      // time, and only for the rest of that day — the rest of the board
+      // carries on filling the afternoon.
+      final examOver = <String>{};
+
       // 1. Reviews due today go first. They are short and time-critical: a
       //    review done three days late is barely a review at all.
       final dueToday = pendingReviews
@@ -202,6 +208,12 @@ class Planner {
         final subject = subjectById[topic.subjectId];
         if (!_withinDeadline(subject, day)) {
           pendingReviews.remove(r);
+          continue;
+        }
+        // A review after the exam has started helps nobody. Leave it queued:
+        // the topic may belong to a later exam too, and dropping it here
+        // would silently lose the rung.
+        if (!_fitsBeforeExam(subject, day, cursor, config.reviewMinutes)) {
           continue;
         }
 
@@ -234,6 +246,9 @@ class Planner {
           satisfied: satisfied,
           day: day,
           placed: placed,
+          cursor: cursor,
+          minimumBlock: config.minSessionMinutes,
+          examOver: examOver,
         );
         if (topic == null) break;
 
@@ -241,7 +256,21 @@ class Planner {
         // student's stated capacity does.
         if (!advance(config.minSessionMinutes)) break;
         final roomLeft = intervals[slot].$2 - cursor;
-        final usable = min(capacity, roomLeft);
+        var usable = min(capacity, roomLeft);
+
+        // On the exam day the block must also finish before the exam starts.
+        // The pick happened at the old cursor, so this is re-checked here:
+        // advance() may have skipped a busy slot and landed past the exam.
+        // Retiring just this subject for the day, rather than ending the day,
+        // leaves the afternoon available to everything else.
+        final cutoff = _cutoffMinute(subjectById[topic.subjectId], day);
+        if (cutoff != null) {
+          if (cursor + config.minSessionMinutes > cutoff) {
+            examOver.add(topic.subjectId);
+            continue;
+          }
+          usable = min(usable, cutoff - cursor);
+        }
 
         final remaining = work[topic.id]!;
         var duration = min(config.maxSessionMinutes, remaining);
@@ -367,6 +396,25 @@ class Planner {
     return !day.isAfter(dateOnly(exam));
   }
 
+  /// Latest minute of [day] at which work for [subject] is still worth doing.
+  ///
+  /// Only the exam day itself is bounded, and only when the exam time is
+  /// known: revising Physics at 11am for a Physics exam that started at 9am
+  /// is not preparation, it is a scheduling bug. Null means unbounded.
+  int? _cutoffMinute(Subject? subject, DateTime day) {
+    final exam = subject?.examDate;
+    final minute = subject?.examMinuteOfDay;
+    if (exam == null || minute == null) return null;
+    return day == dateOnly(exam) ? minute : null;
+  }
+
+  /// Whether a block of [need] minutes starting at [cursor] finishes in time
+  /// to be useful to [subject] on [day].
+  bool _fitsBeforeExam(Subject? subject, DateTime day, int cursor, int need) {
+    final cutoff = _cutoffMinute(subject, day);
+    return cutoff == null || cursor + need <= cutoff;
+  }
+
   /// Scheduling pressure: the minutes per day this subject still demands.
   ///
   /// This is the critical-ratio (least-slack) heuristic, and it is deliberately
@@ -389,11 +437,16 @@ class Planner {
     DateTime day,
     Map<String, int> remainingBySubject,
   ) {
-    final exam = subject?.examDate;
-    // +1 because the exam day itself is still usable.
-    final daysLeft = exam == null
-        ? 365
-        : max(1, dateOnly(exam).difference(day).inDays + 1);
+    // The exam day counts for whatever part of it precedes the exam: a whole
+    // day when only the date is known, a sliver when the paper starts at 9am.
+    // The floor keeps the ratio finite on the morning of an exam, where the
+    // subject genuinely is the most pressed thing on the board.
+    final prepDays = subject?.prepDaysFrom(
+      day,
+      windowStartMinute: config.dayStartMinute,
+      windowEndMinute: config.dayEndMinute,
+    );
+    final daysLeft = prepDays == null ? 365.0 : max(0.1, prepDays);
 
     final subjectRemaining =
         remainingBySubject[topic.subjectId] ?? topic.remainingMinutes;
@@ -425,6 +478,15 @@ class Planner {
     required Set<String> satisfied,
     required DateTime day,
     required List<String> placed,
+
+    /// Where in the day the next block would start. Only matters on an exam
+    /// day with a known exam time, where a subject stops being schedulable
+    /// part-way through the day rather than at midnight.
+    required int cursor,
+    required int minimumBlock,
+
+    /// Subjects already retired for the day because their exam has started.
+    required Set<String> examOver,
   }) {
     // Best candidate that respects the interleaving cap.
     Topic? best;
@@ -440,8 +502,11 @@ class Planner {
       final topic = topicById[id];
       if (topic == null) continue;
 
+      if (examOver.contains(topic.subjectId)) continue;
+
       final subject = subjectById[topic.subjectId];
       if (!_withinDeadline(subject, day)) continue;
+      if (!_fitsBeforeExam(subject, day, cursor, minimumBlock)) continue;
 
       // A prerequisite that doesn't exist can't be waited on — treat it as met
       // rather than deadlocking the whole plan on a typo.

@@ -222,6 +222,52 @@ void main() {
     });
   });
 
+  group('exam time', () {
+    test('the exam start time survives a save and load', () async {
+      await db.upsertSubject(Subject(
+        id: 's1',
+        name: 'Physics',
+        examDate: DateTime(2026, 10, 24),
+        examMinuteOfDay: 9 * 60 + 30,
+      ));
+
+      final s = (await db.subjects()).single;
+      expect(s.examDate, DateTime(2026, 10, 24));
+      expect(s.examMinuteOfDay, 9 * 60 + 30);
+      expect(s.examAt, DateTime(2026, 10, 24, 9, 30));
+    });
+
+    test('a date with no time round trips as time-unknown', () async {
+      await db.upsertSubject(Subject(
+        id: 's1',
+        name: 'Physics',
+        examDate: DateTime(2026, 10, 24),
+      ));
+
+      final s = (await db.subjects()).single;
+      expect(s.examMinuteOfDay, isNull);
+      expect(s.examAt, DateTime(2026, 10, 24),
+          reason: 'no time means the date itself, not midnight-plus-guesswork');
+    });
+
+    test('clearing the time writes null rather than leaving the old one',
+        () async {
+      await db.upsertSubject(Subject(
+        id: 's1',
+        name: 'Physics',
+        examDate: DateTime(2026, 10, 24),
+        examMinuteOfDay: 540,
+      ));
+      await db.upsertSubject(Subject(
+        id: 's1',
+        name: 'Physics',
+        examDate: DateTime(2026, 10, 24),
+      ));
+
+      expect((await db.subjects()).single.examMinuteOfDay, isNull);
+    });
+  });
+
   group('migration from v1', () {
     test('adds estimate columns and backfills existing rows', () async {
       // Build a database with the v1 schema, exactly as it shipped.
@@ -278,6 +324,12 @@ void main() {
           reason: 'pre-v2 rows were entered as minutes');
       expect(t.estimateAmount, 450, reason: 'backfilled from the minutes');
       expect(t.estimateRate, 1.0);
+
+      // v5 adds the exam time. A subject entered before it existed has a date
+      // and no time, which is both the truth and the behaviour it already had.
+      final s = (await upgraded.subjects()).single;
+      expect(s.name, 'Physics');
+      expect(s.examMinuteOfDay, isNull);
 
       // The settings table the study window needs must now exist.
       await upgraded.putSetting('day_start', '480');

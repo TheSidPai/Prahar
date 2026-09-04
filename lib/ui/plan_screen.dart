@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../domain/format.dart';
 import '../domain/models.dart';
+import '../domain/preferences.dart';
 import '../planner/calibration.dart';
 import '../state/app_state.dart';
 import 'calendar_screen.dart';
@@ -181,6 +182,7 @@ class ProgressScreen extends StatelessWidget {
           _SubjectProgress(
             subject: subject,
             topics: state.topicsFor(subject.id),
+            prefs: state.prefs,
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -379,10 +381,18 @@ class _OverallCard extends StatelessWidget {
 }
 
 class _SubjectProgress extends StatelessWidget {
-  const _SubjectProgress({required this.subject, required this.topics});
+  const _SubjectProgress({
+    required this.subject,
+    required this.topics,
+    required this.prefs,
+  });
 
   final Subject subject;
   final List<Topic> topics;
+
+  /// The study window, which is what turns "the exam is at 9am" into "today
+  /// is worth a fifth of a day".
+  final Prefs prefs;
 
   @override
   Widget build(BuildContext context) {
@@ -390,12 +400,19 @@ class _SubjectProgress extends StatelessWidget {
     final total = topics.fold(0, (a, t) => a + t.estimatedMinutes);
     final done = topics.fold(0, (a, t) => a + t.completedMinutes);
     final progress = total == 0 ? 0.0 : (done / total).clamp(0.0, 1.0);
-    final daysLeft = subject.examDate?.difference(DateTime.now()).inDays;
+    final deadline = examLabel(subject, DateTime.now());
 
     // The question a student actually has: at this rate, do I finish in time?
+    // Divided by the same figure the planner's urgency score uses, so the two
+    // can never tell the student different stories about the same deadline.
     final remaining = total - done;
-    final perDay = (daysLeft != null && daysLeft > 0)
-        ? (remaining / daysLeft).ceil()
+    final prepDays = subject.prepDaysFrom(
+      DateTime.now(),
+      windowStartMinute: prefs.dayStartMinute,
+      windowEndMinute: prefs.dayEndMinute,
+    );
+    final perDay = (prepDays != null && prepDays > 0 && remaining > 0)
+        ? (remaining / prepDays).ceil()
         : null;
 
     return Card(
@@ -413,6 +430,10 @@ class _SubjectProgress extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // The name takes the whole line and wraps. It used to share the
+              // row with the deadline, which collided the moment a subject was
+              // called something like "Data Structures and Algorithms" — the
+              // name is the one string here the app does not control.
               Row(children: [
                 Container(
                   width: 10,
@@ -423,17 +444,14 @@ class _SubjectProgress extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(subject.name, style: theme.textTheme.titleMedium),
-                const Spacer(),
-                if (daysLeft != null)
-                  Text(
-                    daysLeft < 0
-                        ? 'exam passed'
-                        : daysLeft == 0
-                            ? 'exam today'
-                            : '$daysLeft days left',
-                    style: theme.textTheme.bodySmall,
+                Expanded(
+                  child: Text(
+                    subject.name,
+                    style: theme.textTheme.titleMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                ),
                 const SizedBox(width: 4),
                 const Icon(Icons.chevron_right, size: 18),
               ]),
@@ -452,10 +470,16 @@ class _SubjectProgress extends StatelessWidget {
                 '${topics.where((t) => t.isDone).length} of ${topics.length} topics done',
                 style: theme.textTheme.bodySmall,
               ),
-              if (perDay != null && remaining > 0) ...[
+              // Deadline and demand read as one thought, on a line of their
+              // own that is free to wrap. Both are about time remaining.
+              if (deadline != null || perDay != null) ...[
                 const SizedBox(height: 4),
                 Text(
-                  'Needs ${formatMinutes(perDay)} a day to finish in time',
+                  [
+                    ?deadline,
+                    if (perDay != null)
+                      'needs ${formatMinutes(perDay)} a day to finish in time',
+                  ].join('  ·  '),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.primary,
                   ),

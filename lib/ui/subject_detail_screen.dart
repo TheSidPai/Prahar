@@ -86,8 +86,17 @@ class _SubjectStatus extends StatelessWidget {
     final exam = subject.examDate;
     final daysLeft =
         exam == null ? null : dateOnly(exam).difference(dateOnly(DateTime.now())).inDays;
-    final perDay = (daysLeft != null && daysLeft > 0 && remaining > 0)
-        ? (remaining / daysLeft).ceil()
+
+    // Same divisor as the planner and the Progress card: whole days plus
+    // whatever part of the exam day comes before the exam.
+    final prefs = context.select<AppState, Prefs>((s) => s.prefs);
+    final prepDays = subject.prepDaysFrom(
+      DateTime.now(),
+      windowStartMinute: prefs.dayStartMinute,
+      windowEndMinute: prefs.dayEndMinute,
+    );
+    final perDay = (prepDays != null && prepDays > 0 && remaining > 0)
+        ? (remaining / prepDays).ceil()
         : null;
 
     // Glass here for the same reason the Today header has it: this is the one
@@ -138,7 +147,9 @@ class _SubjectStatus extends StatelessWidget {
                     TextSpan(
                       text: ' a day to be ready by '
                           '${formatDate(dateOnly(exam!))}'
-                          '  ·  $daysLeft days left',
+                          '${subject.examMinuteOfDay == null ? '' : ', '
+                              '${formatClock(subject.examMinuteOfDay!)}'}'
+                          '  ·  ${examLabel(subject, DateTime.now())}',
                     ),
                   ],
                 ),

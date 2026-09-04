@@ -46,6 +46,11 @@ class BackupIO {
             'id': s.id,
             'name': s.name,
             'exam_date': d(s.examDate),
+            // Additive, so the format version does not move: an older Prahar
+            // reading this file ignores the key and gets exactly the
+            // behaviour it had, and this one reads an older file as
+            // "time unknown".
+            'exam_minute': s.examMinuteOfDay,
             'weight': s.weight,
             'color': s.colorValue,
           }
@@ -132,6 +137,7 @@ class BackupIO {
           id: s['id'] as String,
           name: s['name'] as String,
           examDate: parse(s['exam_date']),
+          examMinuteOfDay: (s['exam_minute'] as num?)?.toInt(),
           weight: (s['weight'] as num).toInt(),
           colorValue: (s['color'] as num).toInt(),
         ),

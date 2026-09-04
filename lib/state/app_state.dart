@@ -154,6 +154,7 @@ class AppState extends ChangeNotifier {
   Future<void> addSubject({
     required String name,
     DateTime? examDate,
+    int? examMinuteOfDay,
     int weight = 3,
     int color = 0xFF4F46E5,
   }) async {
@@ -161,6 +162,7 @@ class AppState extends ChangeNotifier {
       id: newId(),
       name: name,
       examDate: examDate,
+      examMinuteOfDay: examMinuteOfDay,
       weight: weight,
       colorValue: color,
     );

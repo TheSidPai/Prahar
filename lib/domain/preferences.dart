@@ -15,6 +15,33 @@ enum ThemeChoice { system, light, dark }
 /// speaks; a continuous slider would be a demo reel.
 enum MaterialChoice { matte, glass }
 
+/// How a card separates itself from the page behind it.
+///
+/// Every list in the app is made of cards, so this one choice sets the whole
+/// texture of the interface. The options are five *different ideas* about
+/// separation rather than five weights of the same border: an outline, a tonal
+/// step, a shadow, a wash of colour, and nothing at all. Anything subtler than
+/// that is a preference nobody can see.
+enum CardStyle {
+  /// A hairline outline on a surface-coloured fill. The original.
+  hairline,
+
+  /// No border. The fill alone is one step lighter than the page, so cards
+  /// separate by tone — quieter, and it stops a long list reading as a grid.
+  plain,
+
+  /// No border, a soft diffuse shadow. Cards lift off the page.
+  shadow,
+
+  /// No border, a faint wash of the accent through the fill. Warm rather than
+  /// neutral, so a card feels like part of the brand.
+  tinted,
+
+  /// No fill, no border, no shadow. Only spacing separates one thing from the
+  /// next — the editorial extreme, and the least furniture on screen.
+  open,
+}
+
 // There is no FontChoice any more. Seven faces were bundled behind a live
 // preview so the choice could be made on how they looked rather than on their
 // names; Inter won, so the picker, the enum and the six unused TTFs are gone
@@ -43,6 +70,7 @@ class Prefs {
 
   final ThemeChoice themeChoice;
   final MaterialChoice materialChoice;
+  final CardStyle cardStyle;
 
   const Prefs({
     this.dayStartMinute = 6 * 60,
@@ -51,6 +79,7 @@ class Prefs {
     this.breakMinutes = 10,
     this.themeChoice = ThemeChoice.system,
     this.materialChoice = MaterialChoice.matte,
+    this.cardStyle = CardStyle.hairline,
   });
 
   /// The window must be wide enough for at least one block plus a break,
@@ -76,6 +105,7 @@ class Prefs {
     int? breakMinutes,
     ThemeChoice? themeChoice,
     MaterialChoice? materialChoice,
+    CardStyle? cardStyle,
   }) =>
       Prefs(
         dayStartMinute: dayStartMinute ?? this.dayStartMinute,
@@ -84,6 +114,7 @@ class Prefs {
         breakMinutes: breakMinutes ?? this.breakMinutes,
         themeChoice: themeChoice ?? this.themeChoice,
         materialChoice: materialChoice ?? this.materialChoice,
+        cardStyle: cardStyle ?? this.cardStyle,
       );
 
   Map<String, String> toMap() => {
@@ -93,6 +124,7 @@ class Prefs {
         'break_minutes': '$breakMinutes',
         'theme': themeChoice.name,
         'material': materialChoice.name,
+        'card_style': cardStyle.name,
       };
 
   /// Tolerant of missing or malformed values: a corrupt preference should fall
@@ -120,6 +152,10 @@ class Prefs {
       (c) => c.name == m['material'],
       orElse: () => MaterialChoice.matte,
     );
+    final cards = CardStyle.values.firstWhere(
+      (c) => c.name == m['card_style'],
+      orElse: () => CardStyle.hairline,
+    );
 
     return Prefs(
       dayStartMinute: start,
@@ -128,6 +164,7 @@ class Prefs {
       breakMinutes: read('break_minutes', 10, 0, 60),
       themeChoice: theme,
       materialChoice: material,
+      cardStyle: cards,
     );
   }
 }

@@ -365,12 +365,21 @@ switch ($Task.ToLower()) {
         exit 0
     }
     'install' {
-        # Install the already-built release APK and launch it, then exit.
-        # `flutter run` stays attached to the process until you press q, which
-        # is wrong for a scripted install; this returns control immediately.
+        # Build, install and launch, then exit. `flutter run` stays attached to
+        # the process until you press q, which is wrong for a scripted install;
+        # this returns control immediately.
+        #
+        # The build step is not optional. This task used to install whatever
+        # APK happened to be lying in build/, which silently reinstalls the
+        # previous build after a code change - the app looks like the change
+        # did not work, and the next hour goes into debugging code that was
+        # never on the phone. Use `apk` alone to build without installing.
         $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
         $apk = "$Project\build\app\outputs\flutter-apk\app-release.apk"
-        if (-not (Test-Path $apk)) { Write-Output 'no APK - run: tools\dev.ps1 apk'; exit 1 }
+
+        & $Flutter build apk --release
+        if ($LASTEXITCODE -ne 0) { Write-Output "build failed: $LASTEXITCODE"; exit 1 }
+        if (-not (Test-Path $apk)) { Write-Output 'no APK after build'; exit 1 }
 
         Write-Output ("installing {0:N1} MB..." -f ((Get-Item $apk).Length / 1MB))
         & $adb install -r $apk

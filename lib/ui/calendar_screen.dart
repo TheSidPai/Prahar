@@ -371,7 +371,10 @@ class _ExamRow extends StatelessWidget {
                     Text(subject.name, style: theme.textTheme.titleSmall),
                     const SizedBox(height: 3),
                     Text(
-                      formatDateFull(exam),
+                      subject.examMinuteOfDay == null
+                          ? formatDateFull(exam)
+                          : '${formatDateFull(exam)}, '
+                              '${formatClock(subject.examMinuteOfDay!)}',
                       style: theme.textTheme.bodySmall,
                     ),
                     if (gapAfterPrevious != null && gapAfterPrevious! <= 3) ...[
