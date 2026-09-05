@@ -5,6 +5,7 @@ import '../domain/format.dart';
 import '../domain/models.dart';
 import '../state/app_state.dart';
 import 'glass.dart';
+import 'layout.dart';
 import 'subject_detail_screen.dart';
 import 'widgets.dart';
 
@@ -28,6 +29,11 @@ class SubjectsScreen extends StatefulWidget {
 class _SubjectsScreenState extends State<SubjectsScreen> {
   String _query = '';
   bool _showArchive = false;
+
+  /// The subject shown in the right-hand pane when there is room for one.
+  /// Null means "nothing chosen yet"; the pane then falls back to the first
+  /// subject in the list, so the screen is never half empty on arrival.
+  String? _selected;
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +73,12 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
             .where((t) => t.title.toLowerCase().contains(q))
             .toList();
 
-    return ListView(
+    // Two panes when there is width: the list stops being a menu you leave in
+    // order to look at something, and becomes an index you read alongside it.
+    final wide = Layout.isWide(MediaQuery.sizeOf(context));
+    final shown = _selected ?? (active.isNotEmpty ? active.first.id : null);
+
+    final list = ListView(
       padding: const EdgeInsets.only(top: 8, bottom: 90),
       children: [
         Padding(
@@ -78,7 +89,12 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
           ),
         ),
         for (final subject in active)
-          _SubjectRow(subject: subject, topics: state.topicsFor(subject.id)),
+          _SubjectRow(
+            subject: subject,
+            topics: state.topicsFor(subject.id),
+            selected: wide && subject.id == shown,
+            onTap: wide ? () => setState(() => _selected = subject.id) : null,
+          ),
 
         if (q.isNotEmpty && matchedTopics.isNotEmpty) ...[
           Padding(
@@ -110,8 +126,93 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
           ),
           if (_showArchive)
             for (final s in archived)
-              _SubjectRow(subject: s, topics: state.topicsFor(s.id)),
+              _SubjectRow(
+                subject: s,
+                topics: state.topicsFor(s.id),
+                selected: wide && s.id == shown,
+                onTap: wide ? () => setState(() => _selected = s.id) : null,
+              ),
         ],
+      ],
+    );
+
+    if (!wide) return list;
+
+    return Row(
+      children: [
+        Expanded(flex: 4, child: list),
+        const VerticalDivider(width: 1),
+        Expanded(
+          flex: 6,
+          child: shown == null
+              ? const EmptyState(
+                  icon: Icons.library_books_outlined,
+                  title: 'Pick a subject',
+                  message: 'Its topics and standing appear here.',
+                )
+              : _DetailPane(subjectId: shown),
+        ),
+      ],
+    );
+  }
+}
+
+/// The right-hand pane: the subject's own page, minus the page.
+///
+/// It carries its own small header because there is no app bar out here to
+/// hold the name, the edit action or the way to add a topic — the FAB belongs
+/// to the Subjects tab and adds *subjects*.
+class _DetailPane extends StatelessWidget {
+  const _DetailPane({required this.subjectId});
+
+  final String subjectId;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final subject = context.select<AppState, Subject?>(
+        (s) => s.subjectFor(subjectId));
+    if (subject == null) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 12, 6),
+          child: Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: Color(subject.colorValue),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  subject.name,
+                  style: theme.textTheme.titleLarge,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Edit subject',
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                onPressed: () => showSubjectSheet(context, existing: subject),
+              ),
+              TextButton.icon(
+                onPressed: () =>
+                    showTopicSheet(context, subjectId: subject.id),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Topic'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: SubjectDetailBody(subjectId: subject.id)),
       ],
     );
   }
@@ -183,10 +284,24 @@ class _TopicHit extends StatelessWidget {
 }
 
 class _SubjectRow extends StatelessWidget {
-  const _SubjectRow({required this.subject, required this.topics});
+  const _SubjectRow({
+    required this.subject,
+    required this.topics,
+    this.selected = false,
+    this.onTap,
+  });
 
   final Subject subject;
   final List<Topic> topics;
+
+  /// Marked as the one showing in the detail pane. Only ever true in the
+  /// two-pane layout, where a list row and a pane are on screen together and
+  /// the link between them has to be visible.
+  final bool selected;
+
+  /// Overrides the default "push the detail page" tap, which is what the
+  /// two-pane layout does instead of navigating.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -203,14 +318,24 @@ class _SubjectRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       child: Card(
+        // The selected row borrows the accent for its edge rather than a fill:
+        // a filled row in a list of cards reads as a different kind of thing,
+        // and it is the same subject either way.
+        shape: selected
+            ? RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.tertiary, width: 1.5),
+              )
+            : null,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SubjectDetailScreen(subjectId: subject.id),
-            ),
-          ),
+          onTap: onTap ??
+              () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SubjectDetailScreen(subjectId: subject.id),
+                    ),
+                  ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 16, 12, 16),
             child: Row(

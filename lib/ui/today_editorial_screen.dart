@@ -11,6 +11,7 @@ import '../state/app_state.dart';
 import 'brand.dart';
 import 'glass.dart';
 import 'how_it_works.dart';
+import 'layout.dart';
 import 'subjects_screen.dart';
 import 'timer_screen.dart';
 import 'widgets.dart';
@@ -103,70 +104,97 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
         .toList()
       ..sort((a, b) => a.startMinuteOfDay.compareTo(b.startMinuteOfDay));
 
+    // What the day is about, and what is around it. The split exists because
+    // the two answer different questions, which is also why they separate so
+    // cleanly when there is room for two columns.
+    final lead = <Widget>[
+      _DayHeader(state: state),
+      if (!state.batteryExempt) BatteryWarning(state: state),
+      if (!state.exactAlarmsAllowed) const ExactAlarmWarning(),
+      // Condensed while the plan fits, full-throated when it does not.
+      if (state.feasibility != null)
+        FeasibilityBanner(
+          feasibility: state.feasibility!,
+          condensed: state.feasibility!.fits,
+        ),
+      const SizedBox(height: 18),
+      _Hero(
+        focus: focus,
+        state: state,
+        onStart:
+            focus.session == null ? null : () => _openTimer(focus.session!),
+      ),
+    ];
+
+    final around = <Widget>[
+      if (rest.isNotEmpty) ...[
+        const SizedBox(height: 26),
+        _SectionLabel('Then'),
+        for (final s in rest)
+          _RailRow(
+            session: s,
+            color:
+                Color(state.subjectFor(s.subjectId)?.colorValue ?? 0xFF4F46E5),
+            open: _openRow == s.id,
+            onToggle: () =>
+                setState(() => _openRow = _openRow == s.id ? null : s.id),
+            onStart: () {
+              setState(() => _openRow = null);
+              _openTimer(s);
+            },
+            onDone: () {
+              setState(() => _openRow = null);
+              confirmDone(context, state, s);
+            },
+            onSkip: () {
+              setState(() => _openRow = null);
+              confirmSkip(context, state, s);
+            },
+          ),
+      ],
+      if (state.todayLog.isNotEmpty) ...[
+        const SizedBox(height: 26),
+        _DoneStrip(state: state),
+      ],
+      const SizedBox(height: 20),
+      Center(
+        child: Text(
+          'Tap a block to start a focus timer.',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.outline),
+        ),
+      ),
+    ];
+
+    // Sideways, the hero and its context sit beside each other instead of the
+    // context being pushed off the bottom of a 410dp-tall screen. Two scroll
+    // views rather than one: the rail is long and the hero is not, and tying
+    // them together would scroll the answer off screen to reach the list.
+    if (Layout.isWide(MediaQuery.sizeOf(context))) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 5,
+            child: ListView(
+              padding: EdgeInsets.only(top: topInset, bottom: 24),
+              children: lead,
+            ),
+          ),
+          Expanded(
+            flex: 4,
+            child: ListView(
+              padding: EdgeInsets.only(top: topInset + 12, bottom: 24),
+              children: around,
+            ),
+          ),
+        ],
+      );
+    }
+
     return ListView(
       padding: EdgeInsets.only(top: topInset, bottom: 100),
-      children: [
-        _DayHeader(state: state),
-
-        if (!state.batteryExempt) BatteryWarning(state: state),
-        if (!state.exactAlarmsAllowed) const ExactAlarmWarning(),
-
-        // Condensed while the plan fits, full-throated when it does not.
-        if (state.feasibility != null)
-          FeasibilityBanner(
-            feasibility: state.feasibility!,
-            condensed: state.feasibility!.fits,
-          ),
-
-        const SizedBox(height: 18),
-        _Hero(
-          focus: focus,
-          state: state,
-          onStart: focus.session == null
-              ? null
-              : () => _openTimer(focus.session!),
-        ),
-
-        if (rest.isNotEmpty) ...[
-          const SizedBox(height: 26),
-          _SectionLabel('Then'),
-          for (final s in rest)
-            _RailRow(
-              session: s,
-              color: Color(
-                  state.subjectFor(s.subjectId)?.colorValue ?? 0xFF4F46E5),
-              open: _openRow == s.id,
-              onToggle: () => setState(
-                  () => _openRow = _openRow == s.id ? null : s.id),
-              onStart: () {
-                setState(() => _openRow = null);
-                _openTimer(s);
-              },
-              onDone: () {
-                setState(() => _openRow = null);
-                confirmDone(context, state, s);
-              },
-              onSkip: () {
-                setState(() => _openRow = null);
-                confirmSkip(context, state, s);
-              },
-            ),
-        ],
-
-        if (state.todayLog.isNotEmpty) ...[
-          const SizedBox(height: 26),
-          _DoneStrip(state: state),
-        ],
-
-        const SizedBox(height: 20),
-        Center(
-          child: Text(
-            'Tap a block to start a focus timer.',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.outline),
-          ),
-        ),
-      ],
+      children: [...lead, ...around],
     );
   }
 }
@@ -358,22 +386,37 @@ class _Hero extends StatelessWidget {
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 20),
-        Row(children: [
-          FilledButton.icon(
-            onPressed: onStart,
-            icon: const Icon(Icons.play_arrow, size: 20),
-            label: const Text('Start focus'),
-          ),
-          const Spacer(),
-          TextButton(
-            onPressed: () => confirmSkip(context, state, session),
-            child: const Text('Skip'),
-          ),
-          TextButton(
-            onPressed: () => confirmDone(context, state, session),
-            child: const Text('Done'),
-          ),
-        ]),
+        // Wrap, not Row: three buttons and a Spacer overflowed a 411dp phone
+        // by 48px, and the hero is exactly where a wide subject name or a
+        // narrow pane will squeeze hardest. Wrapping drops Skip and Done onto
+        // a second line rather than clipping them, and the grouping keeps
+        // those two together wherever they land.
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            FilledButton.icon(
+              onPressed: onStart,
+              icon: const Icon(Icons.play_arrow, size: 20),
+              label: const Text('Start focus'),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  onPressed: () => confirmSkip(context, state, session),
+                  child: const Text('Skip'),
+                ),
+                TextButton(
+                  onPressed: () => confirmDone(context, state, session),
+                  child: const Text('Done'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ],
     );
   }

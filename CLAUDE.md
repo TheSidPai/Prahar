@@ -82,13 +82,21 @@ tools\make_v2_launcher.ps1      # any icon variant at every launcher density
 
 ### Use these exact command shapes, or the permission prompts come back
 
-`.claude/settings.json` allows commands by *prefix match on the literal
-string*. Every rule in it was originally an exact one-off — a particular
-`git log --format=...`, a particular test name, a commit path containing the
-session's UUID — so the next invocation differed by a character and prompted
-again. The user approved the same handful of commands dozens of times for
-this reason. The rules are prefix patterns now, but they only pay off if the
-prefix is stable. So:
+`.claude/settings.json` allows commands by matching a **glob** against the
+literal command string, and getting one prompt-free needs two things at once:
+
+- **Doubled backslashes.** A single `\` escapes the next character in a glob,
+  so a pattern must say `c:\\Users` to match a command containing `c:\Users`.
+  This is why Claude Code writes them doubled when you pick "always allow".
+- **A trailing wildcard.** Without one the rule is an exact string, so
+  `dev.ps1 test` does not cover `dev.ps1 test | Select-Object -Last 5`.
+
+The file had the first and not the second for weeks, so every rule in it was
+dead on arrival and the same commands were approved by hand dozens of times.
+A first attempt at fixing it supplied the second and dropped the first, which
+worked no better. It needs both.
+
+The rules only keep paying off if the command shape stays stable, so:
 
 - **Tools scripts:** single quotes, lowercase drive letter, exactly
   `& 'c:\Users\TheSidPai\Prahar\tools\dev.ps1' <task> [suffix]`. A rule for
@@ -155,7 +163,9 @@ user's call to make.
 
 ## Current state (verified, 4 Sep 2026)
 
-- 137/137 tests pass; `analyze` reports no issues.
+- 162/162 tests pass; `analyze` reports no issues.
+- **Landscape and tablet**: a navigation rail sideways, two panes on Today,
+  Plan and Subjects, capped column widths on Progress and Settings.
 - Release APK builds and installs on device (52.3 MB, ~120 s warm; it was
   52.9 MB before the six unused fonts came out).
 - Flutter 3.47.2 / Dart 3.13.2 at `C:\src\flutter`. JDK 17 (Temurin) and
@@ -271,6 +281,40 @@ undo without reason.
   ceiling is the study *window*, not stated availability — falling short of
   what you intended is normal and the feasibility banner already reports it;
   needing more hours than a day contains is not.
+- **Width decides columns, height decides where navigation goes.** Two
+  separate questions, in `lib/ui/layout.dart`. Conflating them puts a rail on
+  a tall tablet, where the bottom bar is the easier reach. A phone sideways is
+  wide *and* short — 891 x 411 — and it is the shortness that makes the rail
+  worth it: a 60dp app bar plus a 68dp bottom bar is a third of the screen.
+- **`test/landscape_test.dart` is the only way to check a layout here.** MIUI
+  refuses adb input injection, so nothing can rotate the phone or drive it to
+  a screen; a screenshot shows whatever is already open. The test pumps the
+  app at real device sizes and asks whether it threw. It found three real
+  overflow bugs on its first run, one of them in the portrait layout that had
+  already shipped. Note the test font draws every glyph as a fixed-width box,
+  so text is wider there than on the device — which makes the tests
+  conservative, not wrong: a row that only overflows in the test is one that
+  overflows on a phone set to a large font scale.
+- **A finished exam is not a shortfall.** Work behind an exam that has already
+  happened is excluded from the planner's `work` map entirely. The day loop
+  refused to schedule it anyway, so it used to arrive at the feasibility pass
+  as "unscheduled" and report the plan impossible — permanently, over a
+  subject nothing can be done about. Today's banner said the plan did not fit
+  and there was no action that could make it fit.
+- **"Archived" means the same thing everywhere.** Subjects and Progress both
+  fold past-exam subjects into an Archive section off `state.archivedSubjects`,
+  and Progress's headline percentage counts only what is still ahead — a
+  finished subject would otherwise hold it down for good over work that can no
+  longer be done, which reads as failure rather than as history.
+- **Deleting a subject deletes its log too.** `session_log` carries no foreign
+  key on purpose — it is an audit trail and outlives the topic it describes —
+  so nothing cascades into it, and a deleted subject went on appearing in
+  today's list and counting towards the streak. `AppState.deleteSubject` now
+  clears it explicitly and reloads the log and streak.
+- **A `Spacer` does not stop a `Row` overflowing.** Inflexible children are
+  laid out first at their natural size and the spacer takes what is left,
+  which can be nothing. The Progress card looked safe for exactly this reason
+  and was not. Use `Expanded` on the element that should give way.
 - **The timer is derived from the wall clock, never from ticks.**
   `lib/domain/study_timer.dart` is pure: given a start instant, accumulated
   pause and "now", it computes the phase, the seconds left and the focused
@@ -352,13 +396,13 @@ sun bigger + font picker removal, glass tuning) **shipped on 4 Sep**, as did
 the study timer and the evening digest. All are recorded under *Recent
 decisions* above. What remains, in order:
 
-1. **Landscape / tablet layout**. Two-pane splits: Subjects (list ↔
-   topics), Plan (days ↔ month), Today (current block ↔ rail of next up).
-   `LayoutBuilder`, not a whole new codebase. Horizontal-conducive extras:
-   a week timetable grid, a subject timeline (Gantt-style).
+Nothing from the review list is outstanding — the landscape and tablet
+layouts shipped on 5 Sep. What is left is the *extras* that were noted
+alongside them and never scoped: a week timetable grid, and a subject
+timeline laid out Gantt-style. Both want the horizontal room that now
+exists, and neither is needed for the app to be good sideways.
 
-Recommended order: **1** as a considered redesign, then **2** when the phone
-experience is settled.
+Otherwise the queue is the longer-term roadmap below.
 
 ## Architecture
 

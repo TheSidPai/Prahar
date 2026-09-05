@@ -221,8 +221,14 @@ class _DayCell extends StatelessWidget {
     // the whole cell — otherwise the digit sits in the top-left corner of a
     // rectangle and looks off-centre inside it. Exam dots live in a strip
     // *beneath* the digit so the digit's alignment is never affected by them.
-    return AspectRatio(
-      aspectRatio: 0.9,
+    // A fixed height rather than an aspect ratio. The ratio made the cell's
+    // height a function of the column's width, so in a narrow column — the
+    // Plan tab's second pane in landscape, at about 44dp per cell — the box
+    // shrank below the 52dp its own contents need and the digit overflowed
+    // its cell. 56 is what 0.9 gave at a phone's portrait width, so nothing
+    // moves in the common case; it simply stops shrinking past what fits.
+    return SizedBox(
+      height: 56,
       child: Container(
         decoration: BoxDecoration(
           color: isBusy && !isToday

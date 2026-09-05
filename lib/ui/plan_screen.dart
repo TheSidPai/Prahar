@@ -7,6 +7,7 @@ import '../domain/preferences.dart';
 import '../planner/calibration.dart';
 import '../state/app_state.dart';
 import 'calendar_screen.dart';
+import 'layout.dart';
 import 'subject_detail_screen.dart';
 import 'widgets.dart';
 
@@ -24,6 +25,20 @@ class _PlanTabsState extends State<PlanTabs> {
 
   @override
   Widget build(BuildContext context) {
+    // Wide enough for both, so the toggle goes: Days and Month answer the same
+    // question at different zooms, and comparing them is the whole point of
+    // having both. A control that hides one of two things you want to compare
+    // is a control that exists only because the screen was too narrow.
+    if (Layout.isWide(MediaQuery.sizeOf(context))) {
+      return const Row(
+        children: [
+          Expanded(flex: 5, child: PlanScreen()),
+          VerticalDivider(width: 1),
+          Expanded(flex: 4, child: CalendarScreen()),
+        ],
+      );
+    }
+
     return Column(
       children: [
         Padding(
@@ -154,8 +169,15 @@ class _DaySection extends StatelessWidget {
 
 /// Per-subject progress, which is the question students actually ask:
 /// "am I on track for Physics?"
-class ProgressScreen extends StatelessWidget {
+class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
+
+  @override
+  State<ProgressScreen> createState() => _ProgressScreenState();
+}
+
+class _ProgressScreenState extends State<ProgressScreen> {
+  bool _showArchive = false;
 
   @override
   Widget build(BuildContext context) {
@@ -168,22 +190,58 @@ class ProgressScreen extends StatelessWidget {
       );
     }
 
-    final total = state.subjects.fold(
+    // Past exams fold away here exactly as they do on Subjects — "archived"
+    // being nothing more than "the exam has been", so the two screens cannot
+    // disagree about which subjects are over.
+    final active = state.activeSubjects;
+    final archived = state.archivedSubjects;
+
+    // The headline counts what is still ahead. Including a finished subject
+    // would hold the percentage down for good over work that can no longer be
+    // done, which reads as failure rather than as history.
+    final total = active.fold(
         0, (a, s) => a + state.topicsFor(s.id).fold(0, (b, t) => b + t.estimatedMinutes));
-    final done = state.subjects.fold(
+    final done = active.fold(
         0, (a, s) => a + state.topicsFor(s.id).fold(0, (b, t) => b + t.completedMinutes));
 
-    return ListView(
+    // Capped rather than stretched: a progress card three feet wide is not
+    // more informative, only harder to read across.
+    return ReadableColumn(
+      child: ListView(
       padding: const EdgeInsets.only(top: 8, bottom: 90),
       children: [
         _OverallCard(done: done, total: total, streak: state.streak),
         const _CalibrationSection(),
-        for (final subject in state.subjects)
+        for (final subject in active)
           _SubjectProgress(
             subject: subject,
             topics: state.topicsFor(subject.id),
             prefs: state.prefs,
           ),
+
+        if (archived.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Archive · ${archived.length}',
+                  style: Theme.of(context).textTheme.titleSmall),
+              subtitle: const Text('Subjects whose exam has passed'),
+              trailing:
+                  Icon(_showArchive ? Icons.expand_less : Icons.expand_more),
+              onTap: () => setState(() => _showArchive = !_showArchive),
+            ),
+          ),
+          if (_showArchive)
+            for (final subject in archived)
+              _SubjectProgress(
+                subject: subject,
+                topics: state.topicsFor(subject.id),
+                prefs: state.prefs,
+              ),
+        ],
+
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
           child: Text(
@@ -194,6 +252,7 @@ class ProgressScreen extends StatelessWidget {
           ),
         ),
       ],
+      ),
     );
   }
 }
@@ -340,13 +399,21 @@ class _OverallCard extends StatelessWidget {
                 Text('${(pct * 100).round()}%',
                     style: theme.textTheme.displaySmall),
                 const SizedBox(width: 10),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text('of everything covered',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant)),
+                // Expanded rather than a plain Text plus Spacer. A Spacer does
+                // not stop a Row overflowing — inflexible children are laid
+                // out first at their natural size and the spacer simply gets
+                // nothing left — so at a large system font scale this line
+                // ran off the right of the card. Expanded both absorbs the
+                // slack the Spacer used to and lets the label wrap when there
+                // is none.
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text('of everything covered',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant)),
+                  ),
                 ),
-                const Spacer(),
                 if (streak > 0)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),

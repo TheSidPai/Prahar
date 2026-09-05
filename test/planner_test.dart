@@ -444,6 +444,74 @@ void main() {
     });
   });
 
+  group('an exam that has been', () {
+    final gone = today.subtract(const Duration(days: 3));
+
+    test('does not make the plan impossible', () {
+      // The bug this fixes: a subject whose exam has passed still had work
+      // outstanding, the day loop rightly refused to schedule it, and the
+      // feasibility pass then reported the plan impossible — permanently, and
+      // over a subject nothing can be done about. Today's banner said the
+      // plan did not fit and there was no way to make it fit.
+      final plan = planner.generate(
+        subjects: [subject('bio', exam: gone)],
+        topics: [topic('b1', 'bio', 600)],
+        availability: flat(120),
+        today: today,
+      );
+
+      expect(plan.feasibility.fits, isTrue);
+      expect(plan.feasibility.unscheduledMinutes, 0);
+      expect(plan.feasibility.warnings, isEmpty);
+    });
+
+    test('is left out of the work the plan is measured against', () {
+      final plan = planner.generate(
+        subjects: [subject('bio', exam: gone)],
+        topics: [topic('b1', 'bio', 600)],
+        availability: flat(120),
+        today: today,
+      );
+      expect(plan.feasibility.requiredMinutes, 0,
+          reason: 'work that can never be scheduled is not required work');
+    });
+
+    test('does not drag a live subject down with it', () {
+      final plan = planner.generate(
+        subjects: [
+          subject('bio', exam: gone),
+          subject('phys', exam: today.add(const Duration(days: 10))),
+        ],
+        topics: [topic('b1', 'bio', 600), topic('p1', 'phys', 300)],
+        availability: flat(120),
+        today: today,
+      );
+
+      expect(plan.feasibility.fits, isTrue);
+      expect(plan.feasibility.requiredMinutes, 300);
+      expect(plan.sessions.every((s) => s.subjectId == 'phys'), isTrue);
+    });
+
+    test('a live subject that genuinely does not fit still says so', () {
+      // The guard against over-correcting: silencing a passed exam must not
+      // silence the warning that matters.
+      final plan = planner.generate(
+        subjects: [
+          subject('bio', exam: gone),
+          subject('phys', exam: today.add(const Duration(days: 2))),
+        ],
+        topics: [topic('b1', 'bio', 600), topic('p1', 'phys', 2000)],
+        availability: flat(60),
+        today: today,
+      );
+
+      expect(plan.feasibility.fits, isFalse);
+      expect(plan.feasibility.warnings.any((w) => w.contains('phys')), isTrue);
+      expect(plan.feasibility.warnings.any((w) => w.contains('bio')), isFalse,
+          reason: 'nothing can be done about bio, so nothing is said about it');
+    });
+  });
+
   group('exam time', () {
     test('nothing for that subject is scheduled after the exam starts', () {
       final plan = planner.generate(

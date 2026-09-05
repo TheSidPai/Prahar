@@ -5,6 +5,7 @@ import '../domain/preferences.dart';
 import '../state/app_state.dart';
 import 'brand.dart';
 import 'glass.dart';
+import 'layout.dart';
 import 'plan_screen.dart';
 import 'settings_screen.dart';
 import 'subjects_screen.dart';
@@ -59,6 +60,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
+    final size = MediaQuery.sizeOf(context);
+    final rail = Layout.usesRail(size);
+    final glass = state.prefs.materialChoice == MaterialChoice.glass;
+
+    // IndexedStack rather than a switch: it keeps every tab's scroll position
+    // and state alive, which is why moving between them feels instant.
+    final pages = IndexedStack(
+      index: _index,
+      children: const [
+        TodayEditorialScreen(),
+        PlanTabs(),
+        ProgressScreen(),
+        SubjectsScreen(),
+        SettingsScreen(),
+      ],
+    );
+
     // A glass app bar that content passes *under*, rather than an opaque
     // header that content stops at.
     //
@@ -66,8 +84,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // inset its own scroll view by the bar's height, and Today is the screen
     // whose whole design is about content flowing beneath a fixed mark. The
     // other four stop at the bar, as they always have.
-    final glassBar =
-        _index == 0 && state.prefs.materialChoice == MaterialChoice.glass;
+    final glassBar = _index == 0 && glass;
 
     return Scaffold(
       extendBodyBehindAppBar: glassBar,
@@ -98,17 +115,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // When glass is on we want content to slide under the nav rather than
       // stopping short of it. `extendBody` does that; each screen already
       // reserves 90px of bottom padding for the nav's height.
-      extendBody: state.prefs.materialChoice == MaterialChoice.glass,
-      body: IndexedStack(
-        index: _index,
-        children: const [
-          TodayEditorialScreen(),
-          PlanTabs(),
-          ProgressScreen(),
-          SubjectsScreen(),
-          SettingsScreen(),
-        ],
-      ),
+      extendBody: !rail && glass,
+      body: rail
+          ? Row(
+              children: [
+                _NavRail(
+                  glass: glass,
+                  selectedIndex: _index,
+                  onDestinationSelected: (i) => setState(() => _index = i),
+                ),
+                Expanded(child: pages),
+              ],
+            )
+          : pages,
       floatingActionButton: _index == 3
           ? FloatingActionButton.extended(
               onPressed: () => showSubjectSheet(context),
@@ -116,38 +135,119 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               label: const Text('Subject'),
             )
           : null,
-      bottomNavigationBar: _NavBar(
-        glass: state.prefs.materialChoice == MaterialChoice.glass,
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.today_outlined),
-            selectedIcon: Icon(Icons.today),
-            label: 'Today',
+      bottomNavigationBar: rail
+          ? null
+          : _NavBar(
+              glass: glass,
+              selectedIndex: _index,
+              onDestinationSelected: (i) => setState(() => _index = i),
+              destinations: _destinations,
+            ),
+    );
+  }
+}
+
+const _destinations = [
+  NavigationDestination(
+    icon: Icon(Icons.today_outlined),
+    selectedIcon: Icon(Icons.today),
+    label: 'Today',
+  ),
+  NavigationDestination(
+    icon: Icon(Icons.calendar_month_outlined),
+    selectedIcon: Icon(Icons.calendar_month),
+    label: 'Plan',
+  ),
+  NavigationDestination(
+    icon: Icon(Icons.insights_outlined),
+    selectedIcon: Icon(Icons.insights),
+    label: 'Progress',
+  ),
+  NavigationDestination(
+    icon: Icon(Icons.library_books_outlined),
+    selectedIcon: Icon(Icons.library_books),
+    label: 'Subjects',
+  ),
+  NavigationDestination(
+    icon: Icon(Icons.settings_outlined),
+    selectedIcon: Icon(Icons.settings),
+    label: 'Settings',
+  ),
+];
+
+/// Navigation down the side instead of across the bottom.
+///
+/// Landscape on a phone is about 410dp tall. A 60dp app bar and a 68dp bottom
+/// bar take a third of that before a single block is drawn, and the thing that
+/// is scarce sideways is height — so navigation moves to the edge that has
+/// room. It is the same five destinations in the same order; only the axis
+/// changes, so nothing has to be relearned.
+class _NavRail extends StatelessWidget {
+  const _NavRail({
+    required this.glass,
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+  });
+
+  final bool glass;
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    // Five labelled destinations want roughly 360dp. A phone in landscape
+    // gives the body about 350 once the app bar has taken its share, so the
+    // rail must be allowed to scroll or it overflows on the exact device this
+    // layout exists for. LayoutBuilder + IntrinsicHeight is the documented
+    // shape for this: the rail still fills the column when there is room, and
+    // scrolls when there is not.
+    // The width has to be pinned here: a Row hands its non-flex children an
+    // unbounded width, and a scroll view cannot lay out against infinity.
+    final rail = SizedBox(
+      width: 88,
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: IntrinsicHeight(
+            child: NavigationRail(
+              selectedIndex: selectedIndex,
+              onDestinationSelected: onDestinationSelected,
+              backgroundColor: glass ? Colors.transparent : null,
+              indicatorColor: theme.colorScheme.primary.withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.20 : 0.12),
+              // Labels always, as in the bottom bar. An icon-only rail asks
+              // the user to learn five glyphs for no gain — the width is
+              // there, and the two layouts should not disagree about what the
+              // destinations are called.
+              labelType: NavigationRailLabelType.all,
+              groupAlignment: -0.9,
+              destinations: [
+                for (final d in _destinations)
+                  NavigationRailDestination(
+                    icon: d.icon,
+                    selectedIcon: d.selectedIcon,
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    label: Text(
+                      d.label,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                          letterSpacing: 0.2, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: 'Plan',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            selectedIcon: Icon(Icons.insights),
-            label: 'Progress',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.library_books_outlined),
-            selectedIcon: Icon(Icons.library_books),
-            label: 'Subjects',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
+        ),
       ),
+    );
+
+    if (!glass) return rail;
+    return GlassSurface(
+      borderRadius: const BorderRadius.horizontal(right: Radius.circular(20)),
+      child: rail,
     );
   }
 }

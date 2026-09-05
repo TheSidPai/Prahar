@@ -213,10 +213,20 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Removes a subject everywhere: the row, its topics by cascade, and its
+  /// history in the log.
+  ///
+  /// The log has no foreign key — it is an audit trail, and outliving the
+  /// topic it describes is the point — so nothing cascaded into it. A deleted
+  /// subject therefore went on showing in today's list and counting towards
+  /// the streak, which is not what deleting something means.
   Future<void> deleteSubject(String id) async {
     await db.deleteSubject(id);
+    await db.deleteLogForSubject(id);
     subjects = subjects.where((s) => s.id != id).toList();
     topics = topics.where((t) => t.subjectId != id).toList();
+    todayLog = await db.logEntriesOn(today);
+    streak = await db.streakEndingAt(today);
     await _rebuild();
     notifyListeners();
   }

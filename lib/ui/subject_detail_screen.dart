@@ -13,6 +13,12 @@ import '../state/app_state.dart';
 import 'subjects_screen.dart';
 import 'widgets.dart';
 
+/// A subject on its own page, reached by tapping one in a narrow layout.
+///
+/// The page is only a frame: the content is [SubjectDetailBody], which the
+/// wide Subjects layout shows in its right-hand pane instead of pushing a
+/// route. One body, two frames — the alternative is two implementations of a
+/// topic list that drift.
 class SubjectDetailScreen extends StatelessWidget {
   const SubjectDetailScreen({super.key, required this.subjectId});
 
@@ -23,8 +29,6 @@ class SubjectDetailScreen extends StatelessWidget {
     final state = context.watch<AppState>();
     final subject = state.subjectFor(subjectId);
     if (subject == null) return const Scaffold(body: SizedBox.shrink());
-
-    final topics = state.topicsFor(subjectId);
 
     return Scaffold(
       appBar: AppBar(
@@ -41,25 +45,49 @@ class SubjectDetailScreen extends StatelessWidget {
         icon: const Icon(Icons.add),
         label: const Text('Topic'),
       ),
-      body: topics.isEmpty
-          ? const EmptyState(
-              icon: Icons.topic_outlined,
-              title: 'No topics',
-              message:
-                  'Break the syllabus into topics. Chapters work well — small '
-                  'enough to finish in a session or two.',
-            )
-          : ListView(
-              padding: const EdgeInsets.only(top: 8, bottom: 90),
-              children: [
-                _SubjectStatus(subject: subject, topics: topics),
-                const SizedBox(height: 8),
-                for (final topic in topics) ...[
-                  _TopicRow(topic: topic, subjectId: subjectId),
-                  const SizedBox(height: 8),
-                ],
-              ],
-            ),
+      body: SubjectDetailBody(subjectId: subjectId),
+    );
+  }
+}
+
+/// The subject's status panel and its topics, with no page furniture around
+/// it, so it can be a route's body or a pane in a two-column layout.
+class SubjectDetailBody extends StatelessWidget {
+  const SubjectDetailBody({super.key, required this.subjectId});
+
+  final String subjectId;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    final subject = state.subjectFor(subjectId);
+    if (subject == null) return const SizedBox.shrink();
+
+    final topics = state.topicsFor(subjectId);
+    if (topics.isEmpty) {
+      return EmptyState(
+        icon: Icons.topic_outlined,
+        title: 'No topics',
+        message: 'Break the syllabus into topics. Chapters work well — small '
+            'enough to finish in a session or two.',
+        action: FilledButton.icon(
+          onPressed: () => showTopicSheet(context, subjectId: subjectId),
+          icon: const Icon(Icons.add),
+          label: const Text('Add a topic'),
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.only(top: 8, bottom: 90),
+      children: [
+        _SubjectStatus(subject: subject, topics: topics),
+        const SizedBox(height: 8),
+        for (final topic in topics) ...[
+          _TopicRow(topic: topic, subjectId: subjectId),
+          const SizedBox(height: 8),
+        ],
+      ],
     );
   }
 }

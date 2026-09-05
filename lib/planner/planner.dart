@@ -96,9 +96,17 @@ class Planner {
     final topicById = {for (final t in topics) t.id: t};
 
     // Remaining work, in minutes, keyed by topic.
+    //
+    // Work behind an exam that has already happened is left out entirely.
+    // The day loop would refuse to schedule it anyway, so it used to fall
+    // through to the feasibility pass as "unscheduled" and report the plan
+    // impossible — permanently, and for a subject nothing can be done about.
+    // A finished exam is not a shortfall; it is over.
     final work = <String, int>{};
     for (final t in topics) {
-      if (!t.isDone && t.remainingMinutes > 0) work[t.id] = t.remainingMinutes;
+      if (t.isDone || t.remainingMinutes <= 0) continue;
+      if (!_withinDeadline(subjectById[t.subjectId], start)) continue;
+      work[t.id] = t.remainingMinutes;
     }
 
     // Prerequisites already satisfied before planning starts.

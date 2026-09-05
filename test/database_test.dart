@@ -222,6 +222,64 @@ void main() {
     });
   });
 
+  group('deleting a subject takes its history with it', () {
+    test('log entries for the subject are removed', () async {
+      await db.upsertSubject(subject());
+      await db.upsertTopic(topic());
+      await db.logSession(
+        StudySession(
+          id: 'n|2026-09-05|360|t1',
+          topicId: 't1',
+          subjectId: 's1',
+          topicTitle: 'Kinematics',
+          subjectName: 'Physics',
+          date: DateTime(2026, 9, 5),
+          startMinuteOfDay: 360,
+          durationMinutes: 50,
+          status: SessionStatus.done,
+        ),
+        actualMinutes: 50,
+      );
+      expect((await db.logEntriesOn(DateTime(2026, 9, 5))).length, 1);
+
+      // session_log carries no foreign key on purpose — it outlives the topic
+      // it describes — so nothing cascades into it and the delete has to be
+      // explicit. Without it a deleted subject kept appearing in today's list
+      // and counting towards the streak.
+      await db.deleteSubject('s1');
+      await db.deleteLogForSubject('s1');
+
+      expect(await db.logEntriesOn(DateTime(2026, 9, 5)), isEmpty);
+    });
+
+    test('another subject keeps its own history', () async {
+      await db.upsertSubject(subject());
+      await db.upsertSubject(subject(id: 's2', name: 'Biology'));
+      for (final id in ['s1', 's2']) {
+        await db.logSession(
+          StudySession(
+            id: 'n|2026-09-05|360|$id',
+            topicId: 't$id',
+            subjectId: id,
+            topicTitle: 'A topic',
+            subjectName: id,
+            date: DateTime(2026, 9, 5),
+            startMinuteOfDay: 360,
+            durationMinutes: 50,
+            status: SessionStatus.done,
+          ),
+          actualMinutes: 50,
+        );
+      }
+
+      await db.deleteLogForSubject('s1');
+
+      final left = await db.logEntriesOn(DateTime(2026, 9, 5));
+      expect(left.length, 1);
+      expect(left.single.subjectId, 's2');
+    });
+  });
+
   group('exam time', () {
     test('the exam start time survives a save and load', () async {
       await db.upsertSubject(Subject(

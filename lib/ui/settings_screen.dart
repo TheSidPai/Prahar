@@ -11,6 +11,7 @@ import '../state/app_state.dart';
 import 'brand.dart';
 import 'busy_slots_screen.dart';
 import 'how_it_works.dart';
+import 'layout.dart';
 import 'theme.dart';
 
 /// A compact index of settings, not a wall of controls.
@@ -62,7 +63,10 @@ class SettingsScreen extends StatelessWidget {
           ),
         );
 
-    return ListView(
+    // Settings rows are a column of short lines; stretched across a tablet the
+    // value on the right ends up a hand's width from the label on the left.
+    return ReadableColumn(
+      child: ListView(
       padding: const EdgeInsets.only(bottom: 90),
       children: [
         group('Schedule'),
@@ -173,6 +177,7 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
       ],
+      ),
     );
   }
 }

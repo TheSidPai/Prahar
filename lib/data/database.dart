@@ -494,6 +494,17 @@ class PraharDatabase {
   Future<void> deleteLogEntry(String id) =>
       _db.delete('session_log', where: 'id = ?', whereArgs: [id]);
 
+  /// Everything ever logged against a subject.
+  ///
+  /// `session_log` deliberately carries no foreign key — it is an audit trail
+  /// and outlives the topic it describes, which is what lets a finished topic
+  /// be edited without losing its history. The cost is that deleting a subject
+  /// does *not* cascade here, so a deleted subject went on appearing in
+  /// today's log and counting towards the streak. Deleting a subject is a
+  /// statement that it should be gone; this is the other half of it.
+  Future<void> deleteLogForSubject(String subjectId) =>
+      _db.delete('session_log', where: 'subject_id = ?', whereArgs: [subjectId]);
+
   /// Every completed session ever logged for [topicIds]. Used by the
   /// calibration pass, which asks "given how long this student actually took
   /// on these topics, what's their real reading rate for their subject".
