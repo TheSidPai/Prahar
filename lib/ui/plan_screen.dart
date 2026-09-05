@@ -10,6 +10,7 @@ import 'calendar_screen.dart';
 import 'glass.dart';
 import 'layout.dart';
 import 'subject_detail_screen.dart';
+import 'week_screen.dart';
 import 'widgets.dart';
 
 /// The Plan tab combines the near-term day list with a month calendar.
@@ -31,23 +32,30 @@ class PlanTabs extends StatelessWidget {
     // question at different zooms, and comparing them is the whole point of
     // having both. A control that hides one of two things you want to compare
     // is a control that exists only because the screen was too narrow.
+    // Sideways, the week grid takes the Days list's place beside the month.
+    //
+    // The list exists because seven columns do not fit on a narrow screen —
+    // given the width, the grid is strictly the better shape: same blocks,
+    // same fortnight within reach, plus the arrangement, which is the one
+    // thing a list of days cannot show. Keeping both would mean three panes
+    // or a toggle, and a toggle is what the wide layout deleted.
     if (Layout.isWide(MediaQuery.sizeOf(context))) {
       return const Row(
         children: [
-          Expanded(flex: 5, child: PlanScreen()),
+          Expanded(flex: 5, child: WeekScreen()),
           VerticalDivider(width: 1),
           Expanded(flex: 4, child: CalendarScreen()),
         ],
       );
     }
 
-    // Both views sit directly under the app bar and inset themselves, exactly
+    // All three sit directly under the app bar and inset themselves, exactly
     // as every other screen does — there is no longer a strip in between for
     // them to start below.
     return IndexedStack(
       index: view,
       sizing: StackFit.expand,
-      children: const [PlanScreen(), CalendarScreen()],
+      children: const [PlanScreen(), WeekScreen(), CalendarScreen()],
     );
   }
 }

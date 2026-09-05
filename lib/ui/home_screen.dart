@@ -145,7 +145,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: SegmentedButton<int>(
                     segments: const [
                       ButtonSegment(value: 0, label: Text('Days')),
-                      ButtonSegment(value: 1, label: Text('Month')),
+                      ButtonSegment(value: 1, label: Text('Week')),
+                      ButtonSegment(value: 2, label: Text('Month')),
                     ],
                     selected: {_planView},
                     showSelectedIcon: false,
