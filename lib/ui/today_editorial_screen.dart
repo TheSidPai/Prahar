@@ -794,33 +794,80 @@ class _FirstRun extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return ListView(
-      padding: EdgeInsets.only(top: topInset),
-      children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 28, 20, 8),
-          child: PraharLogo(markSize: 56),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
-          child: Text(
-            'A study planner that tells you the truth about whether your '
-            'plan is possible.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+
+    // Centred in whatever height is left, and still scrollable when there is
+    // not enough of it — a landscape phone has about 350dp here.
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: EdgeInsets.only(top: topInset, bottom: 90),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: (constraints.maxHeight - topInset - 90).clamp(
+              0.0,
+              double.infinity,
+            ),
+          ),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // The flat mark, not the filled tile. The gradient tile is
+                  // the launcher icon — showing it inside the app is showing
+                  // the user the thing they just tapped, and it sits on the
+                  // page like a sticker. The drawn mark belongs to the page.
+                  const PraharMark(size: 84),
+                  const SizedBox(height: 22),
+                  Text(
+                    'Prahar',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Held to a readable measure and centred under the wordmark,
+                  // rather than running the full width of the screen where the
+                  // second line starts a long way from where the first ended.
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 300),
+                    child: Text(
+                      'A study planner that tells you the truth about '
+                      'whether your plan is possible.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  FilledButton.icon(
+                    onPressed: () => showSubjectSheet(context),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add your first subject'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 50),
+                      padding: const EdgeInsets.symmetric(horizontal: 22),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  // The guide opens as its own page. It used to be inlined
+                  // here, and being a ListView inside a ListView it was an
+                  // unbounded-height error — which a release build draws as a
+                  // silent black rectangle, so the whole lower half of the
+                  // first screen was a rendering failure nobody could see.
+                  TextButton(
+                    onPressed: () => HowItWorks.open(context),
+                    child: const Text('How Prahar works'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-        const HowItWorks(),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-          child: FilledButton.icon(
-            onPressed: () => showSubjectSheet(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Add your first subject'),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

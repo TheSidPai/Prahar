@@ -126,12 +126,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // sits at exactly the weight and size "Plan" and "Progress" do.
         // On first run the empty state already shows the large filled logo,
         // so the bar stands down rather than stack two marks.
-        title: _index == 0 && state.subjects.isNotEmpty
-            ? PraharLogo(
-                markSize: 24,
-                filled: false,
-                wordmarkStyle: Theme.of(context).appBarTheme.titleTextStyle,
-              )
+        // On first run the screen below is the brand — a large centred mark
+        // and wordmark — so a title here would be the second one on screen.
+        // The tab is labelled in the nav bar either way.
+        title: _index == 0
+            ? (state.subjects.isEmpty
+                  ? null
+                  : PraharLogo(
+                      markSize: 24,
+                      filled: false,
+                      wordmarkStyle: Theme.of(
+                        context,
+                      ).appBarTheme.titleTextStyle,
+                    ))
             : Text(_titles[_index]),
         // Sized rather than left to its intrinsic height so the glass pane
         // above it is a predictable shape, and so the body's inset — which
