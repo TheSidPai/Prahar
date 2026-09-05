@@ -1,0 +1,14 @@
+# Revisions that changed formatting only, and whose authorship is therefore
+# noise in `git blame`. Git skips them with `--ignore-revs-file`, and this
+# repository is configured to use this file automatically:
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# That config is repo-local and does not survive a fresh clone, so re-run it
+# after cloning. GitHub reads this file by name with no configuration at all.
+#
+# Only ever add a commit here that a formatter produced. A commit that changed
+# behaviour must stay visible in blame.
+
+# Adopt the tall dart format style (5 Sep 2026)
+653b0bb6964f84f562b7b5d03d2fd28e6349aefe

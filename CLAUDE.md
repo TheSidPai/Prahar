@@ -10,27 +10,42 @@ whatever section your task touches. The whole file is here because every
 paragraph was learned the hard way, but the state + feedback + decisions
 are what let a new session act, not just understand.
 
-### Three things waiting for a human, as of 5 Sep
+### One thing waiting for a human, as of 5 Sep
 
-1. **Is this session being asked for permission?** `bypassPermissions` was
-   set in `.claude/settings.local.json` at the end of the last session, but
-   a mid-session edit did not appear to take effect, so **a fresh session is
-   the test**. Run one harmless novel command — `tools\dev.ps1 devices` —
-   and *ask the user whether they were prompted*. Do not infer it from
-   silence: a command running proves nothing, because they may simply have
-   clicked allow. That mistake was made twice and cost them an evening.
-   - No prompt → the setting works; say so and carry on.
-   - Prompted → the settings file is inert on this machine. Stop trying to
-     fix it with patterns (see below, it has been thoroughly falsified) and
-     tell them to relaunch with `claude --dangerously-skip-permissions`.
-2. **Landscape has never been seen on the device.** The layout was written
-   and tested blind, because MIUI refuses adb input injection and nothing
-   here can rotate the phone. `test/landscape_test.dart` says it lays out;
-   only a human turning the phone sideways can say it looks right.
-3. **A few commits are unpushed and the keystore has not been checked.** The
-   user pushes, never Claude. If a keystore or `android/key.properties`
-   exists it is gitignored, so a copy outside the repo is the only backup —
-   losing it means the app can never be updated again.
+1. **Some commits are unpushed.** The user pushes, never Claude. There is
+   **no keystore** — checked on 5 Sep, no `.jks`, no `.keystore`, no
+   `key.properties` anywhere in the tree — so nothing signing-related is at
+   risk of being lost yet, and equally the release APK is debug-signed and
+   not publishable. Creating one is a deliberate decision to take at the
+   moment of publishing, and the copy outside the repo has to be made the
+   same day, because it is gitignored and a lost keystore means the app can
+   never be updated again.
+
+### Also settled on 5 Sep: landscape, and the formatting style
+
+**Landscape has been seen on the device and it looks right.** The user turned
+the phone sideways on 5 Sep and confirmed it. It was written and tested blind
+— MIUI refuses adb input injection, so nothing here could rotate the phone —
+and `test/landscape_test.dart` was the only evidence until then. That test
+earned its keep: it found three real overflows before any of this reached a
+screen. The verification gap it covers is still real for the *next* visual
+change, so keep writing layout tests, but landscape itself is no longer an
+open question.
+
+**The tree is now in the new tall `dart format` style**, adopted in one
+commit on 5 Sep. `tools\dev.ps1 format` is safe to run again — see below.
+
+### Settled on 5 Sep: the permission question is closed
+
+`bypassPermissions` in `.claude/settings.local.json` **does not work on this
+machine.** A fresh session ran one novel command (`tools\dev.ps1 devices`)
+and the user confirmed they were prompted. That was the last untested
+hypothesis, and it now joins the falsified list below.
+
+Do not re-run this test and do not open the question again. The only thing
+that works is launching from a terminal in this directory with
+`claude --dangerously-skip-permissions`; the conditions attached to that are
+below and are binding.
 
 Files you will touch most:
 
@@ -143,8 +158,19 @@ The one rule that demonstrably works is `dev.ps1 analyze` in
 `settings.local.json`, which never prompted all session. Why that one holds
 and an identically-shaped new one does not is unexplained. Leave it alone.
 
+**A fourth theory died on 5 Sep: `"defaultMode": "bypassPermissions"` in
+`settings.local.json` does not work either.** It was suspected that the
+earlier failure was only because the file had been edited mid-session, so a
+fresh session was the clean test — one novel command, and the user confirmed
+a prompt appeared. The line is still in the file because it costs nothing,
+but it is inert here and is not evidence of anything. Note the user drives
+Claude through the VS Code extension by default, which may or may not be the
+reason; that is not worth another session to find out.
+
 **So: for long or unattended runs the user launches
-`claude --dangerously-skip-permissions`.** That is a deliberate, informed
+`claude --dangerously-skip-permissions`** from a terminal opened in this
+directory — the flag cannot be passed from the VS Code sidebar button, which
+is why this keeps coming up. That is a deliberate, informed
 choice for this repo — local, single-developer, fully version-controlled,
 nothing secret in the tree — and it comes with standing conditions, which
 are binding:
@@ -164,9 +190,28 @@ practice now rather than a workaround:
 
 - **No pipes, no `;` chains, one command per call.** `dev.ps1` does its own
   output trimming (below), so there is nothing left to pipe.
-- **Commit messages:** write to `build\commit-msg.txt`, a fixed path under
-  gitignored `/build/`. Never the scratchpad, whose path carries the session
-  id and is dead the moment the session ends.
+- **Never compound a command with `&&` or `;`.** This is the same trap as the
+  pipe one above and it was walked into again on 5 Sep: every git call was
+  being issued as `cd <dir> && git ...`, so "always allow" saved the rule as
+  `cd <dir>`, which never matched the next one. Use `git -C
+  c:\Users\TheSidPai\Prahar <subcommand>` — one command, stable prefix,
+  matchable. The allow lists in both settings files are written against that
+  shape.
+- **Commit messages:** write the message to `build\commit-msg.txt` with the
+  file tools and then run `git commit -F build/commit-msg.txt`, which is a
+  fixed command shape. Never pass the message inline in a heredoc: that makes
+  every commit a novel command that has to be approved afresh. The path is
+  fixed and under gitignored `/build/`; never the scratchpad, whose path
+  carries the session id and dies with the session.
+- **Keep them short: a subject line and three or four lines of body.** Say
+  what changed and the one thing a reader could not infer from the diff. This
+  file is where reasoning belongs — it is read at the start of every session,
+  whereas a commit body is read approximately never. Essay-length messages
+  were written all through 5 Sep and the user asked twice for them to stop.
+- **Group commits by the piece of work, not by the file.** One commit per
+  round of a feature, not one per edit; and when a feature had a false start,
+  squash it away rather than shipping "add it, then fix it" as two commits —
+  that documents the mistake rather than the change.
 - **Staging:** always
   `git add -A -- lib test tools CLAUDE.md pubspec.yaml assets android .claude`.
 - **Tools scripts:** single quotes, lowercase drive letter, exactly
@@ -222,20 +267,38 @@ timestamp before suspecting the code.
 the tests import, so a passing suite leaves the entire `lib/ui` tree unchecked.
 Always run `analyze` as well — that is what actually type-checks the app.
 
-**Do not run `tools\dev.ps1 format`.** The tree is committed in the old
-`dart format` style; the formatter bundled with Dart 3.13 is the new "tall
-style" one, so a single run rewrites *every* file — 31 of 32, thousands of
-lines — and buries whatever the commit was actually about. It was run once by
-accident on 4 Sep and reverted with `git checkout -- lib test`. Match the
-surrounding style by hand instead. Adopting the new style is a fine decision,
-but it belongs in its own commit that changes nothing else, and it is the
-user's call to make.
+**`tools\dev.ps1 format` is safe to run — that changed on 5 Sep.** The tree
+used to be committed in the old `dart format` style while the bundled Dart
+3.13 formatter produced the new "tall style", so a single run rewrote every
+file and buried whatever the commit was actually about. It went off by
+accident on 4 Sep and had to be reverted with `git checkout -- lib test`.
 
-## Current state (verified, 4 Sep 2026)
+The style was adopted deliberately on 5 Sep in `653b0bb`, a 39-file commit
+that changed nothing else, with the suite green and the analyzer clean on
+both sides of it. So formatting is now a no-op on a formatted tree, and the
+old hand-matching rule is gone: run `format` freely and let it settle
+whitespace instead of matching the surrounding style by eye.
 
-- 162/162 tests pass; `analyze` reports no issues.
+**Always run `analyze` after `format`.** The tall style can split a line that
+used to fit, and `curly_braces_in_flow_control_structures` only tolerates a
+braceless `if` while it fits on one line. That fired exactly once during the
+adoption, in `timer_screen.dart`; the fix is braces, and the analyzer is what
+finds it. A reformat is not verified until `analyze` and `test` have both run.
+
+`.git-blame-ignore-revs` names the reformat commit so `git blame` walks past
+it. GitHub honours the file by name; locally it needs
+`git config blame.ignoreRevsFile .git-blame-ignore-revs`, which is repo-local
+and so must be re-run after a fresh clone. Only ever add formatter output to
+that file — a commit that changed behaviour has to stay visible in blame.
+
+## Current state (verified, 5 Sep 2026)
+
+- 162/162 tests pass; `analyze` reports no issues. Both re-confirmed on 5 Sep
+  after the formatting change, which is the only thing that has touched
+  `lib/` or `test/` since.
 - **Landscape and tablet**: a navigation rail sideways, two panes on Today,
-  Plan and Subjects, capped column widths on Progress and Settings.
+  Plan and Subjects, capped column widths on Progress and Settings. **Seen on
+  the device and confirmed good on 5 Sep** — no longer written blind.
 - Release APK builds and installs on device (52.3 MB, ~120 s warm; it was
   52.9 MB before the six unused fonts came out).
 - Flutter 3.47.2 / Dart 3.13.2 at `C:\src\flutter`. JDK 17 (Temurin) and
@@ -467,10 +530,11 @@ the study timer and the evening digest. All are recorded under *Recent
 decisions* above. What remains, in order:
 
 Nothing from the review list is outstanding — the landscape and tablet
-layouts shipped on 5 Sep. What is left is the *extras* that were noted
-alongside them and never scoped: a week timetable grid, and a subject
-timeline laid out Gantt-style. Both want the horizontal room that now
-exists, and neither is needed for the app to be good sideways.
+layouts shipped on 5 Sep and were confirmed on the device the same day. What
+is left is the *extras* that were noted alongside them and never scoped: a
+week timetable grid, and a subject timeline laid out Gantt-style. Both want
+the horizontal room that now exists, and neither is needed for the app to be
+good sideways.
 
 Otherwise the queue is the longer-term roadmap below.
 
@@ -798,6 +862,12 @@ recreates it.
 `.gitattributes` normalises everything to LF. Without it, a Windows checkout
 commits CRLF and the whole tree shows as rewritten the first time it is touched
 elsewhere.
+
+`.git-blame-ignore-revs` lists commits that changed formatting only, so
+`git blame` attributes a line to the decision that wrote it rather than to the
+formatter. It holds one SHA today, the tall-style adoption. GitHub reads the
+file by name; locally it needs `git config blame.ignoreRevsFile
+.git-blame-ignore-revs`, which is repo-local and does not survive a clone.
 
 Keystores and `key.properties` are ignored at both the root and in `android/`.
 Nothing signing-related may ever be committed: a leaked keystore is worse than a
