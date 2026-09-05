@@ -21,6 +21,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _index = 0;
 
+  /// Which of Plan's two views is showing. It lives here rather than inside
+  /// PlanTabs because the control that changes it is drawn in the app bar,
+  /// and state belongs with the widget that owns the thing you touch.
+  int _planView = 0;
+
   static const _titles = ['Today', 'Plan', 'Progress', 'Subjects', 'Settings'];
 
   @override
@@ -66,23 +71,41 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // and state alive, which is why moving between them feels instant.
     final pages = IndexedStack(
       index: _index,
-      children: const [
-        TodayEditorialScreen(),
-        PlanTabs(),
-        ProgressScreen(),
-        SubjectsScreen(),
-        SettingsScreen(),
+      children: [
+        const TodayEditorialScreen(),
+        PlanTabs(view: _planView),
+        const ProgressScreen(),
+        const SubjectsScreen(),
+        const SettingsScreen(),
       ],
     );
+
+    // Plan's Days/Month toggle rides in the app bar rather than under it.
+    //
+    // It is the header of that screen — the thing that says which of two
+    // views you are looking at — and leaving it in the body put an opaque
+    // strip immediately below the glass, cutting the header into two
+    // materials with a seam between them. In the bar it sits inside the same
+    // single pane of glass as the title, and the plan scrolls under both.
+    //
+    // Wide layouts show Days and Month side by side and have no toggle at
+    // all, so there is nothing to carry there.
+    final showPlanToggle = _index == 1 && !Layout.isWide(size);
 
     // A glass app bar that content passes *under*, rather than an opaque
     // header that content stops at.
     //
-    // Today only. Extending the body behind the bar means the screen must
-    // inset its own scroll view by the bar's height, and Today is the screen
-    // whose whole design is about content flowing beneath a fixed mark. The
-    // other four stop at the bar, as they always have.
-    final glassBar = _index == 0 && glass;
+    // Every screen, not just Today. It began on Today alone because that is
+    // the screen designed around content flowing beneath a fixed mark, but one
+    // glass header among four matte ones does not read as restraint — it reads
+    // as the other four being unfinished, which is exactly how it looked on
+    // the device. The header is one element in one place; it should be one
+    // material.
+    //
+    // The cost is that extending the body behind the bar makes every screen
+    // responsible for starting its content below it. `glassTopInset` is that
+    // rule, in one place.
+    final glassBar = glass;
 
     return Scaffold(
       extendBodyBehindAppBar: glassBar,
@@ -110,6 +133,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 wordmarkStyle: Theme.of(context).appBarTheme.titleTextStyle,
               )
             : Text(_titles[_index]),
+        // Sized rather than left to its intrinsic height so the glass pane
+        // above it is a predictable shape, and so the body's inset — which
+        // Scaffold derives from the bar's total preferred size — is stable
+        // whichever view is selected.
+        bottom: showPlanToggle
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(52),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: SegmentedButton<int>(
+                    segments: const [
+                      ButtonSegment(value: 0, label: Text('Days')),
+                      ButtonSegment(value: 1, label: Text('Month')),
+                    ],
+                    selected: {_planView},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (s) =>
+                        setState(() => _planView = s.first),
+                  ),
+                ),
+              )
+            : null,
       ),
       // When glass is on we want content to slide under the nav rather than
       // stopping short of it. `extendBody` does that; each screen already
@@ -157,9 +202,14 @@ const _destinations = [
     selectedIcon: Icon(Icons.calendar_month),
     label: 'Plan',
   ),
+  // Drawn, not borrowed — see PraharProgressGlyph. The stock ring was the
+  // right idea at the wrong weight: `donut_large` is a solid wedge cut out of
+  // a disc, which is heavier than anything else in this row and heavier than
+  // the app's own mark. A hairline track with an arc on it says the same
+  // thing at the weight the rest of the brand is drawn at.
   NavigationDestination(
-    icon: Icon(Icons.insights_outlined),
-    selectedIcon: Icon(Icons.insights),
+    icon: PraharProgressGlyph(),
+    selectedIcon: PraharProgressGlyph(selected: true),
     label: 'Progress',
   ),
   NavigationDestination(
@@ -204,12 +254,25 @@ class _NavRail extends StatelessWidget {
     // scrolls when there is not.
     // The width has to be pinned here: a Row hands its non-flex children an
     // unbounded width, and a scroll view cannot lay out against infinity.
+    // The body runs behind the app bar when it is glass, and the rail is part
+    // of the body. The glass panel itself is left running full height, so it
+    // meets the bar without a seam — it is the destinations that move down,
+    // because content may flow under glass but a control the user has to hit
+    // may not hide behind it.
+    final topInset = glassTopInset(context);
+
     final rail = SizedBox(
       width: 88,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
+          padding: EdgeInsets.only(top: topInset),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            constraints: BoxConstraints(
+              minHeight: (constraints.maxHeight - topInset).clamp(
+                0.0,
+                double.infinity,
+              ),
+            ),
             child: IntrinsicHeight(
               child: NavigationRail(
                 selectedIndex: selectedIndex,

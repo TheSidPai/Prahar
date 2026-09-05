@@ -368,14 +368,16 @@ class _Card extends StatelessWidget {
 
     // The verdict is the one panel on Today that must not read as another
     // card in the list, so it gets glass. The tint keeps its semantic colour
-    // — warm for "fits", error for "doesn't" — at an alpha low enough that
-    // the blur is still doing the work.
+    // — warm for "fits", error for "doesn't" — but at the same 0.28 every
+    // other glass surface uses. It sat at 0.45 and was the only number in the
+    // app that disagreed with the app bar, which is precisely the sort of
+    // drift that stops a set of surfaces reading as one material.
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: GlassSurface(
         borderRadius: radius,
         padding: const EdgeInsets.all(14),
-        tint: color.withValues(alpha: 0.45),
+        tint: color.withValues(alpha: 0.28),
         child: SizedBox(width: double.infinity, child: content),
       ),
     );

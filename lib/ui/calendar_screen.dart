@@ -5,6 +5,7 @@ import '../domain/format.dart';
 import '../domain/models.dart';
 import '../state/app_state.dart';
 import 'busy_slots_screen.dart';
+import 'glass.dart';
 
 /// A month view for exams and one-off busy days. Deliberately not a full
 /// timetable — showing every hour of every day at this size is unreadable, and
@@ -54,7 +55,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final gridStart = firstOfMonth.subtract(Duration(days: leadingBlanks));
 
     return ListView(
-      padding: const EdgeInsets.only(bottom: 90),
+      // The month slider is the first thing under the header and has to stay
+      // legible, so it starts below the glass rather than beneath it. Only
+      // the grid it belongs to scrolls under.
+      padding: EdgeInsets.only(top: glassTopInset(context), bottom: 90),
       children: [
         _MonthHeader(
           month: _month,

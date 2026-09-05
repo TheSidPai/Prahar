@@ -70,9 +70,13 @@ class PraharTheme {
   /// Every list in the app is cards, so this single object sets the texture of
   /// the whole interface — which is exactly why it is worth being able to try
   /// them side by side rather than arguing about them.
+  /// The corner every card in the app turns, in one place so a surface that
+  /// is not a `Card` — the glass hero on Today — can match rather than guess.
+  static const cardRadius = 16.0;
+
   static CardThemeData _cards(CardStyle style, ColorScheme scheme, bool dark) {
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(cardRadius),
       side: style == CardStyle.hairline
           ? BorderSide(color: scheme.outlineVariant, width: 1)
           : BorderSide.none,

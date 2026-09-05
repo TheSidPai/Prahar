@@ -228,3 +228,104 @@ class _MarkPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _MarkPainter old) => old.palette != palette;
 }
+
+/// The Progress destination's mark: a ring with the finished share on it.
+///
+/// Drawn rather than borrowed from the Material set, for the same reason
+/// [PraharMark] is. `insights` — a line chart with a starburst over it — was
+/// two ideas fighting inside 24dp, and every stock alternative is either a pie
+/// (a shape this app never draws) or a bar chart (a picture of a widget rather
+/// than of a question). A track with an arc on it is the one figure that says
+/// *proportion of a finite thing*, which is what the screen behind it answers.
+///
+/// Selection changes weight and nothing else. The Material pairs change shape
+/// between outlined and filled, which reads as two different icons swapping
+/// places; holding the geometry still and letting the stroke thicken is the
+/// quieter move, and the nav is already signalling selection with colour and
+/// an indicator pill.
+class PraharProgressGlyph extends StatelessWidget {
+  const PraharProgressGlyph({super.key, this.size = 24, this.selected = false});
+
+  final double size;
+
+  /// Heavier arc, slightly stronger track. Same circle, same sweep.
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    // Inherit whatever the navigation is tinting its icons — selected,
+    // unselected, disabled — so this glyph cannot fall out of step with the
+    // four beside it.
+    final color =
+        IconTheme.of(context).color ?? Theme.of(context).colorScheme.onSurface;
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _ProgressGlyphPainter(color: color, selected: selected),
+      ),
+    );
+  }
+}
+
+class _ProgressGlyphPainter extends CustomPainter {
+  const _ProgressGlyphPainter({required this.color, required this.selected});
+
+  final Color color;
+  final bool selected;
+
+  // Proportions of the box, so the glyph holds its shape at any icon size.
+  static const _radius = 0.375; // 9 of 24 — leaves the ring room to breathe
+  static const _trackWidth = 0.05; // 1.2 of 24
+  static const _arcWidth = 0.083; // 2.0 of 24
+
+  /// How much of the circle is drawn as done. Around two thirds reads
+  /// unmistakably as progress: a half looks like a deliberate semicircle, and
+  /// much more closes up and stops looking like an arc at all.
+  static const _sweep = 0.62;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final side = size.shortestSide;
+    final centre = Offset(size.width / 2, size.height / 2);
+    final radius = side * _radius;
+
+    // Floored in logical pixels, exactly as the mark's strokes are. A
+    // proportional hairline is under half a pixel at this size and
+    // anti-aliases into a ghost — the same bug that made the mark's hour
+    // ticks invisible in light mode.
+    final trackWidth = math.max(side * _trackWidth, 1.0);
+    final arcWidth = math.max(
+      side * (selected ? _arcWidth + 0.012 : _arcWidth),
+      1.4,
+    );
+
+    canvas.drawCircle(
+      centre,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = trackWidth
+        ..color = color.withValues(alpha: selected ? 0.34 : 0.28),
+    );
+
+    // From twelve o'clock, clockwise, because that is the direction every
+    // progress ring anyone has ever seen travels in.
+    canvas.drawArc(
+      Rect.fromCircle(center: centre, radius: radius),
+      -math.pi / 2,
+      _sweep * 2 * math.pi,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = arcWidth
+        ..strokeCap = StrokeCap.round
+        ..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ProgressGlyphPainter old) =>
+      old.color != color || old.selected != selected;
+}

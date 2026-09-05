@@ -7,21 +7,23 @@ import '../domain/preferences.dart';
 import '../planner/calibration.dart';
 import '../state/app_state.dart';
 import 'calendar_screen.dart';
+import 'glass.dart';
 import 'layout.dart';
 import 'subject_detail_screen.dart';
 import 'widgets.dart';
 
 /// The Plan tab combines the near-term day list with a month calendar.
 /// Both answer "when will this happen"; the difference is zoom.
-class PlanTabs extends StatefulWidget {
-  const PlanTabs({super.key});
+/// Plan's body: the fortnight, the month, or both at once.
+///
+/// The Days/Month control that chooses between them is *not* here — it is in
+/// the app bar, drawn into the same pane of glass as the title, because it is
+/// the header of this screen rather than the first row of its content. So this
+/// widget is told which view to show instead of owning that state.
+class PlanTabs extends StatelessWidget {
+  const PlanTabs({super.key, required this.view});
 
-  @override
-  State<PlanTabs> createState() => _PlanTabsState();
-}
-
-class _PlanTabsState extends State<PlanTabs> {
-  int _view = 0;
+  final int view;
 
   @override
   Widget build(BuildContext context) {
@@ -39,27 +41,13 @@ class _PlanTabsState extends State<PlanTabs> {
       );
     }
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(value: 0, label: Text('Days')),
-              ButtonSegment(value: 1, label: Text('Month')),
-            ],
-            selected: {_view},
-            onSelectionChanged: (s) => setState(() => _view = s.first),
-          ),
-        ),
-        Expanded(
-          child: IndexedStack(
-            index: _view,
-            sizing: StackFit.expand,
-            children: const [PlanScreen(), CalendarScreen()],
-          ),
-        ),
-      ],
+    // Both views sit directly under the app bar and inset themselves, exactly
+    // as every other screen does — there is no longer a strip in between for
+    // them to start below.
+    return IndexedStack(
+      index: view,
+      sizing: StackFit.expand,
+      children: const [PlanScreen(), CalendarScreen()],
     );
   }
 }
@@ -88,7 +76,10 @@ class PlanScreen extends StatelessWidget {
     final today = state.today;
 
     return ListView.builder(
-      padding: const EdgeInsets.only(top: 8, bottom: 90),
+      // Named so a test can measure this list and not the month view, which
+      // IndexedStack keeps alive in the tree beside it.
+      key: const ValueKey('plan-days'),
+      padding: EdgeInsets.only(top: 8 + glassTopInset(context), bottom: 90),
       itemCount: days,
       itemBuilder: (context, i) {
         final day = today.add(Duration(days: i));
@@ -185,7 +176,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     final state = context.watch<AppState>();
     if (state.subjects.isEmpty) {
       return const EmptyState(
-        icon: Icons.insights_outlined,
+        icon: Icons.donut_large_outlined,
         title: 'No progress yet',
         message: 'Add a subject to start tracking.',
       );
@@ -215,7 +206,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     // more informative, only harder to read across.
     return ReadableColumn(
       child: ListView(
-        padding: const EdgeInsets.only(top: 8, bottom: 90),
+        padding: EdgeInsets.only(top: 8 + glassTopInset(context), bottom: 90),
         children: [
           _OverallCard(done: done, total: total, streak: state.streak),
           const _CalibrationSection(),

@@ -77,7 +77,7 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
     final shown = _selected ?? (active.isNotEmpty ? active.first.id : null);
 
     final list = ListView(
-      padding: const EdgeInsets.only(top: 8, bottom: 90),
+      padding: EdgeInsets.only(top: 8 + glassTopInset(context), bottom: 90),
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
@@ -180,7 +180,9 @@ class _DetailPane extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 12, 6),
+          // This pane's header is a fixed row, not a scroll view, so it moves
+          // down out of the bar's way rather than flowing under it.
+          padding: EdgeInsets.fromLTRB(20, 14 + glassTopInset(context), 12, 6),
           child: Row(
             children: [
               Container(

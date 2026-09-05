@@ -10,6 +10,7 @@ import '../notifications/notifier.dart';
 import '../state/app_state.dart';
 import 'brand.dart';
 import 'busy_slots_screen.dart';
+import 'glass.dart';
 import 'how_it_works.dart';
 import 'layout.dart';
 import 'theme.dart';
@@ -68,7 +69,7 @@ class SettingsScreen extends StatelessWidget {
     // value on the right ends up a hand's width from the label on the left.
     return ReadableColumn(
       child: ListView(
-        padding: const EdgeInsets.only(bottom: 90),
+        padding: EdgeInsets.only(top: glassTopInset(context), bottom: 90),
         children: [
           group('Schedule'),
           row(

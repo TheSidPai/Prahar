@@ -110,3 +110,37 @@ class SheetBackground extends StatelessWidget {
     return GlassSurface(borderRadius: shape, child: child);
   }
 }
+
+/// How much room a screen must leave at the top of its scroll view when the
+/// app bar is glass.
+///
+/// Glass only reads as glass if content passes *underneath* it, so the
+/// scaffold extends the body behind the bar and every screen becomes
+/// responsible for starting its own content below it. Skip this and the first
+/// line of the screen spends its life under the title — which is not a crash,
+/// not a test failure, and invisible until someone looks at the device.
+///
+/// Returns zero in matte, where the bar is opaque and the body stops at it.
+/// Use it on the top-level scroll view of a screen, never on a card inside
+/// one: the inset is a property of the screen's relationship to the bar.
+double glassTopInset(BuildContext context) {
+  final glass =
+      context.select<AppState, MaterialChoice>(
+        (s) => s.prefs.materialChoice,
+      ) ==
+      MaterialChoice.glass;
+  if (!glass) return 0;
+
+  // Just the padding, and deliberately not `padding.top + toolbarHeight`.
+  //
+  // Scaffold hands a body that extends behind the app bar a MediaQuery whose
+  // `padding.top` is *already* the whole bar — status bar plus toolbar —
+  // precisely so scroll views can inset themselves. Adding the toolbar height
+  // again insets twice, which is what Today did from the day it shipped: 60dp
+  // of dead space under the wordmark, in glass only. It looked like a design
+  // choice, which is why it survived a month of looking at it.
+  //
+  // `test/glass_inset_test.dart` pins this by measuring against matte, where
+  // the scaffold does the same job with no help. The two must land together.
+  return MediaQuery.paddingOf(context).top;
+}

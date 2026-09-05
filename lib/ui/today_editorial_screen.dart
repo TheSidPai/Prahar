@@ -13,6 +13,7 @@ import 'glass.dart';
 import 'how_it_works.dart';
 import 'layout.dart';
 import 'subjects_screen.dart';
+import 'theme.dart';
 import 'timer_screen.dart';
 import 'widgets.dart';
 
@@ -83,13 +84,9 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
 
     // With a glass app bar the body extends behind it, so the list has to
     // start below the status bar plus the bar's own height or the date would
-    // spend its life underneath the wordmark. 60 is the toolbarHeight set in
-    // PraharTheme; read from the theme rather than assumed.
-    final glass = state.prefs.materialChoice == MaterialChoice.glass;
-    final barHeight = theme.appBarTheme.toolbarHeight ?? kToolbarHeight;
-    final topInset = glass
-        ? MediaQuery.paddingOf(context).top + barHeight
-        : 0.0;
+    // spend its life underneath the wordmark. Every screen does this now, so
+    // the rule lives in `glassTopInset` rather than here.
+    final topInset = glassTopInset(context);
 
     if (state.subjects.isEmpty) return _FirstRun(topInset: topInset);
 
@@ -284,21 +281,50 @@ class _Hero extends StatelessWidget {
         ? _emptyBody(theme)
         : _blockBody(context, theme, session);
 
-    // Matte: a Card, so the hero wears whichever style is chosen in Settings
-    // rather than a surface invented here that ignores it. Glass: the screen's
-    // one glass panel, which is what the material is reserved for.
-    final panel = glass
-        ? GlassSurface(
-            borderRadius: BorderRadius.circular(24),
-            padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-            child: content,
-          )
-        : Card(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-              child: content,
-            ),
-          );
+    const inset = EdgeInsets.fromLTRB(22, 22, 22, 18);
+    final style = state.prefs.cardStyle;
+
+    // The hero has to answer to Settings > Cards in *both* materials.
+    //
+    // In matte it always did, being a plain Card. In glass it did not: it was
+    // a GlassSurface with a hard-coded 24dp corner and its own fill, so every
+    // one of the five styles drew the identical panel. Glass is the material;
+    // the card style is the edge language, and they are separate questions.
+    //
+    // So the glass hero is now a transparent Card wrapped around the glass.
+    // The Card contributes exactly what a style means — the hairline's
+    // outline, the lifted style's shadow, the shared corner — and the glass
+    // contributes the blur. Open means no card at all, which with glass has
+    // to mean no panel either; anything else would be the one style that
+    // still ignores the setting.
+    final Widget panel;
+    if (!glass) {
+      panel = Card(child: Padding(padding: inset, child: content));
+    } else if (style == CardStyle.open) {
+      panel = Padding(padding: inset, child: content);
+    } else {
+      final cards = theme.cardTheme;
+      panel = Card(
+        // Transparent so the blur is what fills the shape; the Card is here
+        // for its edge and its shadow.
+        color: Colors.transparent,
+        shadowColor: cards.shadowColor,
+        elevation: cards.elevation ?? 0,
+        shape: cards.shape,
+        clipBehavior: Clip.antiAlias,
+        child: GlassSurface(
+          borderRadius: BorderRadius.circular(PraharTheme.cardRadius),
+          padding: inset,
+          // Tinted washes its fill through the card; taking that colour at the
+          // standard glass alpha keeps the wash without inventing a second
+          // number for it.
+          tint: style == CardStyle.tinted
+              ? cards.color?.withValues(alpha: 0.28)
+              : null,
+          child: content,
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
