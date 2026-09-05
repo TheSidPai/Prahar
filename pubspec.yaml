@@ -1,7 +1,11 @@
 name: prahar
 description: A local-first study planner, scheduler and reminder app.
 publish_to: 'none'
-version: 0.1.0
+# The number after the + is Android's versionCode. Every upload to Play needs
+# a higher one than the last, and a number can never be reused — not even for
+# a build that was rejected. Bump it on every release build; the 0.1.0 part is
+# only what humans read.
+version: 0.1.0+1
 
 environment:
   sdk: ^3.13.0

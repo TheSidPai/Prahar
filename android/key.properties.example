@@ -1,0 +1,18 @@
+# Copy to android/key.properties and fill in. That file is gitignored at both
+# the root and in android/ — it holds passwords in plain text and must never be
+# committed.
+#
+# Create the keystore first:
+#
+#   tools\dev.ps1 keystore
+#
+# which runs keytool and writes the .jks OUTSIDE this repository, because a
+# keystore inside a working tree is one `git add -f` away from being public.
+#
+# storeFile must be an absolute path, with forward slashes even on Windows —
+# Gradle reads this as a properties file, where a backslash is an escape.
+
+storePassword=
+keyPassword=
+keyAlias=upload
+storeFile=C:/Users/TheSidPai/keys/prahar-upload.jks

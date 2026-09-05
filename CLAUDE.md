@@ -12,14 +12,21 @@ are what let a new session act, not just understand.
 
 ### One thing waiting for a human, as of 5 Sep
 
-1. **Some commits are unpushed.** The user pushes, never Claude. There is
-   **no keystore** — checked on 5 Sep, no `.jks`, no `.keystore`, no
-   `key.properties` anywhere in the tree — so nothing signing-related is at
-   risk of being lost yet, and equally the release APK is debug-signed and
-   not publishable. Creating one is a deliberate decision to take at the
-   moment of publishing, and the copy outside the repo has to be made the
-   same day, because it is gitignored and a lost keystore means the app can
-   never be updated again.
+1. **The keystore has to be created by a human, and has not been.** All the
+   wiring landed on 5 Sep; what is missing is the key itself, because
+   `keytool` prompts for passwords and cannot be driven from a session here.
+   The user runs `tools\dev.ps1 keystore` in a terminal, copies the `.jks`
+   off the machine the same day, then copies
+   `android/key.properties.example` to `android/key.properties` and fills it
+   in. Until then every release build is signed with the machine's debug key
+   — check with `tools\dev.ps1 signer`, which prints `CN=Android Debug`.
+
+   The urgency is not publishing. Android will not install an update signed
+   by a different key, so if the disposable debug keystore is ever lost, the
+   only way to install a new build over the app on the phone is an uninstall,
+   which destroys the entire local database. See **Version control**.
+
+   The user pushes, never Claude.
 
 ### Also settled on 5 Sep: landscape, and the formatting style
 
@@ -106,7 +113,10 @@ tools\dev.ps1 format
 tools\dev.ps1 doctor
 tools\dev.ps1 devices      # also diagnoses "no device" causes on MIUI
 tools\dev.ps1 run          # onto the connected phone
-tools\dev.ps1 apk          # release APK
+tools\dev.ps1 apk          # release APK — what goes on the phone
+tools\dev.ps1 bundle       # release App Bundle — what Play takes
+tools\dev.ps1 keystore     # create the upload key (run it yourself; it prompts)
+tools\dev.ps1 signer       # print who signed the last build
 tools\dev.ps1 install      # build + adb install + launch, one shot
 tools\dev.ps1 licenses     # accept Android SDK licences (cosmetic; see below)
 tools\dev.ps1 sdkpkg "<pkg;id>"   # install any sdkmanager package, quoting handled
@@ -747,6 +757,17 @@ Both are already applied; do not remove them.
 Play restricts it to alarm and calendar apps; a study planner would be rejected.
 `SCHEDULE_EXACT_ALARM` plus the in-app prompt is the compliant path.
 
+**`wakelock_plus` adds no permission.** It sets `FLAG_KEEP_SCREEN_ON` on the
+window rather than taking a real wake lock; checked against the merged
+manifest on 5 Sep, not assumed.
+
+**If this is ever submitted to Play, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`
+is the permission most likely to be challenged.** Google restricts it to a
+narrow set of use cases. The justification here is unusually strong and
+evidence-backed — reminders demonstrably do not fire without it on this
+device, which is what `_BatteryWarning` exists for — but expect to argue it,
+and expect the fallback to be sending the user to system settings by hand.
+
 **The NDK must be installed even though nothing here compiles native code.**
 AGP resolves an NDK while configuring `:app` regardless, and the failure is
 disguised: it shells out to `sdkmanager`, the id `ndk;28.2.13676358` splits on
@@ -871,5 +892,22 @@ file by name; locally it needs `git config blame.ignoreRevsFile
 .git-blame-ignore-revs`, which is repo-local and does not survive a clone.
 
 Keystores and `key.properties` are ignored at both the root and in `android/`.
-Nothing signing-related may ever be committed: a leaked keystore is worse than a
-lost one, and a lost one means the app can never be updated again.
+Nothing signing-related may ever be committed.
+
+**"A lost keystore means the app can never be updated again" is only half
+true, and the half that matters here is different.** That warning describes
+the legacy model where the developer holds the *app signing* key. Under Play
+App Signing — the default for new apps — Google holds that key and yours is
+only an *upload* key, which can be reset through Play support if lost. So
+losing it is recoverable once the app is published.
+
+What is **not** recoverable is the local case, and it applies today, long
+before anything is published. Android refuses to install an update signed by a
+different key than the installed app. The release build currently falls back to
+the machine's throwaway debug keystore, so if that file goes — new machine,
+reinstalled SDK, a cleared `~/.android` — the next build cannot install over
+the app on the phone. The only route in is an uninstall, and this app keeps
+every subject, topic and session log in local storage and nowhere else.
+
+That is the real argument for making a keystore now rather than at publishing
+time, and it has nothing to do with the Play Store.

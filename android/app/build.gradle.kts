@@ -1,8 +1,22 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Release signing, read from android/key.properties, which is gitignored and
+// holds passwords. Absent on a fresh clone and absent until someone actually
+// makes a keystore, so everything below has to degrade rather than fail.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+}
+val hasReleaseKey = keystoreProperties.getProperty("storeFile")?.let {
+    file(it).exists()
+} == true
 
 android {
     namespace = "com.siddhantpai.prahar"
@@ -39,11 +53,39 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // The real key when there is one, the debug key when there is not.
+            //
+            // Falling back rather than failing keeps a fresh clone buildable,
+            // but the fallback is not harmless and the build says so out loud:
+            // the debug key is machine-generated and disposable, and Android
+            // refuses to install an update signed by a different key. Lose it
+            // and the next build cannot go over the app on the phone — the
+            // only way in is an uninstall, which takes every subject, topic
+            // and session log with it, because this app keeps all of that in
+            // local storage and nowhere else.
+            signingConfig = if (hasReleaseKey) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn(
+                    "Prahar: no android/key.properties — signing release with " +
+                        "the DEBUG key. Not publishable, and an update signed " +
+                        "by a different key cannot install over it."
+                )
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

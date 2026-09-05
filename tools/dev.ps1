@@ -16,6 +16,9 @@
 #   tools\dev.ps1 devices     connected devices
 #   tools\dev.ps1 run         build + install onto the connected phone
 #   tools\dev.ps1 apk         release APK
+#   tools\dev.ps1 bundle      release App Bundle, which is what Play takes
+#   tools\dev.ps1 keystore    create the upload keystore (run it yourself: it prompts)
+#   tools\dev.ps1 signer      print who signed the last build
 
 param(
     [Parameter(Position = 0)][string]$Task = 'help',
@@ -619,6 +622,83 @@ switch ($Task.ToLower()) {
 
     'run'     { & $Flutter run --release; exit $LASTEXITCODE }
     'apk'     { & $Flutter build apk --release; exit $LASTEXITCODE }
+
+    # Play takes an App Bundle, never an APK. The APK task stays because it is
+    # what goes on your own phone and what `install` uses.
+    'bundle'  { & $Flutter build appbundle --release; exit $LASTEXITCODE }
+
+    # Who signed the thing. "CN=Android Debug" means the release key is not
+    # wired up, and Play will reject it.
+    #
+    # Two tools, because they are two formats. An App Bundle is jar-signed and
+    # keytool reads it; an APK is signed with APK Signature Scheme v2/v3 and no
+    # v1 JAR signature at all, so keytool answers "Not a signed jar file" on a
+    # perfectly well signed APK. Only apksigner knows about v2.
+    'signer'  {
+        # Whichever was built LAST, with its timestamp printed. Preferring the
+        # bundle unconditionally meant a stale AAB answered for a fresh APK,
+        # which reported a debug signature on a properly signed build and sent
+        # the user hunting a problem that did not exist.
+        $paths = @(
+            "$Project\build\app\outputs\bundle\release\app-release.aab",
+            "$Project\build\app\outputs\flutter-apk\app-release.apk"
+        ) | Where-Object { Test-Path $_ }
+
+        if (-not $paths) {
+            Write-Host 'Nothing built yet. Run apk or bundle first.'
+            exit 1
+        }
+
+        $newest = Get-Item $paths | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        Write-Host "newest build: $($newest.FullName)"
+        Write-Host "built: $($newest.LastWriteTime)"
+        Write-Host ''
+
+        if ($newest.Extension -eq '.aab') {
+            & "$env:JAVA_HOME\bin\keytool.exe" -printcert -jarfile $newest.FullName
+            exit $LASTEXITCODE
+        }
+        $apk = $newest.FullName
+
+        $tools = Join-Path "$env:LOCALAPPDATA\Android\Sdk" 'build-tools'
+        $newest = Get-ChildItem $tools -Directory -ErrorAction SilentlyContinue |
+            Sort-Object Name -Descending | Select-Object -First 1
+        if (-not $newest) { Write-Host "No build-tools under $tools"; exit 1 }
+
+        Write-Host "signer of $apk"
+        & (Join-Path $newest.FullName 'apksigner.bat') verify --print-certs $apk
+        exit $LASTEXITCODE
+    }
+
+    # Creates the upload keystore, outside the repository on purpose: a
+    # keystore inside a working tree is one `git add -f` from being public.
+    #
+    # Run this yourself in a terminal — keytool prompts for the passwords and
+    # cannot be driven from a non-interactive session.
+    'keystore' {
+        $dir = "$env:USERPROFILE\keys"
+        $out = "$dir\prahar-upload.jks"
+        if (Test-Path $out) {
+            Write-Host "Already exists: $out"
+            Write-Host 'Refusing to overwrite. A replaced keystore cannot update an app signed by the old one.'
+            exit 1
+        }
+        New-Item -ItemType Directory -Force $dir | Out-Null
+
+        # 10000 days: Play wants an upload key valid far beyond 2033.
+        & "$env:JAVA_HOME\bin\keytool.exe" -genkeypair -v `
+            -keystore $out -storetype JKS -keyalg RSA -keysize 2048 `
+            -validity 10000 -alias upload
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        Write-Host ''
+        Write-Host "Created $out"
+        Write-Host 'Now, today, not later:'
+        Write-Host '  1. Copy that file somewhere off this machine.'
+        Write-Host '  2. Put both passwords in a password manager.'
+        Write-Host '  3. Copy android\key.properties.example to android\key.properties and fill it in.'
+        exit 0
+    }
 
     'licenses' {
         # Flutter checks for hash files under <sdk>\licenses. The newer Android
