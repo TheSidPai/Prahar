@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../domain/format.dart';
 import '../domain/preferences.dart';
@@ -50,7 +51,29 @@ class _TimerScreenState extends State<TimerScreen> {
     // The alert belongs to a timer that no longer exists. Leaving it pending
     // would ring in the middle of something else entirely.
     context.read<AppState>().notifier.cancelTimerAlert();
+    _keepAwake(false);
     super.dispose();
+  }
+
+  /// Holds the display on while the clock is actually running.
+  ///
+  /// The countdown itself never needed this — it is derived from the wall
+  /// clock, so it survives the screen going off and the process being frozen.
+  /// What did not survive was being able to *look* at it: the display slept
+  /// mid-session and the phone had to be woken to see how long was left.
+  ///
+  /// Only while running, and released on pause, on leaving, and on dispose. A
+  /// paused timer that holds the screen on is a battery drain with nothing to
+  /// show for it, and dispose is the one that matters most: a wakelock that
+  /// outlives the screen holding it is a bug the user pays for in percent.
+  ///
+  /// Failures are swallowed on purpose. There is no plugin behind the channel
+  /// in a widget test, and a focus timer is not worth failing a test — or a
+  /// session — over.
+  void _keepAwake(bool on) {
+    unawaited(
+      (on ? WakelockPlus.enable() : WakelockPlus.disable()).catchError((_) {}),
+    );
   }
 
   void _start() {
@@ -62,6 +85,7 @@ class _TimerScreenState extends State<TimerScreen> {
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     _armAlert();
+    _keepAwake(true);
 
     final state = context.read<AppState>();
     state.updatePrefs(state.prefs.copyWith(timerMode: _mode.name));
@@ -112,6 +136,7 @@ class _TimerScreenState extends State<TimerScreen> {
     final now = DateTime.now();
     setState(() => _run = run.isPaused ? run.resume(now) : run.pause(now));
     _armAlert();
+    _keepAwake(!_run!.isPaused);
   }
 
   /// Logs the focused minutes against the block and leaves.
@@ -123,6 +148,7 @@ class _TimerScreenState extends State<TimerScreen> {
     final state = context.read<AppState>();
 
     _ticker?.cancel();
+    _keepAwake(false);
     await state.notifier.cancelTimerAlert();
     if (minutes > 0) {
       await state.markDone(widget.session, actualMinutes: minutes);

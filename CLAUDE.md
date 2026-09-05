@@ -830,11 +830,12 @@ Ranked, still valuable but behind the *Open feedback* list above:
    sheet unlocks multi-source topics without a schema change.
 3. **Sound design** — a proprietary three-note chime instead of the
    system alarm tone. Distinctive without being obnoxious.
-4. **Keep the screen awake during a timer.** Currently it is not held, so the
-   display sleeps mid-session; the countdown survives (it is wall-clock
-   derived) but the phone has to be woken to glance at it. Needs
-   `wakelock_plus`, the first new dependency in a while — worth it only if
-   the timer proves itself in use.
+4. ~~Keep the screen awake during a timer.~~ **Done, 5 Sep.**
+   `wakelock_plus` is held while the clock runs and released on pause, on
+   leaving and on dispose. It adds no Android permission — it sets
+   `FLAG_KEEP_SCREEN_ON` on the window rather than taking a real wake lock,
+   which was checked against the merged manifest. The calls swallow their
+   errors: there is no plugin behind the channel in a widget test.
 
 Deliberately *not* on any roadmap: accounts, sync, SMS, WhatsApp. Local-first
 is a design commitment. If notifications ever get more channels, they go

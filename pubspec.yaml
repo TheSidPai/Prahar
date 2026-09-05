@@ -39,6 +39,12 @@ dependencies:
   # webview — offline-first is preserved.
   url_launcher: '>=6.3.0 <7.0.0'
 
+  # Holds the screen on while a focus timer is actually running. One platform
+  # call each way and no network. It adds no permission on Android: it sets
+  # FLAG_KEEP_SCREEN_ON on the window rather than taking a real WAKE_LOCK,
+  # which was checked against the merged manifest and not assumed.
+  wakelock_plus: '>=1.2.0 <2.0.0'
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
