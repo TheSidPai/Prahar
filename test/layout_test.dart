@@ -60,8 +60,9 @@ void main() {
     expect(Layout.isShort(const Size(900, Layout.shortHeight - 1)), isTrue);
   });
 
-  testWidgets('ReadableColumn caps its child rather than stretching it',
-      (tester) async {
+  testWidgets('ReadableColumn caps its child rather than stretching it', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const Directionality(
         textDirection: TextDirection.ltr,

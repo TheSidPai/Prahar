@@ -55,7 +55,10 @@ class PraharTheme {
   /// A one-line name and character for each card style, for the picker.
   static (String name, String flavour) describeCards(CardStyle c) =>
       switch (c) {
-        CardStyle.hairline => ('Hairline', 'A thin outline. Precise, technical'),
+        CardStyle.hairline => (
+          'Hairline',
+          'A thin outline. Precise, technical',
+        ),
         CardStyle.plain => ('Plain', 'No border — separated by tone alone'),
         CardStyle.shadow => ('Lifted', 'A soft shadow, no outline'),
         CardStyle.tinted => ('Tinted', 'A warm wash through the fill'),
@@ -77,57 +80,57 @@ class PraharTheme {
 
     return switch (style) {
       CardStyle.hairline => CardThemeData(
-          elevation: 0,
-          color: scheme.surfaceContainer,
-          margin: EdgeInsets.zero,
-          shape: shape,
-        ),
+        elevation: 0,
+        color: scheme.surfaceContainer,
+        margin: EdgeInsets.zero,
+        shape: shape,
+      ),
 
       // One tonal step off the page, nothing else. In dark mode that step has
       // to be larger than it looks on paper or the cards vanish.
       CardStyle.plain => CardThemeData(
-          elevation: 0,
-          color: dark ? const Color(0xFF1A1E25) : const Color(0xFFF3F4F7),
-          margin: EdgeInsets.zero,
-          shape: shape,
-        ),
+        elevation: 0,
+        color: dark ? const Color(0xFF1A1E25) : const Color(0xFFF3F4F7),
+        margin: EdgeInsets.zero,
+        shape: shape,
+      ),
 
       // A shadow does most of the work on light backgrounds and almost none on
       // dark ones, so dark mode leans on a lighter fill and keeps a deep,
       // wide shadow that reads as depth rather than as a grey halo.
       CardStyle.shadow => CardThemeData(
-          elevation: dark ? 6 : 3,
-          color: dark ? const Color(0xFF191D24) : scheme.surfaceContainerLowest,
-          shadowColor: dark
-              ? Colors.black.withValues(alpha: 0.65)
-              : const Color(0xFF2A2F3A).withValues(alpha: 0.16),
-          // M3 would otherwise tint the fill by elevation, which fights the
-          // colour chosen above.
-          surfaceTintColor: Colors.transparent,
-          margin: EdgeInsets.zero,
-          shape: shape,
-        ),
+        elevation: dark ? 6 : 3,
+        color: dark ? const Color(0xFF191D24) : scheme.surfaceContainerLowest,
+        shadowColor: dark
+            ? Colors.black.withValues(alpha: 0.65)
+            : const Color(0xFF2A2F3A).withValues(alpha: 0.16),
+        // M3 would otherwise tint the fill by elevation, which fights the
+        // colour chosen above.
+        surfaceTintColor: Colors.transparent,
+        margin: EdgeInsets.zero,
+        shape: shape,
+      ),
 
       // The accent, heavily diluted. Enough to warm the surface, not enough to
       // read as a coloured card.
       CardStyle.tinted => CardThemeData(
-          elevation: 0,
-          color: Color.alphaBlend(
-            accent.withValues(alpha: dark ? 0.07 : 0.10),
-            dark ? const Color(0xFF171A20) : const Color(0xFFFFFFFF),
-          ),
-          margin: EdgeInsets.zero,
-          shape: shape,
+        elevation: 0,
+        color: Color.alphaBlend(
+          accent.withValues(alpha: dark ? 0.07 : 0.10),
+          dark ? const Color(0xFF171A20) : const Color(0xFFFFFFFF),
         ),
+        margin: EdgeInsets.zero,
+        shape: shape,
+      ),
 
       // Nothing but spacing. The most editorial, and the one that shows
       // whether the layout stands up without furniture holding it together.
       CardStyle.open => CardThemeData(
-          elevation: 0,
-          color: Colors.transparent,
-          margin: EdgeInsets.zero,
-          shape: shape,
-        ),
+        elevation: 0,
+        color: Colors.transparent,
+        margin: EdgeInsets.zero,
+        shape: shape,
+      ),
     };
   }
 
@@ -138,49 +141,56 @@ class PraharTheme {
   }) {
     final dark = brightness == Brightness.dark;
 
-    final scheme = ColorScheme.fromSeed(
-      seedColor: seed,
-      brightness: brightness,
-    ).copyWith(
-      // Near-black rather than true black: true black crushes the card
-      // borders and makes the whole screen feel like a void.
-      surface: dark ? const Color(0xFF101216) : const Color(0xFFFBFBFC),
-      surfaceContainerLowest:
-          dark ? const Color(0xFF0C0E12) : const Color(0xFFFFFFFF),
-      surfaceContainer: dark ? const Color(0xFF171A20) : const Color(0xFFFFFFFF),
-      surfaceContainerHighest:
-          dark ? const Color(0xFF1C2027) : const Color(0xFFF2F3F5),
-      outlineVariant: dark
-          ? const Color(0xFF2A2F38)
-          : const Color(0xFFE3E5EA),
+    final scheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness)
+        .copyWith(
+          // Near-black rather than true black: true black crushes the card
+          // borders and makes the whole screen feel like a void.
+          surface: dark ? const Color(0xFF101216) : const Color(0xFFFBFBFC),
+          surfaceContainerLowest: dark
+              ? const Color(0xFF0C0E12)
+              : const Color(0xFFFFFFFF),
+          surfaceContainer: dark
+              ? const Color(0xFF171A20)
+              : const Color(0xFFFFFFFF),
+          surfaceContainerHighest: dark
+              ? const Color(0xFF1C2027)
+              : const Color(0xFFF2F3F5),
+          outlineVariant: dark
+              ? const Color(0xFF2A2F38)
+              : const Color(0xFFE3E5EA),
 
-      // Amber lives in the scheme rather than in a constant each widget
-      // imports, so "the accent" is reachable from any BuildContext and can
-      // never be half-applied. `tertiary` is amber-as-text and so differs by
-      // brightness; the containers stay pale/deep in the M3 sense, because
-      // the text drawn on them is ordinary onSurface text.
-      tertiary: dark ? const Color(0xFFF3A968) : accentOnLight,
-      onTertiary: accentInk,
-      tertiaryContainer:
-          dark ? const Color(0xFF4A3418) : const Color(0xFFFBE7CE),
-      onTertiaryContainer:
-          dark ? const Color(0xFFF7D9AE) : const Color(0xFF5A3312),
+          // Amber lives in the scheme rather than in a constant each widget
+          // imports, so "the accent" is reachable from any BuildContext and can
+          // never be half-applied. `tertiary` is amber-as-text and so differs by
+          // brightness; the containers stay pale/deep in the M3 sense, because
+          // the text drawn on them is ordinary onSurface text.
+          tertiary: dark ? const Color(0xFFF3A968) : accentOnLight,
+          onTertiary: accentInk,
+          tertiaryContainer: dark
+              ? const Color(0xFF4A3418)
+              : const Color(0xFFFBE7CE),
+          onTertiaryContainer: dark
+              ? const Color(0xFFF7D9AE)
+              : const Color(0xFF5A3312),
 
-      // Warm-soft: the quieter half of the accent family. Carries the tonal
-      // "Done" button and the "plan fits" banner, which want to belong to the
-      // amber family without competing with a full-strength CTA.
-      secondaryContainer:
-          dark ? const Color(0xFF3B2C1C) : const Color(0xFFF7E4CE),
-      onSecondaryContainer:
-          dark ? const Color(0xFFF3D6B0) : const Color(0xFF4A2E12),
-    );
+          // Warm-soft: the quieter half of the accent family. Carries the tonal
+          // "Done" button and the "plan fits" banner, which want to belong to the
+          // amber family without competing with a full-strength CTA.
+          secondaryContainer: dark
+              ? const Color(0xFF3B2C1C)
+              : const Color(0xFFF7E4CE),
+          onSecondaryContainer: dark
+              ? const Color(0xFFF3D6B0)
+              : const Color(0xFF4A2E12),
+        );
 
     final base = ThemeData(colorScheme: scheme, useMaterial3: true);
     // Apply the family over the base text theme *before* our own weight and
     // spacing overrides, so those overrides win. This is what preserves the
     // negative tracking on the large sizes.
-    final withFont =
-        base.copyWith(textTheme: base.textTheme.apply(fontFamily: fontFamily));
+    final withFont = base.copyWith(
+      textTheme: base.textTheme.apply(fontFamily: fontFamily),
+    );
 
     return withFont.copyWith(
       scaffoldBackgroundColor: scheme.surface,
@@ -272,8 +282,10 @@ class PraharTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: scheme.surfaceContainerHighest,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: scheme.outlineVariant),
@@ -291,19 +303,17 @@ class PraharTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: scheme.inverseSurface,
-        contentTextStyle: base.textTheme.bodyMedium
-            ?.copyWith(color: scheme.onInverseSurface, height: 1.35),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+        contentTextStyle: base.textTheme.bodyMedium?.copyWith(
+          color: scheme.onInverseSurface,
+          height: 1.35,
         ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         insetPadding: const EdgeInsets.all(16),
       ),
 
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surfaceContainer,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
 
       bottomSheetTheme: BottomSheetThemeData(
@@ -352,41 +362,41 @@ class PraharTheme {
   /// the small ones. This is most of what separates a considered interface from
   /// a default one, and it costs nothing.
   static TextTheme _text(TextTheme t, ColorScheme scheme) => t.copyWith(
-        displaySmall: t.displaySmall?.copyWith(
-          fontWeight: FontWeight.w600,
-          letterSpacing: -1.0,
-          color: scheme.onSurface,
-        ),
-        headlineSmall: t.headlineSmall?.copyWith(
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.6,
-          color: scheme.onSurface,
-        ),
-        titleLarge: t.titleLarge?.copyWith(
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.4,
-          color: scheme.onSurface,
-        ),
-        titleMedium: t.titleMedium?.copyWith(
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.2,
-          color: scheme.onSurface,
-        ),
-        titleSmall: t.titleSmall?.copyWith(
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.1,
-          color: scheme.onSurface,
-        ),
-        bodyLarge: t.bodyLarge?.copyWith(height: 1.35, letterSpacing: -0.1),
-        bodyMedium: t.bodyMedium?.copyWith(height: 1.45),
-        bodySmall: t.bodySmall?.copyWith(
-          height: 1.4,
-          color: scheme.onSurfaceVariant,
-        ),
-        labelLarge: t.labelLarge?.copyWith(
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.1,
-        ),
-        labelSmall: t.labelSmall?.copyWith(letterSpacing: 0.4),
-      );
+    displaySmall: t.displaySmall?.copyWith(
+      fontWeight: FontWeight.w600,
+      letterSpacing: -1.0,
+      color: scheme.onSurface,
+    ),
+    headlineSmall: t.headlineSmall?.copyWith(
+      fontWeight: FontWeight.w600,
+      letterSpacing: -0.6,
+      color: scheme.onSurface,
+    ),
+    titleLarge: t.titleLarge?.copyWith(
+      fontWeight: FontWeight.w600,
+      letterSpacing: -0.4,
+      color: scheme.onSurface,
+    ),
+    titleMedium: t.titleMedium?.copyWith(
+      fontWeight: FontWeight.w600,
+      letterSpacing: -0.2,
+      color: scheme.onSurface,
+    ),
+    titleSmall: t.titleSmall?.copyWith(
+      fontWeight: FontWeight.w600,
+      letterSpacing: -0.1,
+      color: scheme.onSurface,
+    ),
+    bodyLarge: t.bodyLarge?.copyWith(height: 1.35, letterSpacing: -0.1),
+    bodyMedium: t.bodyMedium?.copyWith(height: 1.45),
+    bodySmall: t.bodySmall?.copyWith(
+      height: 1.4,
+      color: scheme.onSurfaceVariant,
+    ),
+    labelLarge: t.labelLarge?.copyWith(
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.1,
+    ),
+    labelSmall: t.labelSmall?.copyWith(letterSpacing: 0.4),
+  );
 }

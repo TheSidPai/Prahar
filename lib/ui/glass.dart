@@ -93,8 +93,10 @@ class SheetBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glass = context.select<AppState, MaterialChoice>(
-            (s) => s.prefs.materialChoice) ==
+    final glass =
+        context.select<AppState, MaterialChoice>(
+          (s) => s.prefs.materialChoice,
+        ) ==
         MaterialChoice.glass;
     const shape = BorderRadius.vertical(top: Radius.circular(24));
 
@@ -108,4 +110,3 @@ class SheetBackground extends StatelessWidget {
     return GlassSurface(borderRadius: shape, child: child);
   }
 }
-

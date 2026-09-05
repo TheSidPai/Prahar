@@ -24,7 +24,8 @@ class PraharMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolved = palette ??
+    final resolved =
+        palette ??
         (Theme.of(context).brightness == Brightness.dark
             ? MarkPalette.onDark
             : MarkPalette.onLight);
@@ -37,11 +38,7 @@ class PraharMark extends StatelessWidget {
 }
 
 class PraharMarkFilled extends StatelessWidget {
-  const PraharMarkFilled({
-    super.key,
-    this.size = 48,
-    this.borderRadius = 12,
-  });
+  const PraharMarkFilled({super.key, this.size = 48, this.borderRadius = 12});
 
   final double size;
   final double borderRadius;
@@ -101,7 +98,8 @@ class PraharLogo extends StatelessWidget {
         SizedBox(width: markSize * 0.35),
         Text(
           'Prahar',
-          style: wordmarkStyle ??
+          style:
+              wordmarkStyle ??
               theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.6,

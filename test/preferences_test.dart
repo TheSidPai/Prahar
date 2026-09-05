@@ -44,7 +44,10 @@ void main() {
     });
 
     test('an inverted window is replaced, not stored', () {
-      final p = Prefs.fromMap({'day_start': '${22 * 60}', 'day_end': '${6 * 60}'});
+      final p = Prefs.fromMap({
+        'day_start': '${22 * 60}',
+        'day_end': '${6 * 60}',
+      });
       expect(p.dayStartMinute, lessThan(p.dayEndMinute));
       expect(p.isUsable, isTrue);
     });

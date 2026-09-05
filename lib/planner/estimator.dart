@@ -38,10 +38,10 @@ class EffortEstimator {
   /// Minutes per unit for [unit]. The rate is recorded on the topic so a later
   /// change here cannot retroactively rewrite existing estimates.
   double rateFor(EffortUnit unit) => switch (unit) {
-        EffortUnit.minutes => 1.0,
-        EffortUnit.pages => minutesPerPage,
-        EffortUnit.problems => minutesPerProblem,
-      };
+    EffortUnit.minutes => 1.0,
+    EffortUnit.pages => minutesPerPage,
+    EffortUnit.problems => minutesPerProblem,
+  };
 
   /// Converts a figure between units, preserving the underlying effort.
   ///
@@ -72,11 +72,11 @@ class EffortEstimator {
   }
 
   int _minutesForUnits(ResourceKind kind, int units) => switch (kind) {
-        ResourceKind.book || ResourceKind.pdf => (units * minutesPerPage).round(),
-        ResourceKind.problemSet => (units * minutesPerProblem).round(),
-        ResourceKind.video => (units / 60.0 * videoOverhead).round(),
-        ResourceKind.url => 0,
-      };
+    ResourceKind.book || ResourceKind.pdf => (units * minutesPerPage).round(),
+    ResourceKind.problemSet => (units * minutesPerProblem).round(),
+    ResourceKind.video => (units / 60.0 * videoOverhead).round(),
+    ResourceKind.url => 0,
+  };
 
   /// Sum of every resource attached to a topic. Resources with no measure
   /// contribute nothing rather than blocking the estimate.
@@ -87,12 +87,11 @@ class EffortEstimator {
     double? minutesPerPage,
     double? minutesPerProblem,
     double? videoOverhead,
-  }) =>
-      EffortEstimator(
-        minutesPerPage: minutesPerPage ?? this.minutesPerPage,
-        minutesPerProblem: minutesPerProblem ?? this.minutesPerProblem,
-        videoOverhead: videoOverhead ?? this.videoOverhead,
-      );
+  }) => EffortEstimator(
+    minutesPerPage: minutesPerPage ?? this.minutesPerPage,
+    minutesPerProblem: minutesPerProblem ?? this.minutesPerProblem,
+    videoOverhead: videoOverhead ?? this.videoOverhead,
+  );
 
   /// Turns a per-subject observation set into a recommended rate.
   ///

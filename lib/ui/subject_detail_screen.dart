@@ -68,7 +68,8 @@ class SubjectDetailBody extends StatelessWidget {
       return EmptyState(
         icon: Icons.topic_outlined,
         title: 'No topics',
-        message: 'Break the syllabus into topics. Chapters work well — small '
+        message:
+            'Break the syllabus into topics. Chapters work well — small '
             'enough to finish in a session or two.',
         action: FilledButton.icon(
           onPressed: () => showTopicSheet(context, subjectId: subjectId),
@@ -113,8 +114,9 @@ class _SubjectStatus extends StatelessWidget {
 
     final now = DateTime.now();
     final exam = subject.examDate;
-    final daysLeft =
-        exam == null ? null : dateOnly(exam).difference(dateOnly(now)).inDays;
+    final daysLeft = exam == null
+        ? null
+        : dateOnly(exam).difference(dateOnly(now)).inDays;
 
     // Asked exactly as the Progress card asks it, through the one method that
     // knows when the question has stopped having a sensible answer.
@@ -133,8 +135,10 @@ class _SubjectStatus extends StatelessWidget {
     // Glass here for the same reason the Today header has it: this is the one
     // panel on the screen that summarises rather than lists, and the material
     // is what says so. The topic rows below stay matte cards.
-    final glass = context.select<AppState, MaterialChoice>(
-            (s) => s.prefs.materialChoice) ==
+    final glass =
+        context.select<AppState, MaterialChoice>(
+          (s) => s.prefs.materialChoice,
+        ) ==
         MaterialChoice.glass;
 
     final content = Padding(
@@ -142,23 +146,20 @@ class _SubjectStatus extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            _Stat(label: 'Topics', value: '${topics.length}'),
-            const SizedBox(width: 28),
-            _Stat(label: 'Left', value: formatMinutes(remaining)),
-            const SizedBox(width: 28),
-            _Stat(
-              label: 'Total',
-              value: formatMinutes(total),
-              muted: true,
-            ),
-          ]),
+          Row(
+            children: [
+              _Stat(label: 'Topics', value: '${topics.length}'),
+              const SizedBox(width: 28),
+              _Stat(label: 'Left', value: formatMinutes(remaining)),
+              const SizedBox(width: 28),
+              _Stat(label: 'Total', value: formatMinutes(total), muted: true),
+            ],
+          ),
           if (perDay != null) ...[
             const SizedBox(height: 16),
             Container(
               width: double.infinity,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: theme.colorScheme.primary.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(12),
@@ -176,10 +177,11 @@ class _SubjectStatus extends StatelessWidget {
                       ),
                     ),
                     TextSpan(
-                      text: ' a day to be ready by '
+                      text:
+                          ' a day to be ready by '
                           '${formatDate(dateOnly(exam!))}'
                           '${subject.examMinuteOfDay == null ? '' : ', '
-                              '${formatClock(subject.examMinuteOfDay!)}'}'
+                                    '${formatClock(subject.examMinuteOfDay!)}'}'
                           '  ·  ${examLabel(subject, now)}',
                     ),
                   ],
@@ -194,8 +196,7 @@ class _SubjectStatus extends StatelessWidget {
             const SizedBox(height: 16),
             Container(
               width: double.infinity,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: theme.colorScheme.error.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
@@ -204,11 +205,11 @@ class _SubjectStatus extends StatelessWidget {
                 formatMinutes(remaining) +
                     (daysLeft == 0
                         ? ' still to do, and the exam is today'
-                            '${subject.examMinuteOfDay == null ? '' : ' at '
-                                '${formatClock(subject.examMinuteOfDay!)}'}'
-                            ". It won't fit — cover what matters most."
+                              '${subject.examMinuteOfDay == null ? '' : ' at '
+                                        '${formatClock(subject.examMinuteOfDay!)}'}'
+                              ". It won't fit — cover what matters most."
                         : " left, which won't fit before the exam. Cut scope "
-                            'or move the date.'),
+                              'or move the date.'),
                 style: theme.textTheme.bodyMedium,
               ),
             ),
@@ -220,7 +221,8 @@ class _SubjectStatus extends StatelessWidget {
             const SizedBox(height: 16),
             _Nudge(
               icon: Icons.event_busy_outlined,
-              text: 'No exam date, so this is scheduled only after '
+              text:
+                  'No exam date, so this is scheduled only after '
                   'everything that has one. Add a date to give it '
                   'priority.',
               onTap: () => showSubjectSheet(context, existing: subject),
@@ -231,7 +233,8 @@ class _SubjectStatus extends StatelessWidget {
             const SizedBox(height: 16),
             _Nudge(
               icon: Icons.history_toggle_off,
-              text: 'The exam date has passed, so nothing here is being '
+              text:
+                  'The exam date has passed, so nothing here is being '
                   'scheduled any more.',
               onTap: () => showSubjectSheet(context, existing: subject),
               action: 'Update',
@@ -387,7 +390,11 @@ Future<void> _showTopicMenu(BuildContext context, Topic topic) async {
             ListTile(
               leading: const Icon(Icons.open_in_new),
               title: const Text('Open link'),
-              subtitle: Text(topic.link!, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text(
+                topic.link!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               onTap: () async {
                 Navigator.pop(context);
                 await _openLink(context, topic.link!);
@@ -411,10 +418,14 @@ Future<void> _showTopicMenu(BuildContext context, Topic topic) async {
             },
           ),
           ListTile(
-            leading: Icon(Icons.delete_outline,
-                color: Theme.of(context).colorScheme.error),
-            title: Text('Delete',
-                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            leading: Icon(
+              Icons.delete_outline,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            title: Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
             onTap: () async {
               Navigator.pop(context);
               await state.deleteTopic(topic.id);
@@ -431,9 +442,8 @@ Future<void> _openLink(BuildContext context, String raw) async {
   final url = raw.contains('://') ? raw : 'https://$raw';
   final uri = Uri.tryParse(url);
   if (uri == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Not a valid URL: $raw')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('Not a valid URL: $raw')));
     return;
   }
   final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -493,158 +503,173 @@ Future<void> showTopicSheet(
           builder: (context, setState) {
             final minutes = computeMinutes();
             return Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(existing == null ? 'New topic' : 'Edit topic',
-                    style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: titleController,
-                  autofocus: existing == null,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Topic',
-                    hintText: 'Ch. 4 — Aldehydes and Ketones',
-                    border: OutlineInputBorder(),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    existing == null ? 'New topic' : 'Edit topic',
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                ),
-                const SizedBox(height: 16),
-                SegmentedButton<EffortUnit>(
-                  segments: const [
-                    ButtonSegment(
-                        value: EffortUnit.pages, label: Text('Pages')),
-                    ButtonSegment(
-                        value: EffortUnit.problems, label: Text('Problems')),
-                    ButtonSegment(
-                        value: EffortUnit.minutes, label: Text('Minutes')),
-                  ],
-                  selected: {mode},
-                  // Convert the figure when the unit changes. Without this,
-                  // switching Minutes -> Pages with "600" in the box silently
-                  // reinterprets it as 600 pages and stores 1800 minutes: a
-                  // 3x inflation with no warning.
-                  onSelectionChanged: (s) => setState(() {
-                    final next = s.first;
-                    final current = amountEntered();
-                    if (current != null) {
-                      amountController.text =
-                          '${estimator.convert(current, mode, next)}';
-                    }
-                    mode = next;
-                  }),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: amountController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    labelText: switch (mode) {
-                      EffortUnit.pages => 'How many pages?',
-                      EffortUnit.problems => 'How many problems?',
-                      EffortUnit.minutes => 'How many minutes?',
-                    },
-                    border: const OutlineInputBorder(),
-                    helperText: minutes == null
-                        ? null
-                        : 'Estimated at ${formatMinutes(minutes)}',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: linkController,
-                  keyboardType: TextInputType.url,
-                  autocorrect: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Link (optional)',
-                    hintText: 'video, notes, exercises',
-                    prefixIcon: Icon(Icons.link, size: 18),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text('Difficulty',
-                    style: Theme.of(context).textTheme.labelLarge),
-                Slider(
-                  value: difficulty.toDouble(),
-                  min: 1,
-                  max: 5,
-                  divisions: 4,
-                  label: '$difficulty',
-                  onChanged: (v) => setState(() => difficulty = v.round()),
-                ),
-                const SizedBox(height: 12),
-                Row(children: [
-                  if (existing != null)
-                    TextButton(
-                      onPressed: () async {
-                        await state.deleteTopic(existing.id);
-                        if (context.mounted) Navigator.pop(context);
-                      },
-                      child: const Text('Delete'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: titleController,
+                    autofocus: existing == null,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      labelText: 'Topic',
+                      hintText: 'Ch. 4 — Aldehydes and Ketones',
+                      border: OutlineInputBorder(),
                     ),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: minutes == null ||
-                            titleController.text.trim().isEmpty
-                        ? null
-                        : () async {
-                            final title = titleController.text.trim();
-                            final amount = amountEntered()!;
-                            final rate = estimator.rateFor(mode);
-                            final linkRaw = linkController.text.trim();
-                            final link = linkRaw.isEmpty ? null : linkRaw;
-                            if (existing == null) {
-                              await state.addTopic(
-                                subjectId: subjectId,
-                                title: title,
-                                unit: mode,
-                                amount: amount,
-                                rate: rate,
-                                difficulty: difficulty,
-                                link: link,
-                              );
-                            } else {
-                              await state.updateTopic(existing.copyWith(
-                                title: title,
-                                estimatedMinutes: minutes,
-                                difficulty: difficulty,
-                                estimateUnit: mode,
-                                estimateAmount: amount,
-                                estimateRate: rate,
-                                link: link,
-                                clearLink: link == null,
-                              ));
-                            }
-                            if (!context.mounted) return;
-                            Navigator.pop(context);
-
-                            // Confirm what was actually committed to. The
-                            // student typed pages; the plan runs on hours, and
-                            // seeing the conversion once is what makes the
-                            // estimate meaningful.
-                            final unitLabel = switch (mode) {
-                              EffortUnit.pages => '$amount pages',
-                              EffortUnit.problems => '$amount problems',
-                              EffortUnit.minutes => formatMinutes(amount),
-                            };
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '$title — $unitLabel'
-                                  '${mode == EffortUnit.minutes ? '' : ' ≈ ${formatMinutes(minutes)}'}',
-                                ),
-                                duration: const Duration(seconds: 4),
-                              ),
-                            );
-                          },
-                    child: const Text('Save'),
                   ),
-                ]),
+                  const SizedBox(height: 16),
+                  SegmentedButton<EffortUnit>(
+                    segments: const [
+                      ButtonSegment(
+                        value: EffortUnit.pages,
+                        label: Text('Pages'),
+                      ),
+                      ButtonSegment(
+                        value: EffortUnit.problems,
+                        label: Text('Problems'),
+                      ),
+                      ButtonSegment(
+                        value: EffortUnit.minutes,
+                        label: Text('Minutes'),
+                      ),
+                    ],
+                    selected: {mode},
+                    // Convert the figure when the unit changes. Without this,
+                    // switching Minutes -> Pages with "600" in the box silently
+                    // reinterprets it as 600 pages and stores 1800 minutes: a
+                    // 3x inflation with no warning.
+                    onSelectionChanged: (s) => setState(() {
+                      final next = s.first;
+                      final current = amountEntered();
+                      if (current != null) {
+                        amountController.text =
+                            '${estimator.convert(current, mode, next)}';
+                      }
+                      mode = next;
+                    }),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: switch (mode) {
+                        EffortUnit.pages => 'How many pages?',
+                        EffortUnit.problems => 'How many problems?',
+                        EffortUnit.minutes => 'How many minutes?',
+                      },
+                      border: const OutlineInputBorder(),
+                      helperText: minutes == null
+                          ? null
+                          : 'Estimated at ${formatMinutes(minutes)}',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: linkController,
+                    keyboardType: TextInputType.url,
+                    autocorrect: false,
+                    decoration: const InputDecoration(
+                      labelText: 'Link (optional)',
+                      hintText: 'video, notes, exercises',
+                      prefixIcon: Icon(Icons.link, size: 18),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Difficulty',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  Slider(
+                    value: difficulty.toDouble(),
+                    min: 1,
+                    max: 5,
+                    divisions: 4,
+                    label: '$difficulty',
+                    onChanged: (v) => setState(() => difficulty = v.round()),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      if (existing != null)
+                        TextButton(
+                          onPressed: () async {
+                            await state.deleteTopic(existing.id);
+                            if (context.mounted) Navigator.pop(context);
+                          },
+                          child: const Text('Delete'),
+                        ),
+                      const Spacer(),
+                      FilledButton(
+                        onPressed:
+                            minutes == null ||
+                                titleController.text.trim().isEmpty
+                            ? null
+                            : () async {
+                                final title = titleController.text.trim();
+                                final amount = amountEntered()!;
+                                final rate = estimator.rateFor(mode);
+                                final linkRaw = linkController.text.trim();
+                                final link = linkRaw.isEmpty ? null : linkRaw;
+                                if (existing == null) {
+                                  await state.addTopic(
+                                    subjectId: subjectId,
+                                    title: title,
+                                    unit: mode,
+                                    amount: amount,
+                                    rate: rate,
+                                    difficulty: difficulty,
+                                    link: link,
+                                  );
+                                } else {
+                                  await state.updateTopic(
+                                    existing.copyWith(
+                                      title: title,
+                                      estimatedMinutes: minutes,
+                                      difficulty: difficulty,
+                                      estimateUnit: mode,
+                                      estimateAmount: amount,
+                                      estimateRate: rate,
+                                      link: link,
+                                      clearLink: link == null,
+                                    ),
+                                  );
+                                }
+                                if (!context.mounted) return;
+                                Navigator.pop(context);
+
+                                // Confirm what was actually committed to. The
+                                // student typed pages; the plan runs on hours, and
+                                // seeing the conversion once is what makes the
+                                // estimate meaningful.
+                                final unitLabel = switch (mode) {
+                                  EffortUnit.pages => '$amount pages',
+                                  EffortUnit.problems => '$amount problems',
+                                  EffortUnit.minutes => formatMinutes(amount),
+                                };
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '$title — $unitLabel'
+                                      '${mode == EffortUnit.minutes ? '' : ' ≈ ${formatMinutes(minutes)}'}',
+                                    ),
+                                    duration: const Duration(seconds: 4),
+                                  ),
+                                );
+                              },
+                        child: const Text('Save'),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
                 ],
               ),
@@ -655,4 +680,3 @@ Future<void> showTopicSheet(
     ),
   );
 }
-

@@ -94,10 +94,7 @@ void main() {
 
   group('calibration', () {
     test('falls back to the prior with no evidence', () {
-      expect(
-        EffortEstimator.calibrate(samples: const [], prior: 3.0),
-        3.0,
-      );
+      expect(EffortEstimator.calibrate(samples: const [], prior: 3.0), 3.0);
     });
 
     test('one sample nudges the rate without overwriting it', () {

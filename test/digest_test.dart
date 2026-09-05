@@ -15,28 +15,27 @@ void main() {
     int startMinute,
     int minutes, {
     DateTime? on,
-  }) =>
-      StudySession(
-        id: '$subject|$startMinute',
-        topicId: topic,
-        subjectId: subject,
-        topicTitle: topic,
-        subjectName: subject,
-        date: on ?? tomorrow,
-        startMinuteOfDay: startMinute,
-        durationMinutes: minutes,
-      );
+  }) => StudySession(
+    id: '$subject|$startMinute',
+    topicId: topic,
+    subjectId: subject,
+    topicTitle: topic,
+    subjectName: subject,
+    date: on ?? tomorrow,
+    startMinuteOfDay: startMinute,
+    durationMinutes: minutes,
+  );
 
   Plan planOf(List<StudySession> sessions) => Plan(
-        sessions: sessions,
-        feasibility: const Feasibility(
-          requiredMinutes: 0,
-          availableMinutes: 0,
-          unscheduledMinutes: 0,
-          warnings: [],
-        ),
-        generatedAt: DateTime(2026, 9, 4),
-      );
+    sessions: sessions,
+    feasibility: const Feasibility(
+      requiredMinutes: 0,
+      availableMinutes: 0,
+      unscheduledMinutes: 0,
+      warnings: [],
+    ),
+    generatedAt: DateTime(2026, 9, 4),
+  );
 
   test('counts the blocks, the time and the first start', () {
     final line = planOf([

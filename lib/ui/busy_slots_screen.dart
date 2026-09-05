@@ -33,7 +33,8 @@ class BusySlotsScreen extends StatelessWidget {
               // a different action.
               icon: Icons.event_busy_outlined,
               title: 'No busy slots yet',
-              message: 'Tap Add to record class hours, lunch, a shift — '
+              message:
+                  'Tap Add to record class hours, lunch, a shift — '
                   'anything the schedule should route around. Weekly repeats '
                   'or a single date.',
             )
@@ -81,9 +82,7 @@ class BusySlotsScreen extends StatelessWidget {
 
   static String _when(BusySlot s) {
     if (s.repeatsWeekly) {
-      const names = [
-        'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
-      ];
+      const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       return 'every ${names[s.weekday! - 1]}';
     }
     return formatDateFull(s.date!);
@@ -97,7 +96,9 @@ Future<void> _showSheet(BuildContext context, {BusySlot? existing}) async {
   final label = TextEditingController(text: existing?.label ?? '');
   var start = existing?.startMinute ?? 13 * 60;
   var end = existing?.endMinute ?? 15 * 60;
-  var repeat = (existing?.repeatsWeekly ?? true) ? _Repeat.weekly : _Repeat.oneOff;
+  var repeat = (existing?.repeatsWeekly ?? true)
+      ? _Repeat.weekly
+      : _Repeat.oneOff;
   // A set, because "class every Mon–Fri" is one slot to a student, not five.
   // When editing a single-day slot the set starts with that one day; when
   // adding, it starts with today so a tap-tap-save works.
@@ -135,102 +136,115 @@ Future<void> _showSheet(BuildContext context, {BusySlot? existing}) async {
     isScrollControlled: true,
     builder: (context) => SheetBackground(
       child: Padding(
-        padding:
-            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: StatefulBuilder(
           builder: (context, set) => Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(existing == null ? 'New busy slot' : 'Edit busy slot',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 16),
-              TextField(
-                controller: label,
-                autofocus: existing == null,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Label',
-                  hintText: 'Class, lunch, football',
-                  border: OutlineInputBorder(),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  existing == null ? 'New busy slot' : 'Edit busy slot',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-              ),
-              const SizedBox(height: 16),
-              Row(children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => pick(context, true, set),
-                    child: Text('From  ${formatClock(start)}'),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: label,
+                  autofocus: existing == null,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Label',
+                    hintText: 'Class, lunch, football',
+                    border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => pick(context, false, set),
-                    child: Text('To  ${formatClock(end)}'),
-                  ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => pick(context, true, set),
+                        child: Text('From  ${formatClock(start)}'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => pick(context, false, set),
+                        child: Text('To  ${formatClock(end)}'),
+                      ),
+                    ),
+                  ],
                 ),
-              ]),
-              const SizedBox(height: 16),
-              SegmentedButton<_Repeat>(
-                segments: const [
-                  ButtonSegment(value: _Repeat.weekly, label: Text('Every week')),
-                  ButtonSegment(value: _Repeat.oneOff, label: Text('One day only')),
-                ],
-                selected: {repeat},
-                onSelectionChanged: (s) => set(() => repeat = s.first),
-              ),
-              const SizedBox(height: 12),
-              if (repeat == _Repeat.weekly)
-                _WeekdayPicker(
-                  selected: weekdays,
-                  onToggled: (w) => set(() {
-                    weekdays.contains(w)
-                        ? weekdays.remove(w)
-                        : weekdays.add(w);
-                  }),
-                  onPreset: (days) => set(() {
-                    weekdays
-                      ..clear()
-                      ..addAll(days);
-                  }),
-                )
-              else
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.event),
-                  title: Text(formatDateFull(date)),
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: date,
-                      firstDate: DateTime.now()
-                          .subtract(const Duration(days: 1)),
-                      lastDate:
-                          DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (picked != null) set(() => date = dateOnly(picked));
-                  },
+                const SizedBox(height: 16),
+                SegmentedButton<_Repeat>(
+                  segments: const [
+                    ButtonSegment(
+                      value: _Repeat.weekly,
+                      label: Text('Every week'),
+                    ),
+                    ButtonSegment(
+                      value: _Repeat.oneOff,
+                      label: Text('One day only'),
+                    ),
+                  ],
+                  selected: {repeat},
+                  onSelectionChanged: (s) => set(() => repeat = s.first),
                 ),
-              const SizedBox(height: 20),
-              Row(children: [
-                if (existing != null)
-                  TextButton(
-                    onPressed: () async {
-                      await state.deleteBusySlot(existing.id);
-                      if (context.mounted) Navigator.pop(context);
+                const SizedBox(height: 12),
+                if (repeat == _Repeat.weekly)
+                  _WeekdayPicker(
+                    selected: weekdays,
+                    onToggled: (w) => set(() {
+                      weekdays.contains(w)
+                          ? weekdays.remove(w)
+                          : weekdays.add(w);
+                    }),
+                    onPreset: (days) => set(() {
+                      weekdays
+                        ..clear()
+                        ..addAll(days);
+                    }),
+                  )
+                else
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.event),
+                    title: Text(formatDateFull(date)),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: date,
+                        firstDate: DateTime.now().subtract(
+                          const Duration(days: 1),
+                        ),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null) set(() => date = dateOnly(picked));
                     },
-                    child: const Text('Delete'),
                   ),
-                const Spacer(),
-                FilledButton(
-                  // The button reveals its own failure conditions: end after
-                  // start, and — for weekly slots — at least one day picked.
-                  // Otherwise a tap saved nothing and looked broken.
-                  onPressed:
-                      end > start && (repeat == _Repeat.oneOff || weekdays.isNotEmpty)
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    if (existing != null)
+                      TextButton(
+                        onPressed: () async {
+                          await state.deleteBusySlot(existing.id);
+                          if (context.mounted) Navigator.pop(context);
+                        },
+                        child: const Text('Delete'),
+                      ),
+                    const Spacer(),
+                    FilledButton(
+                      // The button reveals its own failure conditions: end after
+                      // start, and — for weekly slots — at least one day picked.
+                      // Otherwise a tap saved nothing and looked broken.
+                      onPressed:
+                          end > start &&
+                              (repeat == _Repeat.oneOff || weekdays.isNotEmpty)
                           ? () async {
                               final labelText = label.text.trim().isEmpty
                                   ? 'Busy'
@@ -262,13 +276,15 @@ Future<void> _showSheet(BuildContext context, {BusySlot? existing}) async {
                                   );
                                 } else {
                                   for (final w in weekdays) {
-                                    await state.addBusySlot(BusySlot(
-                                      id: _slotId(),
-                                      label: labelText,
-                                      startMinute: start,
-                                      endMinute: end,
-                                      weekday: w,
-                                    ));
+                                    await state.addBusySlot(
+                                      BusySlot(
+                                        id: _slotId(),
+                                        label: labelText,
+                                        startMinute: start,
+                                        endMinute: end,
+                                        weekday: w,
+                                      ),
+                                    );
                                   }
                                 }
                                 if (context.mounted) Navigator.pop(context);
@@ -287,9 +303,10 @@ Future<void> _showSheet(BuildContext context, {BusySlot? existing}) async {
                               }
                             }
                           : null,
-                    child: const Text('Save'),
-                  ),
-                ]),
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
               ],
             ),
@@ -384,22 +401,13 @@ class _WeekdayPicker extends StatelessWidget {
           spacing: 8,
           runSpacing: 6,
           children: [
-            _Preset(
-              label: 'Mon–Fri',
-              onTap: () => onPreset({1, 2, 3, 4, 5}),
-            ),
-            _Preset(
-              label: 'Weekends',
-              onTap: () => onPreset({6, 7}),
-            ),
+            _Preset(label: 'Mon–Fri', onTap: () => onPreset({1, 2, 3, 4, 5})),
+            _Preset(label: 'Weekends', onTap: () => onPreset({6, 7})),
             _Preset(
               label: 'Every day',
               onTap: () => onPreset({1, 2, 3, 4, 5, 6, 7}),
             ),
-            _Preset(
-              label: 'Clear',
-              onTap: () => onPreset({}),
-            ),
+            _Preset(label: 'Clear', onTap: () => onPreset({})),
           ],
         ),
       ],

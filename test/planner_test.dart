@@ -24,23 +24,21 @@ Topic topic(
   int done = 0,
   TopicStatus status = TopicStatus.notStarted,
   DateTime? completedOn,
-}) =>
-    Topic(
-      id: id,
-      subjectId: subjectId,
-      title: id,
-      estimatedMinutes: minutes,
-      completedMinutes: done,
-      difficulty: difficulty,
-      prerequisiteIds: prereqs,
-      status: status,
-      firstCompletedOn: completedOn,
-    );
+}) => Topic(
+  id: id,
+  subjectId: subjectId,
+  title: id,
+  estimatedMinutes: minutes,
+  completedMinutes: done,
+  difficulty: difficulty,
+  prerequisiteIds: prereqs,
+  status: status,
+  firstCompletedOn: completedOn,
+);
 
 /// Same number of minutes every day of the week.
-Availability flat(int minutes) => Availability(minutesByWeekday: {
-      for (var d = 1; d <= 7; d++) d: minutes,
-    });
+Availability flat(int minutes) =>
+    Availability(minutesByWeekday: {for (var d = 1; d <= 7; d++) d: minutes});
 
 void main() {
   const planner = Planner();
@@ -55,11 +53,16 @@ void main() {
       );
 
       expect(plan.sessions, isNotEmpty);
-      for (var d = today;
-          d.isBefore(today.add(const Duration(days: 30)));
-          d = d.add(const Duration(days: 1))) {
-        expect(plan.minutesOn(d), lessThanOrEqualTo(100),
-            reason: 'overbooked ${d.toIso8601String()}');
+      for (
+        var d = today;
+        d.isBefore(today.add(const Duration(days: 30)));
+        d = d.add(const Duration(days: 1))
+      ) {
+        expect(
+          plan.minutesOn(d),
+          lessThanOrEqualTo(100),
+          reason: 'overbooked ${d.toIso8601String()}',
+        );
       }
     });
 
@@ -115,7 +118,8 @@ void main() {
         expect(
           s.endMinuteOfDay <= 13 * 60 || s.startMinuteOfDay >= 15 * 60,
           isTrue,
-          reason: 'scheduled ${s.startMinuteOfDay}-${s.endMinuteOfDay} '
+          reason:
+              'scheduled ${s.startMinuteOfDay}-${s.endMinuteOfDay} '
               'across a busy slot',
         );
       }
@@ -130,10 +134,12 @@ void main() {
         today: today,
       );
 
-      expect(plan.onDate(today), isEmpty,
-          reason: 'today is entirely busy');
-      expect(plan.onDate(today.add(const Duration(days: 1))), isNotEmpty,
-          reason: 'the one-off must not affect other days');
+      expect(plan.onDate(today), isEmpty, reason: 'today is entirely busy');
+      expect(
+        plan.onDate(today.add(const Duration(days: 1))),
+        isNotEmpty,
+        reason: 'the one-off must not affect other days',
+      );
     });
 
     test('overlapping slots are merged before subtracting', () {
@@ -162,9 +168,9 @@ void main() {
     test('minute budget still limits work when free time is abundant', () {
       // Free intervals decide *where*, minutes decide *how much*. Even with a
       // huge window, only 60 minutes may be spent.
-      final busy = Availability(minutesByWeekday: {
-        for (var d = 1; d <= 7; d++) d: 60,
-      }).withBusy([slot(12 * 60, 13 * 60, weekday: 4)]);
+      final busy = Availability(
+        minutesByWeekday: {for (var d = 1; d <= 7; d++) d: 60},
+      ).withBusy([slot(12 * 60, 13 * 60, weekday: 4)]);
       final plan = planner.generate(
         subjects: [subject('phys')],
         topics: [topic('a', 'phys', 600)],
@@ -357,8 +363,11 @@ void main() {
         }
       }
 
-      expect(heavy, greaterThan(light),
-          reason: 'the heavier subject needs far more minutes per day');
+      expect(
+        heavy,
+        greaterThan(light),
+        reason: 'the heavier subject needs far more minutes per day',
+      );
       expect(plan.feasibility.fits, isTrue);
     });
 
@@ -375,18 +384,25 @@ void main() {
 
       final first = plan.onDate(today);
       expect(first, isNotEmpty);
-      expect(first.every((s) => s.subjectId == 'urgent'), isTrue,
-          reason: 'an exam in two days should not yield a third of the day');
+      expect(
+        first.every((s) => s.subjectId == 'urgent'),
+        isTrue,
+        reason: 'an exam in two days should not yield a third of the day',
+      );
     });
 
     test('reviews cannot crowd out new material entirely', () {
       // Twelve finished topics all fall due for review at once.
       final done = [
         for (var i = 0; i < 12; i++)
-          topic('d$i', 'phys', 60,
-              done: 60,
-              status: TopicStatus.done,
-              completedOn: today.subtract(const Duration(days: 1))),
+          topic(
+            'd$i',
+            'phys',
+            60,
+            done: 60,
+            status: TopicStatus.done,
+            completedOn: today.subtract(const Duration(days: 1)),
+          ),
       ];
 
       final plan = planner.generate(
@@ -402,8 +418,11 @@ void main() {
           .fold(0, (a, s) => a + s.durationMinutes);
 
       expect(reviewMinutes, lessThanOrEqualTo(48)); // 40% of 120
-      expect(firstDay.any((s) => !s.isReview), isTrue,
-          reason: 'new material must still get a look in');
+      expect(
+        firstDay.any((s) => !s.isReview),
+        isTrue,
+        reason: 'new material must still get a look in',
+      );
     });
 
     test('never schedules a subject past its exam', () {
@@ -419,8 +438,11 @@ void main() {
       );
 
       for (final s in plan.sessions.where((s) => s.subjectId == 'phys')) {
-        expect(s.date.isAfter(exam), isFalse,
-            reason: 'physics scheduled after the exam');
+        expect(
+          s.date.isAfter(exam),
+          isFalse,
+          reason: 'physics scheduled after the exam',
+        );
       }
     });
 
@@ -438,8 +460,11 @@ void main() {
       var run = 1;
       for (var i = 1; i < first.length; i++) {
         run = first[i] == first[i - 1] ? run + 1 : 1;
-        expect(run, lessThanOrEqualTo(2),
-            reason: 'more than two consecutive blocks of ${first[i]}');
+        expect(
+          run,
+          lessThanOrEqualTo(2),
+          reason: 'more than two consecutive blocks of ${first[i]}',
+        );
       }
     });
   });
@@ -472,8 +497,11 @@ void main() {
         availability: flat(120),
         today: today,
       );
-      expect(plan.feasibility.requiredMinutes, 0,
-          reason: 'work that can never be scheduled is not required work');
+      expect(
+        plan.feasibility.requiredMinutes,
+        0,
+        reason: 'work that can never be scheduled is not required work',
+      );
     });
 
     test('does not drag a live subject down with it', () {
@@ -507,8 +535,11 @@ void main() {
 
       expect(plan.feasibility.fits, isFalse);
       expect(plan.feasibility.warnings.any((w) => w.contains('phys')), isTrue);
-      expect(plan.feasibility.warnings.any((w) => w.contains('bio')), isFalse,
-          reason: 'nothing can be done about bio, so nothing is said about it');
+      expect(
+        plan.feasibility.warnings.any((w) => w.contains('bio')),
+        isFalse,
+        reason: 'nothing can be done about bio, so nothing is said about it',
+      );
     });
   });
 
@@ -524,8 +555,11 @@ void main() {
       final onExamDay = plan.onDate(today);
       expect(onExamDay, isNotEmpty, reason: 'the morning is still usable');
       for (final s in onExamDay) {
-        expect(s.startMinuteOfDay + s.durationMinutes, lessThanOrEqualTo(9 * 60),
-            reason: 'revising after the paper has started is not preparation');
+        expect(
+          s.startMinuteOfDay + s.durationMinutes,
+          lessThanOrEqualTo(9 * 60),
+          reason: 'revising after the paper has started is not preparation',
+        );
       }
     });
 
@@ -643,10 +677,14 @@ void main() {
           .map((s) => s.date)
           .reduce((a, b) => a.isAfter(b) ? a : b);
 
-      for (final s in plan.sessions
-          .where((s) => s.topicId == 'advanced' && !s.isReview)) {
-        expect(s.date.isBefore(lastBasics), isFalse,
-            reason: 'advanced started before basics was finished');
+      for (final s in plan.sessions.where(
+        (s) => s.topicId == 'advanced' && !s.isReview,
+      )) {
+        expect(
+          s.date.isBefore(lastBasics),
+          isFalse,
+          reason: 'advanced started before basics was finished',
+        );
       }
     });
 
@@ -663,16 +701,15 @@ void main() {
 
       expect(plan.sessions, isEmpty);
       expect(plan.feasibility.unscheduledMinutes, 400);
-      expect(
-        plan.feasibility.warnings.any((w) => w.contains('cycle')),
-        isTrue,
-      );
+      expect(plan.feasibility.warnings.any((w) => w.contains('cycle')), isTrue);
     });
 
     test('a prerequisite that does not exist does not deadlock', () {
       final plan = planner.generate(
         subjects: [subject('phys')],
-        topics: [topic('a', 'phys', 200, prereqs: ['ghost'])],
+        topics: [
+          topic('a', 'phys', 200, prereqs: ['ghost']),
+        ],
         availability: flat(100),
         today: today,
       );
@@ -704,10 +741,14 @@ void main() {
       final plan = planner.generate(
         subjects: [subject('phys')],
         topics: [
-          topic('a', 'phys', 100,
-              done: 100,
-              status: TopicStatus.done,
-              completedOn: today.subtract(const Duration(days: 60))),
+          topic(
+            'a',
+            'phys',
+            100,
+            done: 100,
+            status: TopicStatus.done,
+            completedOn: today.subtract(const Duration(days: 60)),
+          ),
         ],
         availability: flat(100),
         today: today,
@@ -791,8 +832,10 @@ void main() {
 
       final day = plan.onDate(today);
       for (var i = 1; i < day.length; i++) {
-        expect(day[i].startMinuteOfDay,
-            greaterThanOrEqualTo(day[i - 1].endMinuteOfDay));
+        expect(
+          day[i].startMinuteOfDay,
+          greaterThanOrEqualTo(day[i - 1].endMinuteOfDay),
+        );
       }
     });
   });

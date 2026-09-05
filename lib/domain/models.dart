@@ -65,11 +65,11 @@ class Resource {
   /// Total units of work this resource represents, in its own unit
   /// (pages, seconds, problems). Null when the resource carries no measure.
   int? get totalUnits => switch (kind) {
-        ResourceKind.book || ResourceKind.pdf => pages,
-        ResourceKind.video => durationSeconds,
-        ResourceKind.problemSet => problemCount,
-        ResourceKind.url => null,
-      };
+    ResourceKind.book || ResourceKind.pdf => pages,
+    ResourceKind.video => durationSeconds,
+    ResourceKind.problemSet => problemCount,
+    ResourceKind.url => null,
+  };
 
   Resource copyWith({int? completedUnits, String? locator, String? title}) =>
       Resource(
@@ -176,21 +176,20 @@ class Topic {
     List<String> prerequisiteIds = const [],
     TopicStatus status = TopicStatus.notStarted,
     DateTime? firstCompletedOn,
-  }) =>
-      Topic(
-        id: id,
-        subjectId: subjectId,
-        title: title,
-        estimatedMinutes: (amount * rate).round().clamp(1, 1 << 30),
-        completedMinutes: completedMinutes,
-        difficulty: difficulty,
-        prerequisiteIds: prerequisiteIds,
-        status: status,
-        firstCompletedOn: firstCompletedOn,
-        estimateUnit: unit,
-        estimateAmount: amount,
-        estimateRate: rate,
-      );
+  }) => Topic(
+    id: id,
+    subjectId: subjectId,
+    title: title,
+    estimatedMinutes: (amount * rate).round().clamp(1, 1 << 30),
+    completedMinutes: completedMinutes,
+    difficulty: difficulty,
+    prerequisiteIds: prerequisiteIds,
+    status: status,
+    firstCompletedOn: firstCompletedOn,
+    estimateUnit: unit,
+    estimateAmount: amount,
+    estimateRate: rate,
+  );
 
   int get remainingMinutes =>
       (estimatedMinutes - completedMinutes).clamp(0, estimatedMinutes);
@@ -213,29 +212,28 @@ class Topic {
     double? estimateRate,
     String? link,
     bool clearLink = false,
-  }) =>
-      Topic(
-        id: id,
-        subjectId: subjectId,
-        title: title ?? this.title,
-        estimatedMinutes: estimatedMinutes ?? this.estimatedMinutes,
-        completedMinutes: completedMinutes ?? this.completedMinutes,
-        difficulty: difficulty ?? this.difficulty,
-        prerequisiteIds: prerequisiteIds ?? this.prerequisiteIds,
-        status: status ?? this.status,
-        firstCompletedOn: firstCompletedOn ?? this.firstCompletedOn,
-        estimateUnit: estimateUnit ?? this.estimateUnit,
-        estimateAmount: estimateAmount ?? this.estimateAmount,
-        estimateRate: estimateRate ?? this.estimateRate,
-        link: clearLink ? null : (link ?? this.link),
-      );
+  }) => Topic(
+    id: id,
+    subjectId: subjectId,
+    title: title ?? this.title,
+    estimatedMinutes: estimatedMinutes ?? this.estimatedMinutes,
+    completedMinutes: completedMinutes ?? this.completedMinutes,
+    difficulty: difficulty ?? this.difficulty,
+    prerequisiteIds: prerequisiteIds ?? this.prerequisiteIds,
+    status: status ?? this.status,
+    firstCompletedOn: firstCompletedOn ?? this.firstCompletedOn,
+    estimateUnit: estimateUnit ?? this.estimateUnit,
+    estimateAmount: estimateAmount ?? this.estimateAmount,
+    estimateRate: estimateRate ?? this.estimateRate,
+    link: clearLink ? null : (link ?? this.link),
+  );
 
   /// "200 pages", "45 problems", "1h 30m" — the estimate as it was entered.
   String get estimateLabel => switch (estimateUnit) {
-        EffortUnit.pages => '$estimateAmount pages',
-        EffortUnit.problems => '$estimateAmount problems',
-        EffortUnit.minutes => formatMinutes(estimateAmount),
-      };
+    EffortUnit.pages => '$estimateAmount pages',
+    EffortUnit.problems => '$estimateAmount problems',
+    EffortUnit.minutes => formatMinutes(estimateAmount),
+  };
 }
 
 /// A course with a deadline. Deadlines drive urgency; weight lets a student
@@ -289,7 +287,10 @@ class Subject {
   ///
   /// A 9am exam against a 06:00–22:00 window leaves 3 of 16 hours, so the
   /// exam day is worth 0.19 of a day rather than a whole one.
-  double examDayShare({required int windowStartMinute, required int windowEndMinute}) {
+  double examDayShare({
+    required int windowStartMinute,
+    required int windowEndMinute,
+  }) {
     final m = examMinuteOfDay;
     if (m == null) return 1;
     final span = windowEndMinute - windowStartMinute;
@@ -383,13 +384,12 @@ class Subject {
     int? examMinuteOfDay,
     int? weight,
     int? colorValue,
-  }) =>
-      Subject(
-        id: id,
-        name: name ?? this.name,
-        examDate: examDate ?? this.examDate,
-        examMinuteOfDay: examMinuteOfDay ?? this.examMinuteOfDay,
-        weight: weight ?? this.weight,
-        colorValue: colorValue ?? this.colorValue,
-      );
+  }) => Subject(
+    id: id,
+    name: name ?? this.name,
+    examDate: examDate ?? this.examDate,
+    examMinuteOfDay: examMinuteOfDay ?? this.examMinuteOfDay,
+    weight: weight ?? this.weight,
+    colorValue: colorValue ?? this.colorValue,
+  );
 }

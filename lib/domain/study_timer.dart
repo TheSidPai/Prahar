@@ -98,8 +98,8 @@ TimerSnapshot snapshotOf(TimerMode mode, Duration elapsed) {
   final inCycle = seconds % mode.cycleSeconds;
   final working = inCycle < mode.workSeconds;
 
-  final focused = cycles * mode.workSeconds +
-      (working ? inCycle : mode.workSeconds);
+  final focused =
+      cycles * mode.workSeconds + (working ? inCycle : mode.workSeconds);
 
   return TimerSnapshot(
     phase: working ? TimerPhase.work : TimerPhase.rest,
@@ -152,13 +152,14 @@ class TimerRun {
     return now.add(Duration(seconds: snapshotAt(now).secondsLeft));
   }
 
-  TimerRun pause(DateTime now) =>
-      isPaused ? this : TimerRun(
-            mode: mode,
-            startedAt: startedAt,
-            accumulatedPause: accumulatedPause,
-            pausedAt: now,
-          );
+  TimerRun pause(DateTime now) => isPaused
+      ? this
+      : TimerRun(
+          mode: mode,
+          startedAt: startedAt,
+          accumulatedPause: accumulatedPause,
+          pausedAt: now,
+        );
 
   TimerRun resume(DateTime now) => !isPaused
       ? this

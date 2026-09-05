@@ -17,7 +17,10 @@ import 'glass.dart';
 /// untrue: a skipped block appears in today's list with an Undo button like
 /// any other logged one, and [AppState.undoLogged] removes it.
 Future<void> confirmSkip(
-    BuildContext context, AppState state, StudySession session) async {
+  BuildContext context,
+  AppState state,
+  StudySession session,
+) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
@@ -26,8 +29,10 @@ Future<void> confirmSkip(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(session.topicTitle,
-              style: Theme.of(context).textTheme.titleSmall),
+          Text(
+            session.topicTitle,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
           const SizedBox(height: 12),
           Text(
             'The work moves to a later day, and today loses '
@@ -39,8 +44,8 @@ Future<void> confirmSkip(
           Text(
             'You can undo it from today’s list.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -66,7 +71,10 @@ Future<void> confirmSkip(
 /// is strictly better evidence — this dialog remains for blocks done away
 /// from the app.
 Future<void> confirmDone(
-    BuildContext context, AppState state, StudySession session) async {
+  BuildContext context,
+  AppState state,
+  StudySession session,
+) async {
   var minutes = session.durationMinutes;
 
   final result = await showDialog<int>(
@@ -79,8 +87,10 @@ Future<void> confirmDone(
           children: [
             Text(session.topicTitle),
             const SizedBox(height: 16),
-            Text(formatMinutes(minutes),
-                style: Theme.of(context).textTheme.headlineSmall),
+            Text(
+              formatMinutes(minutes),
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
             Slider(
               value: minutes.toDouble(),
               min: 5,
@@ -137,14 +147,18 @@ class BatteryWarning extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            const Icon(Icons.battery_alert, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text('Reminders will not arrive',
-                  style: theme.textTheme.titleSmall),
-            ),
-          ]),
+          Row(
+            children: [
+              const Icon(Icons.battery_alert, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Reminders will not arrive',
+                  style: theme.textTheme.titleSmall,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 6),
           Text(
             'Android is allowed to freeze Prahar in the background, so study '
@@ -195,17 +209,19 @@ class ExactAlarmWarning extends StatelessWidget {
         color: theme.colorScheme.tertiaryContainer,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(children: [
-        const Icon(Icons.alarm_off, size: 20),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            'Exact alarms are off, so reminders may arrive late. Enable '
-            '"Alarms & reminders" for Prahar in Android settings.',
-            style: theme.textTheme.bodySmall,
+      child: Row(
+        children: [
+          const Icon(Icons.alarm_off, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Exact alarms are off, so reminders may arrive late. Enable '
+              '"Alarms & reminders" for Prahar in Android settings.',
+              style: theme.textTheme.bodySmall,
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -255,21 +271,29 @@ class FeasibilityBanner extends StatelessWidget {
     if (feasibility.fits) {
       if (feasibility.requiredMinutes == 0) return const SizedBox.shrink();
 
-      final summary = '${formatMinutes(feasibility.requiredMinutes)} of work '
+      final summary =
+          '${formatMinutes(feasibility.requiredMinutes)} of work '
           'across ${formatMinutes(feasibility.availableMinutes)} of study time.';
 
       if (condensed) {
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
-          child: Row(children: [
-            Icon(Icons.check_circle_outline,
-                size: 14, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text('The plan fits · $summary',
-                  style: theme.textTheme.bodySmall),
-            ),
-          ]),
+          child: Row(
+            children: [
+              Icon(
+                Icons.check_circle_outline,
+                size: 14,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'The plan fits · $summary',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+            ],
+          ),
         );
       }
 
@@ -306,19 +330,23 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final glass = context.select<AppState, MaterialChoice>(
-            (s) => s.prefs.materialChoice) ==
+    final glass =
+        context.select<AppState, MaterialChoice>(
+          (s) => s.prefs.materialChoice,
+        ) ==
         MaterialChoice.glass;
     final radius = BorderRadius.circular(14);
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          Icon(icon, size: 20),
-          const SizedBox(width: 8),
-          Text(title, style: theme.textTheme.titleSmall),
-        ]),
+        Row(
+          children: [
+            Icon(icon, size: 20),
+            const SizedBox(width: 8),
+            Text(title, style: theme.textTheme.titleSmall),
+          ],
+        ),
         const SizedBox(height: 6),
         for (final line in lines)
           Padding(
@@ -374,85 +402,84 @@ class SessionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final inner = Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 42,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(children: [
-                      Text(
-                        formatClock(session.startMinuteOfDay),
-                        style: theme.textTheme.labelLarge,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        formatMinutes(session.durationMinutes),
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      if (session.isReview) ...[
-                        const SizedBox(width: 8),
-                        const _Chip(label: 'review'),
-                      ],
-                    ]),
-                    const SizedBox(height: 2),
                     Text(
-                      session.topicTitle,
-                      style: theme.textTheme.bodyLarge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      formatClock(session.startMinuteOfDay),
+                      style: theme.textTheme.labelLarge,
                     ),
+                    const SizedBox(width: 8),
                     Text(
-                      session.subjectName,
+                      formatMinutes(session.durationMinutes),
                       style: theme.textTheme.bodySmall,
                     ),
+                    if (session.isReview) ...[
+                      const SizedBox(width: 8),
+                      const _Chip(label: 'review'),
+                    ],
                   ],
                 ),
-              ),
-              // Labelled, not bare icons: a check and a clock face gave no
-              // hint which was which, and one of them is irreversible.
-              if (!handled && onSkip != null)
-                TextButton(
-                  onPressed: onSkip,
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                  ),
-                  child: const Text('Skip'),
+                const SizedBox(height: 2),
+                Text(
+                  session.topicTitle,
+                  style: theme.textTheme.bodyLarge,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              if (!handled && onDone != null)
-                FilledButton.tonal(
-                  onPressed: onDone,
-                  // The theme paints every FilledButton in full amber, and
-                  // one FilledButtonThemeData serves the tonal variant too.
-                  // A tile carries one of these per block, so it asks for the
-                  // quiet half of the accent family back explicitly.
-                  style: FilledButton.styleFrom(
-                    backgroundColor: theme.colorScheme.secondaryContainer,
-                    foregroundColor: theme.colorScheme.onSecondaryContainer,
-                    minimumSize: const Size(0, 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                  ),
-                  child: const Text('Done'),
-                ),
-              if (handled)
-                const Padding(
-                  padding: EdgeInsets.only(right: 8),
-                  child: Icon(Icons.check, size: 20),
-                ),
-            ],
+                Text(session.subjectName, style: theme.textTheme.bodySmall),
+              ],
+            ),
           ),
-        );
+          // Labelled, not bare icons: a check and a clock face gave no
+          // hint which was which, and one of them is irreversible.
+          if (!handled && onSkip != null)
+            TextButton(
+              onPressed: onSkip,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, 36),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+              ),
+              child: const Text('Skip'),
+            ),
+          if (!handled && onDone != null)
+            FilledButton.tonal(
+              onPressed: onDone,
+              // The theme paints every FilledButton in full amber, and
+              // one FilledButtonThemeData serves the tonal variant too.
+              // A tile carries one of these per block, so it asks for the
+              // quiet half of the accent family back explicitly.
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.secondaryContainer,
+                foregroundColor: theme.colorScheme.onSecondaryContainer,
+                minimumSize: const Size(0, 36),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+              ),
+              child: const Text('Done'),
+            ),
+          if (handled)
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Icon(Icons.check, size: 20),
+            ),
+        ],
+      ),
+    );
 
     return Opacity(
       opacity: handled ? 0.45 : 1,
@@ -518,7 +545,7 @@ class LoggedTile extends StatelessWidget {
                       entry.wasSkipped
                           ? '${entry.subjectName} · skipped'
                           : '${entry.subjectName} · '
-                              '${formatMinutes(entry.actualMinutes)}',
+                                '${formatMinutes(entry.actualMinutes)}',
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
@@ -594,8 +621,9 @@ class EmptyState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.outline),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
             ),
             if (action != null) ...[const SizedBox(height: 18), action!],
           ],

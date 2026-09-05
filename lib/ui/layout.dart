@@ -49,11 +49,10 @@ class ReadableColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints:
-              BoxConstraints(maxWidth: maxWidth ?? Layout.readableWidth),
-          child: child,
-        ),
-      );
+    alignment: Alignment.topCenter,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth ?? Layout.readableWidth),
+      child: child,
+    ),
+  );
 }

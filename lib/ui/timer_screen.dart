@@ -101,7 +101,7 @@ class _TimerScreenState extends State<TimerScreen> {
       title: working ? 'Break time' : 'Back to it',
       body: working
           ? '${_mode.workMinutes} minutes done. '
-              '${_mode.restMinutes} minutes off.'
+                '${_mode.restMinutes} minutes off.'
           : 'Break over — ${widget.session.topicTitle}.',
     );
   }
@@ -117,12 +117,16 @@ class _TimerScreenState extends State<TimerScreen> {
   /// Logs the focused minutes against the block and leaves.
   Future<void> _finish() async {
     final run = _run;
-    final minutes = run == null ? 0 : run.snapshotAt(DateTime.now()).focusedMinutes;
+    final minutes = run == null
+        ? 0
+        : run.snapshotAt(DateTime.now()).focusedMinutes;
     final state = context.read<AppState>();
 
     _ticker?.cancel();
     await state.notifier.cancelTimerAlert();
-    if (minutes > 0) await state.markDone(widget.session, actualMinutes: minutes);
+    if (minutes > 0) {
+      await state.markDone(widget.session, actualMinutes: minutes);
+    }
 
     if (mounted) Navigator.pop(context, minutes);
   }
@@ -180,8 +184,10 @@ class _TimerScreenState extends State<TimerScreen> {
     final run = _run;
     final now = DateTime.now();
     final snap = run?.snapshotAt(now);
-    final glass = context.select<AppState, MaterialChoice>(
-            (s) => s.prefs.materialChoice) ==
+    final glass =
+        context.select<AppState, MaterialChoice>(
+          (s) => s.prefs.materialChoice,
+        ) ==
         MaterialChoice.glass;
 
     final body = Center(
@@ -238,10 +244,7 @@ class _TimerScreenState extends State<TimerScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Focus'),
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: _leave,
-          ),
+          leading: IconButton(icon: const Icon(Icons.close), onPressed: _leave),
         ),
         body: body,
       ),
@@ -249,71 +252,69 @@ class _TimerScreenState extends State<TimerScreen> {
   }
 
   List<Widget> _modePicker(ThemeData theme) => [
-        for (final mode in TimerMode.all)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(
-                  color: mode.name == _mode.name
-                      ? PraharTheme.accent
-                      : theme.colorScheme.outlineVariant,
-                  width: mode.name == _mode.name ? 2 : 1,
-                ),
-              ),
-              child: ListTile(
-                title: Text(mode.label),
-                subtitle: Text(mode.flavour),
-                trailing: mode.name == _mode.name
-                    ? const Icon(Icons.check_circle, size: 20)
-                    : null,
-                onTap: () => setState(() => _mode = mode),
-              ),
+    for (final mode in TimerMode.all)
+      Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: mode.name == _mode.name
+                  ? PraharTheme.accent
+                  : theme.colorScheme.outlineVariant,
+              width: mode.name == _mode.name ? 2 : 1,
             ),
           ),
-        const SizedBox(height: 10),
-        FilledButton.icon(
-          onPressed: _start,
-          icon: const Icon(Icons.play_arrow),
-          label: const Text('Start'),
+          child: ListTile(
+            title: Text(mode.label),
+            subtitle: Text(mode.flavour),
+            trailing: mode.name == _mode.name
+                ? const Icon(Icons.check_circle, size: 20)
+                : null,
+            onTap: () => setState(() => _mode = mode),
+          ),
         ),
-      ];
+      ),
+    const SizedBox(height: 10),
+    FilledButton.icon(
+      onPressed: _start,
+      icon: const Icon(Icons.play_arrow),
+      label: const Text('Start'),
+    ),
+  ];
 
   List<Widget> _controls(TimerSnapshot snap) => [
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _togglePause,
-                icon: Icon(_run!.isPaused ? Icons.play_arrow : Icons.pause),
-                label: Text(_run!.isPaused ? 'Resume' : 'Pause'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 48),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: snap.focusedMinutes > 0 ? _finish : null,
-                icon: const Icon(Icons.check),
-                label: const Text('Log it'),
-                style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
-              ),
-            ),
-          ],
+    Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _togglePause,
+            icon: Icon(_run!.isPaused ? Icons.play_arrow : Icons.pause),
+            label: Text(_run!.isPaused ? 'Resume' : 'Pause'),
+            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+          ),
         ),
-        const SizedBox(height: 10),
-        Text(
-          snap.completedIntervals == 0
-              ? 'Logging stops the timer and records the focused time.'
-              : '${snap.completedIntervals} interval'
-                  '${snap.completedIntervals == 1 ? '' : 's'} done',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall,
+        const SizedBox(width: 12),
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: snap.focusedMinutes > 0 ? _finish : null,
+            icon: const Icon(Icons.check),
+            label: const Text('Log it'),
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+          ),
         ),
-      ];
+      ],
+    ),
+    const SizedBox(height: 10),
+    Text(
+      snap.completedIntervals == 0
+          ? 'Logging stops the timer and records the focused time.'
+          : '${snap.completedIntervals} interval'
+                '${snap.completedIntervals == 1 ? '' : 's'} done',
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.bodySmall,
+    ),
+  ];
 }
 
 /// The countdown itself: a ring that empties over the phase, with the clock in
@@ -379,8 +380,8 @@ class _Dial extends StatelessWidget {
                 snap == null
                     ? mode.flavour
                     : paused
-                        ? 'Paused'
-                        : (snap.isWorking ? 'Focus' : 'Break'),
+                    ? 'Paused'
+                    : (snap.isWorking ? 'Focus' : 'Break'),
                 style: theme.textTheme.labelSmall?.copyWith(
                   letterSpacing: 1.4,
                   color: theme.colorScheme.onSurfaceVariant,

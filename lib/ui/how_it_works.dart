@@ -15,11 +15,9 @@ class HowItWorks extends StatelessWidget {
   final bool showAppBar;
 
   static Future<void> open(BuildContext context) => Navigator.push(
-        context,
-        MaterialPageRoute<void>(
-          builder: (_) => const HowItWorks(showAppBar: true),
-        ),
-      );
+    context,
+    MaterialPageRoute<void>(builder: (_) => const HowItWorks(showAppBar: true)),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -37,21 +35,24 @@ class HowItWorks extends StatelessWidget {
         const _Step(
           n: '1',
           title: 'Add a subject',
-          body: 'Give it an exam date. That date is what makes the schedule '
+          body:
+              'Give it an exam date. That date is what makes the schedule '
               'urgent — without one, Prahar treats the subject as background '
               'work and everything else takes priority.',
         ),
         _Step(
           n: '2',
           title: 'Break it into topics',
-          body: 'Chapters work well. For each one you enter pages, problems '
+          body:
+              'Chapters work well. For each one you enter pages, problems '
               'or minutes — pages are easiest, and Prahar converts them. It '
               'then learns your real reading speed and corrects the estimate.',
         ),
         _Step(
           n: '3',
           title: 'Say when you are free',
-          body: 'In Settings → Study window, set the hours blocks may be '
+          body:
+              'In Settings → Study window, set the hours blocks may be '
               'placed between. In Busy slots, mark class hours, lunch, a shift '
               '— anything the schedule should route around. Then Study time '
               'says how many minutes you can genuinely spend each day.',
@@ -59,7 +60,8 @@ class HowItWorks extends StatelessWidget {
         const _Step(
           n: '4',
           title: 'Follow Today, and tell it the truth',
-          body: 'Mark blocks done with the time they actually took. Missing a '
+          body:
+              'Mark blocks done with the time they actually took. Missing a '
               'day is fine — the plan is rebuilt from scratch every time '
               'anything changes, so work moves forward instead of piling up '
               'as overdue.',
@@ -134,14 +136,26 @@ class _TabGuide extends StatelessWidget {
 
   static const _tabs = [
     (Icons.today_outlined, 'Today', 'What to study now, and nothing else.'),
-    (Icons.calendar_month_outlined, 'Plan',
-        'Two views: Days shows the next fortnight; Month shows the exam calendar.'),
-    (Icons.insights_outlined, 'Progress',
-        'How far through each subject you are, and how many minutes a day it now needs.'),
-    (Icons.library_books_outlined, 'Subjects',
-        'Your syllabus: subjects, their topics, and what is left.'),
-    (Icons.settings_outlined, 'Settings',
-        'Study time, busy slots, appearance, and reminders.'),
+    (
+      Icons.calendar_month_outlined,
+      'Plan',
+      'Two views: Days shows the next fortnight; Month shows the exam calendar.',
+    ),
+    (
+      Icons.insights_outlined,
+      'Progress',
+      'How far through each subject you are, and how many minutes a day it now needs.',
+    ),
+    (
+      Icons.library_books_outlined,
+      'Subjects',
+      'Your syllabus: subjects, their topics, and what is left.',
+    ),
+    (
+      Icons.settings_outlined,
+      'Settings',
+      'Study time, busy slots, appearance, and reminders.',
+    ),
   ];
 
   @override
@@ -207,11 +221,23 @@ class _ScheduleRules extends StatelessWidget {
 
     final rules = <(String, String)>[
       ('Study window', '${hhmm(c.dayStartMinute)} to ${hhmm(c.dayEndMinute)}'),
-      ('Block length', 'up to ${c.maxSessionMinutes} min, never under ${c.minSessionMinutes}'),
+      (
+        'Block length',
+        'up to ${c.maxSessionMinutes} min, never under ${c.minSessionMinutes}',
+      ),
       ('Break between blocks', '${c.breakMinutes} min'),
-      ('Same subject in a row', 'at most ${c.maxConsecutiveSameSubject}, so subjects interleave'),
-      ('Reviews after finishing', 'day ${c.reviewOffsetDays.join(', ')} afterwards'),
-      ('Order', 'whichever subject needs the most minutes per day to finish in time'),
+      (
+        'Same subject in a row',
+        'at most ${c.maxConsecutiveSameSubject}, so subjects interleave',
+      ),
+      (
+        'Reviews after finishing',
+        'day ${c.reviewOffsetDays.join(', ')} afterwards',
+      ),
+      (
+        'Order',
+        'whichever subject needs the most minutes per day to finish in time',
+      ),
     ];
 
     return Card(
@@ -220,8 +246,10 @@ class _ScheduleRules extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Why blocks land where they do',
-                style: theme.textTheme.titleSmall),
+            Text(
+              'Why blocks land where they do',
+              style: theme.textTheme.titleSmall,
+            ),
             const SizedBox(height: 10),
             for (final (k, v) in rules)
               Padding(
@@ -276,12 +304,16 @@ class _Honesty extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            const Icon(Icons.balance, size: 18),
-            const SizedBox(width: 8),
-            Text('It will tell you when it does not fit',
-                style: theme.textTheme.titleSmall),
-          ]),
+          Row(
+            children: [
+              const Icon(Icons.balance, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'It will tell you when it does not fit',
+                style: theme.textTheme.titleSmall,
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Text(
             'If the work needs more hours than you have before an exam, Prahar '

@@ -62,15 +62,21 @@ class Calibrator {
   }) {
     final minutesByTopic = <String, int>{};
     for (final s in completed) {
-      minutesByTopic.update(s.topicId, (v) => v + s.actualMinutes,
-          ifAbsent: () => s.actualMinutes);
+      minutesByTopic.update(
+        s.topicId,
+        (v) => v + s.actualMinutes,
+        ifAbsent: () => s.actualMinutes,
+      );
     }
 
     final byGroup = <_GroupKey, _GroupAccum>{};
     for (final topic in topics) {
       if (topic.estimateUnit == EffortUnit.minutes) continue;
       final key = _GroupKey(topic.subjectId, topic.estimateUnit);
-      final accum = byGroup.putIfAbsent(key, () => _GroupAccum(topic.estimateRate));
+      final accum = byGroup.putIfAbsent(
+        key,
+        () => _GroupAccum(topic.estimateRate),
+      );
       accum.topicIds.add(topic.id);
 
       // The prior rate itself becomes a shrinkage-weighted sample for every
@@ -78,10 +84,12 @@ class Calibrator {
       // when only one or two topics have completed.
       final actualMinutes = minutesByTopic[topic.id] ?? 0;
       if (!topic.isDone || actualMinutes <= 0) continue;
-      accum.samples.add(CalibrationSample(
-        units: topic.estimateAmount.toDouble(),
-        actualMinutes: actualMinutes.toDouble(),
-      ));
+      accum.samples.add(
+        CalibrationSample(
+          units: topic.estimateAmount.toDouble(),
+          actualMinutes: actualMinutes.toDouble(),
+        ),
+      );
     }
 
     final out = <CalibrationSuggestion>[];
@@ -103,18 +111,19 @@ class Calibrator {
       }
       if (affected.isEmpty) continue;
 
-      out.add(CalibrationSuggestion(
-        subjectId: entry.key.subjectId,
-        unit: entry.key.unit,
-        currentRate: entry.value.priorRate,
-        recommendedRate: rec.rate,
-        sampleCount: rec.samples,
-        affectedTopicIds: affected,
-      ));
+      out.add(
+        CalibrationSuggestion(
+          subjectId: entry.key.subjectId,
+          unit: entry.key.unit,
+          currentRate: entry.value.priorRate,
+          recommendedRate: rec.rate,
+          sampleCount: rec.samples,
+          affectedTopicIds: affected,
+        ),
+      );
     }
     return out;
   }
-
 }
 
 class _GroupKey {

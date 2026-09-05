@@ -53,7 +53,7 @@ class BackupIO {
             'exam_minute': s.examMinuteOfDay,
             'weight': s.weight,
             'color': s.colorValue,
-          }
+          },
       ],
       'topics': [
         for (final t in topics)
@@ -71,7 +71,7 @@ class BackupIO {
             'estimate_amount': t.estimateAmount,
             'estimate_rate': t.estimateRate,
             'link': t.link,
-          }
+          },
       ],
       'availability': {
         'weekly': {
@@ -104,7 +104,11 @@ class BackupIO {
         ? Directory('/sdcard/Download/Prahar')
         : Directory.systemTemp;
     await dir.create(recursive: true);
-    final stamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+    final stamp = DateTime.now()
+        .toIso8601String()
+        .replaceAll(':', '-')
+        .split('.')
+        .first;
     final path = p.join(dir.path, 'prahar-backup-$stamp.json');
     await File(path).writeAsString(await serialise(), flush: true);
     return path;
@@ -151,8 +155,8 @@ class BackupIO {
           estimatedMinutes: (t['estimated_minutes'] as num).toInt(),
           completedMinutes: (t['completed_minutes'] as num?)?.toInt() ?? 0,
           difficulty: (t['difficulty'] as num?)?.toInt() ?? 3,
-          prerequisiteIds:
-              (t['prerequisite_ids'] as List? ?? const []).cast<String>(),
+          prerequisiteIds: (t['prerequisite_ids'] as List? ?? const [])
+              .cast<String>(),
           status: TopicStatus.values.firstWhere(
             (v) => v.name == t['status'],
             orElse: () => TopicStatus.notStarted,
@@ -163,7 +167,8 @@ class BackupIO {
             orElse: () => EffortUnit.minutes,
           ),
           estimateAmount:
-              (t['estimate_amount'] as num?)?.toInt() ?? (t['estimated_minutes'] as num).toInt(),
+              (t['estimate_amount'] as num?)?.toInt() ??
+              (t['estimated_minutes'] as num).toInt(),
           estimateRate: (t['estimate_rate'] as num?)?.toDouble() ?? 1.0,
           link: t['link'] as String?,
         ),
@@ -196,12 +201,18 @@ class BackupIO {
 
     // Now write. Delete children first so the cascade is deterministic.
     await db.clearAll();
-    for (final s in subjects) { await db.upsertSubject(s); }
-    for (final t in topics) { await db.upsertTopic(t); }
+    for (final s in subjects) {
+      await db.upsertSubject(s);
+    }
+    for (final t in topics) {
+      await db.upsertTopic(t);
+    }
     await db.saveAvailability(
       Availability(minutesByWeekday: weekly, overrides: overrides, busy: []),
     );
-    for (final b in busy) { await db.upsertBusySlot(b); }
+    for (final b in busy) {
+      await db.upsertBusySlot(b);
+    }
     for (final e in settings.entries) {
       await db.putSetting(e.key, e.value);
     }

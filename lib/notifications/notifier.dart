@@ -43,8 +43,9 @@ class Notifier {
   /// perfect silence, because there was no sound to play. Pointing at
   /// `alarm_alert` both fixes that and matches the alarm-stream routing below.
   /// It resolves at play time, so the user's own alarm tone is respected.
-  static const _alarmSound =
-      UriAndroidNotificationSound('content://settings/system/alarm_alert');
+  static const _alarmSound = UriAndroidNotificationSound(
+    'content://settings/system/alarm_alert',
+  );
 
   /// Study blocks are announced at alarm volume rather than notification
   /// volume. The channel was already IMPORTANCE_HIGH and audibly configured,
@@ -95,8 +96,10 @@ class Notifier {
     // Channels are immutable, so each audio change needs a new id. Remove the
     // superseded ones so the user's notification settings list does not fill
     // up with identically-named dead channels.
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     for (final old in _retiredChannelIds) {
       try {
         await android?.deleteNotificationChannel(old);
@@ -140,8 +143,10 @@ class Notifier {
 
   /// Android 13+ requires the user to grant notifications explicitly.
   Future<bool> requestPermissions() async {
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (android == null) return true;
 
     final granted = await android.requestNotificationsPermission() ?? false;
@@ -165,8 +170,9 @@ class Notifier {
   Future<bool> isBatteryExempt() async {
     if (!Platform.isAndroid) return true;
     try {
-      final v = await _batteryChannel
-          .invokeMethod<bool>('isIgnoringBatteryOptimizations');
+      final v = await _batteryChannel.invokeMethod<bool>(
+        'isIgnoringBatteryOptimizations',
+      );
       return v ?? true;
     } catch (e) {
       // Never nag on the strength of a failed check.
@@ -183,8 +189,9 @@ class Notifier {
   Future<bool> requestBatteryExemption() async {
     if (!Platform.isAndroid) return true;
     try {
-      final opened = await _batteryChannel
-          .invokeMethod<bool>('requestIgnoreBatteryOptimizations');
+      final opened = await _batteryChannel.invokeMethod<bool>(
+        'requestIgnoreBatteryOptimizations',
+      );
       return opened ?? false;
     } catch (e) {
       debugPrint('Prahar: battery exemption request failed: $e');
@@ -193,8 +200,10 @@ class Notifier {
   }
 
   Future<bool> canScheduleExact() async {
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (android == null) return true;
     return await android.canScheduleExactNotifications() ?? true;
   }
@@ -220,11 +229,14 @@ class Notifier {
     }
 
     final horizon = from.add(const Duration(days: windowDays));
-    final upcoming = plan.sessions
-        .where((s) => s.status == SessionStatus.planned)
-        .where((s) => s.startsAt.isAfter(from) && s.startsAt.isBefore(horizon))
-        .toList()
-      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+    final upcoming =
+        plan.sessions
+            .where((s) => s.status == SessionStatus.planned)
+            .where(
+              (s) => s.startsAt.isAfter(from) && s.startsAt.isBefore(horizon),
+            )
+            .toList()
+          ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 
     for (final session in upcoming.take(maxPending)) {
       await _scheduleSession(session);
@@ -268,8 +280,7 @@ class Notifier {
   ///
   /// Ids live in their own range so [syncFromPlan] (≥ [_sessionIdBase]) never
   /// touches them and vice versa.
-  Future<void> syncDigests(
-      List<({DateTime when, String body})> entries) async {
+  Future<void> syncDigests(List<({DateTime when, String body})> entries) async {
     await init();
 
     for (final p in await _plugin.pendingNotificationRequests()) {

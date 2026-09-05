@@ -105,8 +105,8 @@ class PlanScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(30, 2, 16, 10),
                 child: Text(
                   capacity == 0 ? 'Day off' : 'Nothing scheduled',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.outline),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: Theme.of(context).colorScheme.outline),
                 ),
               )
             else
@@ -114,7 +114,8 @@ class PlanScreen extends StatelessWidget {
                 SessionTile(
                   session: s,
                   color: Color(
-                      state.subjectFor(s.subjectId)?.colorValue ?? 0xFF4F46E5),
+                    state.subjectFor(s.subjectId)?.colorValue ?? 0xFF4F46E5,
+                  ),
                 ),
           ],
         );
@@ -136,9 +137,7 @@ class _DaySection extends StatelessWidget {
   final int capacity;
   final List<Widget> children;
 
-  static const _weekdays = [
-    'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
-  ];
+  static const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   @override
   Widget build(BuildContext context) {
@@ -148,18 +147,20 @@ class _DaySection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-          child: Row(children: [
-            Text(
-              isToday
-                  ? 'Today'
-                  : '${_weekdays[day.weekday - 1]} ${formatDate(day)}',
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: isToday ? theme.colorScheme.primary : null,
+          child: Row(
+            children: [
+              Text(
+                isToday
+                    ? 'Today'
+                    : '${_weekdays[day.weekday - 1]} ${formatDate(day)}',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: isToday ? theme.colorScheme.primary : null,
+                ),
               ),
-            ),
-            const Spacer(),
-            Text(formatMinutes(capacity), style: theme.textTheme.bodySmall),
-          ]),
+              const Spacer(),
+              Text(formatMinutes(capacity), style: theme.textTheme.bodySmall),
+            ],
+          ),
         ),
         ...children,
       ],
@@ -200,58 +201,66 @@ class _ProgressScreenState extends State<ProgressScreen> {
     // would hold the percentage down for good over work that can no longer be
     // done, which reads as failure rather than as history.
     final total = active.fold(
-        0, (a, s) => a + state.topicsFor(s.id).fold(0, (b, t) => b + t.estimatedMinutes));
+      0,
+      (a, s) =>
+          a + state.topicsFor(s.id).fold(0, (b, t) => b + t.estimatedMinutes),
+    );
     final done = active.fold(
-        0, (a, s) => a + state.topicsFor(s.id).fold(0, (b, t) => b + t.completedMinutes));
+      0,
+      (a, s) =>
+          a + state.topicsFor(s.id).fold(0, (b, t) => b + t.completedMinutes),
+    );
 
     // Capped rather than stretched: a progress card three feet wide is not
     // more informative, only harder to read across.
     return ReadableColumn(
       child: ListView(
-      padding: const EdgeInsets.only(top: 8, bottom: 90),
-      children: [
-        _OverallCard(done: done, total: total, streak: state.streak),
-        const _CalibrationSection(),
-        for (final subject in active)
-          _SubjectProgress(
-            subject: subject,
-            topics: state.topicsFor(subject.id),
-            prefs: state.prefs,
-          ),
+        padding: const EdgeInsets.only(top: 8, bottom: 90),
+        children: [
+          _OverallCard(done: done, total: total, streak: state.streak),
+          const _CalibrationSection(),
+          for (final subject in active)
+            _SubjectProgress(
+              subject: subject,
+              topics: state.topicsFor(subject.id),
+              prefs: state.prefs,
+            ),
 
-        if (archived.isNotEmpty) ...[
-          const SizedBox(height: 12),
+          if (archived.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  'Archive · ${archived.length}',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                subtitle: const Text('Subjects whose exam has passed'),
+                trailing: Icon(
+                  _showArchive ? Icons.expand_less : Icons.expand_more,
+                ),
+                onTap: () => setState(() => _showArchive = !_showArchive),
+              ),
+            ),
+            if (_showArchive)
+              for (final subject in archived)
+                _SubjectProgress(
+                  subject: subject,
+                  topics: state.topicsFor(subject.id),
+                  prefs: state.prefs,
+                ),
+          ],
+
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text('Archive · ${archived.length}',
-                  style: Theme.of(context).textTheme.titleSmall),
-              subtitle: const Text('Subjects whose exam has passed'),
-              trailing:
-                  Icon(_showArchive ? Icons.expand_less : Icons.expand_more),
-              onTap: () => setState(() => _showArchive = !_showArchive),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: Text(
+              'Tap a subject to see its topics.',
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: Theme.of(context).colorScheme.outline),
             ),
           ),
-          if (_showArchive)
-            for (final subject in archived)
-              _SubjectProgress(
-                subject: subject,
-                topics: state.topicsFor(subject.id),
-                prefs: state.prefs,
-              ),
         ],
-
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-          child: Text(
-            'Tap a subject to see its topics.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-          ),
-        ),
-      ],
       ),
     );
   }
@@ -312,12 +321,17 @@ class _CalibrationCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [
-                Icon(Icons.auto_awesome_outlined,
-                    size: 18, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Text('Estimate learned', style: theme.textTheme.titleSmall),
-              ]),
+              Row(
+                children: [
+                  Icon(
+                    Icons.auto_awesome_outlined,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Estimate learned', style: theme.textTheme.titleSmall),
+                ],
+              ),
               const SizedBox(height: 8),
               Text(
                 'Your ${subject.name} $unitLabel takes '
@@ -351,9 +365,10 @@ class _CalibrationCard extends StatelessWidget {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                              'Updated ${suggestion.affectedTopicIds.length} '
-                              '${subject.name} topic'
-                              '${suggestion.affectedTopicIds.length == 1 ? '' : 's'}.'),
+                            'Updated ${suggestion.affectedTopicIds.length} '
+                            '${subject.name} topic'
+                            '${suggestion.affectedTopicIds.length == 1 ? '' : 's'}.',
+                          ),
                           duration: const Duration(seconds: 4),
                         ),
                       );
@@ -396,8 +411,10 @@ class _OverallCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('${(pct * 100).round()}%',
-                    style: theme.textTheme.displaySmall),
+                Text(
+                  '${(pct * 100).round()}%',
+                  style: theme.textTheme.displaySmall,
+                ),
                 const SizedBox(width: 10),
                 // Expanded rather than a plain Text plus Spacer. A Spacer does
                 // not stop a Row overflowing — inflexible children are laid
@@ -409,24 +426,33 @@ class _OverallCard extends StatelessWidget {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Text('of everything covered',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant)),
+                    child: Text(
+                      'of everything covered',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ),
                 ),
                 if (streak > 0)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(children: [
-                      Icon(Icons.local_fire_department,
-                          size: 18, color: theme.colorScheme.tertiary),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$streak d',
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(color: theme.colorScheme.tertiary),
-                      ),
-                    ]),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.local_fire_department,
+                          size: 18,
+                          color: theme.colorScheme.tertiary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$streak d',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.tertiary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
               ],
             ),
@@ -505,27 +531,29 @@ class _SubjectProgress extends StatelessWidget {
               // row with the deadline, which collided the moment a subject was
               // called something like "Data Structures and Algorithms" — the
               // name is the one string here the app does not control.
-              Row(children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: Color(subject.colorValue),
-                    shape: BoxShape.circle,
+              Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Color(subject.colorValue),
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    subject.name,
-                    style: theme.textTheme.titleMedium,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      subject.name,
+                      style: theme.textTheme.titleMedium,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(Icons.chevron_right, size: 18),
-              ]),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right, size: 18),
+                ],
+              ),
               const SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
@@ -561,9 +589,12 @@ class _SubjectProgress extends StatelessWidget {
               ],
               if (remaining == 0 && total > 0) ...[
                 const SizedBox(height: 4),
-                Text('Covered — reviews continue',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.primary)),
+                Text(
+                  'Covered — reviews continue',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
               ],
             ],
           ),

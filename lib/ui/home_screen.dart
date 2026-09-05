@@ -55,9 +55,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final state = context.watch<AppState>();
 
     if (state.loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final size = MediaQuery.sizeOf(context);
@@ -92,8 +90,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // The wrapper paints the tint; the bar's own fill would sit on top of
         // the blur and defeat it.
         backgroundColor: glassBar ? Colors.transparent : null,
-        flexibleSpace:
-            glassBar ? const GlassSurface(child: SizedBox.expand()) : null,
+        flexibleSpace: glassBar
+            ? const GlassSurface(child: SizedBox.expand())
+            : null,
         // Today carries the mark instead of the word "Today". The tab is
         // already labelled in the nav bar and the full date sits in the
         // header just below, so that title line was spending itself on a
@@ -209,33 +208,36 @@ class _NavRail extends StatelessWidget {
       width: 88,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: IntrinsicHeight(
-            child: NavigationRail(
-              selectedIndex: selectedIndex,
-              onDestinationSelected: onDestinationSelected,
-              backgroundColor: glass ? Colors.transparent : null,
-              indicatorColor: theme.colorScheme.primary.withValues(
-                  alpha: theme.brightness == Brightness.dark ? 0.20 : 0.12),
-              // Labels always, as in the bottom bar. An icon-only rail asks
-              // the user to learn five glyphs for no gain — the width is
-              // there, and the two layouts should not disagree about what the
-              // destinations are called.
-              labelType: NavigationRailLabelType.all,
-              groupAlignment: -0.9,
-              destinations: [
-                for (final d in _destinations)
-                  NavigationRailDestination(
-                    icon: d.icon,
-                    selectedIcon: d.selectedIcon,
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    label: Text(
-                      d.label,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                          letterSpacing: 0.2, fontWeight: FontWeight.w500),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: NavigationRail(
+                selectedIndex: selectedIndex,
+                onDestinationSelected: onDestinationSelected,
+                backgroundColor: glass ? Colors.transparent : null,
+                indicatorColor: theme.colorScheme.primary.withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.20 : 0.12,
+                ),
+                // Labels always, as in the bottom bar. An icon-only rail asks
+                // the user to learn five glyphs for no gain — the width is
+                // there, and the two layouts should not disagree about what the
+                // destinations are called.
+                labelType: NavigationRailLabelType.all,
+                groupAlignment: -0.9,
+                destinations: [
+                  for (final d in _destinations)
+                    NavigationRailDestination(
+                      icon: d.icon,
+                      selectedIcon: d.selectedIcon,
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      label: Text(
+                        d.label,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          letterSpacing: 0.2,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),

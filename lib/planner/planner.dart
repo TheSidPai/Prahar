@@ -138,8 +138,12 @@ class Planner {
     // Reviews owed for topics finished before this plan was generated.
     for (final t in topics) {
       if (t.isDone && t.firstCompletedOn != null) {
-        _queueReviews(pendingReviews, t.id, dateOnly(t.firstCompletedOn!),
-            notBefore: start);
+        _queueReviews(
+          pendingReviews,
+          t.id,
+          dateOnly(t.firstCompletedOn!),
+          notBefore: start,
+        );
       }
     }
 
@@ -147,9 +151,11 @@ class Planner {
     // keeps every iteration on local midnight. Adding 24 hours drifts off
     // midnight across a DST boundary, which would make two iterations land on
     // the same calendar date.
-    for (var day = start;
-        !day.isAfter(horizonEnd);
-        day = DateTime(day.year, day.month, day.day + 1)) {
+    for (
+      var day = start;
+      !day.isAfter(horizonEnd);
+      day = DateTime(day.year, day.month, day.day + 1)
+    ) {
       var capacity = availability.minutesOn(day);
       if (capacity <= 0) continue;
 
@@ -197,9 +203,7 @@ class Planner {
 
       // 1. Reviews due today go first. They are short and time-critical: a
       //    review done three days late is barely a review at all.
-      final dueToday = pendingReviews
-          .where((r) => !r.due.isAfter(day))
-          .toList()
+      final dueToday = pendingReviews.where((r) => !r.due.isAfter(day)).toList()
         ..sort((a, b) => a.due.compareTo(b.due));
 
       var reviewBudget = (capacity * config.reviewShareOfDay).floor();
@@ -225,17 +229,19 @@ class Planner {
           continue;
         }
 
-        sessions.add(StudySession(
-          id: _sessionId('r', day, cursor, topic.id),
-          topicId: topic.id,
-          subjectId: topic.subjectId,
-          topicTitle: topic.title,
-          subjectName: subject?.name ?? '',
-          date: day,
-          startMinuteOfDay: cursor,
-          durationMinutes: config.reviewMinutes,
-          kind: SessionKind.review,
-        ));
+        sessions.add(
+          StudySession(
+            id: _sessionId('r', day, cursor, topic.id),
+            topicId: topic.id,
+            subjectId: topic.subjectId,
+            topicTitle: topic.title,
+            subjectName: subject?.name ?? '',
+            date: day,
+            startMinuteOfDay: cursor,
+            durationMinutes: config.reviewMinutes,
+            kind: SessionKind.review,
+          ),
+        );
 
         pendingReviews.remove(r);
         capacity -= config.reviewMinutes;
@@ -299,17 +305,19 @@ class Planner {
         }
 
         final subject = subjectById[topic.subjectId];
-        sessions.add(StudySession(
-          id: _sessionId('n', day, cursor, topic.id),
-          topicId: topic.id,
-          subjectId: topic.subjectId,
-          topicTitle: topic.title,
-          subjectName: subject?.name ?? '',
-          date: day,
-          startMinuteOfDay: cursor,
-          durationMinutes: duration,
-          kind: SessionKind.newMaterial,
-        ));
+        sessions.add(
+          StudySession(
+            id: _sessionId('n', day, cursor, topic.id),
+            topicId: topic.id,
+            subjectId: topic.subjectId,
+            topicTitle: topic.title,
+            subjectName: subject?.name ?? '',
+            date: day,
+            startMinuteOfDay: cursor,
+            durationMinutes: duration,
+            kind: SessionKind.newMaterial,
+          ),
+        );
 
         remainingBySubject.update(
           topic.subjectId,
@@ -358,8 +366,12 @@ class Planner {
   /// anything that remembered "session 3 is done" would silently point at the
   /// wrong block. Day + start minute + topic is unique within a plan and
   /// stable across regenerations.
-  String _sessionId(String prefix, DateTime day, int startMinute, String topicId) =>
-      '$prefix|${dateKey(day)}|$startMinute|$topicId';
+  String _sessionId(
+    String prefix,
+    DateTime day,
+    int startMinute,
+    String topicId,
+  ) => '$prefix|${dateKey(day)}|$startMinute|$topicId';
 
   /// Queues the spaced-repetition ladder for [topicId].
   ///
@@ -374,8 +386,11 @@ class Planner {
   }) {
     for (final offset in config.reviewOffsetDays) {
       // Constructor arithmetic, not Duration — see the day loop.
-      final due =
-          DateTime(completedOn.year, completedOn.month, completedOn.day + offset);
+      final due = DateTime(
+        completedOn.year,
+        completedOn.month,
+        completedOn.day + offset,
+      );
       if (due.isBefore(notBefore)) continue;
       queue.add(_PendingReview(topicId, due));
     }
@@ -586,27 +601,33 @@ class Planner {
         final subject = subjectById[entry.key];
         final name = subject?.name ?? 'Unknown subject';
         final exam = subject?.examDate;
-        warnings.add(exam == null
-            ? '$name: ${formatMinutes(entry.value)} of work has nowhere to go.'
-            : "$name: ${formatMinutes(entry.value)} won't fit before "
-                '${formatDate(dateOnly(exam))}.');
+        warnings.add(
+          exam == null
+              ? '$name: ${formatMinutes(entry.value)} of work has nowhere to go.'
+              : "$name: ${formatMinutes(entry.value)} won't fit before "
+                    '${formatDate(dateOnly(exam))}.',
+        );
       }
 
       final days = horizonEnd.difference(start).inDays + 1;
       final perDay = (unscheduled / days).ceil();
-      warnings.add('Short by ${formatMinutes(unscheduled)} overall — '
-          'add about ${formatMinutes(perDay)} a day, or cut scope.');
+      warnings.add(
+        'Short by ${formatMinutes(unscheduled)} overall — '
+        'add about ${formatMinutes(perDay)} a day, or cut scope.',
+      );
 
       final blocked = leftover.keys.where((id) {
         final t = topicById[id];
         if (t == null) return false;
-        return t.prerequisiteIds
-            .any((p) => topicById.containsKey(p) && leftover.containsKey(p));
+        return t.prerequisiteIds.any(
+          (p) => topicById.containsKey(p) && leftover.containsKey(p),
+        );
       }).length;
       if (blocked > 0 && blocked == leftover.length) {
         warnings.add(
-            'Every unscheduled topic is waiting on a prerequisite — check for '
-            'a cycle in your prerequisites.');
+          'Every unscheduled topic is waiting on a prerequisite — check for '
+          'a cycle in your prerequisites.',
+        );
       }
     }
 

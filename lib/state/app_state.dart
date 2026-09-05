@@ -72,8 +72,7 @@ class AppState extends ChangeNotifier {
 
   /// Minutes of today already spoken for, whether studied or deliberately
   /// skipped.
-  int get consumedToday =>
-      todayLog.fold(0, (a, e) => a + e.consumedMinutes);
+  int get consumedToday => todayLog.fold(0, (a, e) => a + e.consumedMinutes);
 
   /// Recommendations the app can currently offer, e.g. "your Chemistry pages
   /// actually take 4.5 min each". Recomputed on demand; cheap enough not to
@@ -92,11 +91,16 @@ class AppState extends ChangeNotifier {
   Future<void> applyCalibration(CalibrationSuggestion s) async {
     for (final id in s.affectedTopicIds) {
       final t = topics.firstWhere((x) => x.id == id);
-      final newMinutes = (t.estimateAmount * s.recommendedRate).round().clamp(1, 1 << 30);
-      await updateTopicSilently(t.copyWith(
-        estimateRate: s.recommendedRate,
-        estimatedMinutes: newMinutes,
-      ));
+      final newMinutes = (t.estimateAmount * s.recommendedRate).round().clamp(
+        1,
+        1 << 30,
+      );
+      await updateTopicSilently(
+        t.copyWith(
+          estimateRate: s.recommendedRate,
+          estimatedMinutes: newMinutes,
+        ),
+      );
     }
     await _rebuild();
     notifyListeners();
@@ -206,9 +210,8 @@ class AppState extends ChangeNotifier {
 
   Future<void> updateSubject(Subject s) async {
     await db.upsertSubject(s);
-    subjects = [
-      for (final x in subjects) x.id == s.id ? s : x,
-    ]..sort((a, b) => a.name.compareTo(b.name));
+    subjects = [for (final x in subjects) x.id == s.id ? s : x]
+      ..sort((a, b) => a.name.compareTo(b.name));
     await _rebuild();
     notifyListeners();
   }
@@ -339,12 +342,15 @@ class AppState extends ChangeNotifier {
     if (topic != null && !session.isReview) {
       final completed = topic.completedMinutes + minutes;
       final finished = completed >= topic.estimatedMinutes;
-      await updateTopicSilently(topic.copyWith(
-        completedMinutes: completed,
-        status: finished ? TopicStatus.done : TopicStatus.inProgress,
-        firstCompletedOn:
-            finished ? (topic.firstCompletedOn ?? today) : topic.firstCompletedOn,
-      ));
+      await updateTopicSilently(
+        topic.copyWith(
+          completedMinutes: completed,
+          status: finished ? TopicStatus.done : TopicStatus.inProgress,
+          firstCompletedOn: finished
+              ? (topic.firstCompletedOn ?? today)
+              : topic.firstCompletedOn,
+        ),
+      );
     }
 
     await db.logSession(
@@ -375,19 +381,24 @@ class AppState extends ChangeNotifier {
   /// Undo removes the log entry and, for completed work, gives the minutes back
   /// to the topic.
   Future<void> undoLogged(LoggedSession entry) async {
-    if (entry.status == SessionStatus.done && entry.kind != SessionKind.review) {
+    if (entry.status == SessionStatus.done &&
+        entry.kind != SessionKind.review) {
       final topic = topics.where((t) => t.id == entry.topicId).firstOrNull;
       if (topic != null) {
-        final restored =
-            (topic.completedMinutes - entry.actualMinutes).clamp(0, 1 << 30);
-        await updateTopicSilently(topic.copyWith(
-          completedMinutes: restored,
-          status: restored == 0
-              ? TopicStatus.notStarted
-              : (restored >= topic.estimatedMinutes
-                  ? TopicStatus.done
-                  : TopicStatus.inProgress),
-        ));
+        final restored = (topic.completedMinutes - entry.actualMinutes).clamp(
+          0,
+          1 << 30,
+        );
+        await updateTopicSilently(
+          topic.copyWith(
+            completedMinutes: restored,
+            status: restored == 0
+                ? TopicStatus.notStarted
+                : (restored >= topic.estimatedMinutes
+                      ? TopicStatus.done
+                      : TopicStatus.inProgress),
+          ),
+        );
       }
     }
 
@@ -446,8 +457,9 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteBusySlot(String id) async {
     await db.deleteBusySlot(id);
-    availability = availability
-        .withBusy(availability.busy.where((b) => b.id != id).toList());
+    availability = availability.withBusy(
+      availability.busy.where((b) => b.id != id).toList(),
+    );
     await _rebuild();
     notifyListeners();
   }

@@ -24,12 +24,11 @@ void main() {
     List<StudySession> blocks,
     int nowMinute, {
     bool logged = false,
-  }) =>
-      focusFor(
-        remaining: blocks,
-        anythingLogged: logged,
-        nowMinuteOfDay: nowMinute,
-      );
+  }) => focusFor(
+    remaining: blocks,
+    anythingLogged: logged,
+    nowMinuteOfDay: nowMinute,
+  );
 
   group('a block is running', () {
     test('leads with it and says how long is left', () {
@@ -97,8 +96,10 @@ void main() {
     });
 
     test('tells the two apart — they deserve different words', () {
-      expect(focus([], 20 * 60, logged: true).kind,
-          isNot(focus([], 20 * 60).kind));
+      expect(
+        focus([], 20 * 60, logged: true).kind,
+        isNot(focus([], 20 * 60).kind),
+      );
     });
   });
 }

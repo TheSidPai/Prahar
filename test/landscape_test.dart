@@ -70,15 +70,17 @@ void main() {
       ]
       ..topics = [
         const Topic(
-            id: 't1',
-            subjectId: 's1',
-            title: 'Balanced trees',
-            estimatedMinutes: 300),
+          id: 't1',
+          subjectId: 's1',
+          title: 'Balanced trees',
+          estimatedMinutes: 300,
+        ),
         const Topic(
-            id: 't2',
-            subjectId: 's2',
-            title: 'Gene Replication',
-            estimatedMinutes: 240),
+          id: 't2',
+          subjectId: 's2',
+          title: 'Gene Replication',
+          estimatedMinutes: 240,
+        ),
       ];
 
     state.plan = const Planner().generate(
@@ -97,17 +99,16 @@ void main() {
   });
 
   Widget app() => ChangeNotifierProvider<AppState>.value(
-        value: state,
-        child: MaterialApp(
-          theme: PraharTheme.of(Brightness.dark),
-          home: const HomeScreen(),
-        ),
-      );
+    value: state,
+    child: MaterialApp(
+      theme: PraharTheme.of(Brightness.dark),
+      home: const HomeScreen(),
+    ),
+  );
 
   /// Pumps at a physical size and returns whatever the frame threw — an
   /// overflow reports itself as an exception during layout.
-  Future<Object?> pumpAt(WidgetTester tester, Size size,
-      {int tab = 0}) async {
+  Future<Object?> pumpAt(WidgetTester tester, Size size, {int tab = 0}) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -134,8 +135,13 @@ void main() {
 
       // And prove it landed: the app bar titles the current tab, so this fails
       // loudly if the tap missed rather than silently testing nothing.
-      final label =
-          const ['Today', 'Plan', 'Progress', 'Subjects', 'Settings'][tab];
+      final label = const [
+        'Today',
+        'Plan',
+        'Progress',
+        'Subjects',
+        'Settings',
+      ][tab];
       expect(
         find.descendant(of: find.byType(AppBar), matching: find.text(label)),
         findsOneWidget,
@@ -186,7 +192,13 @@ void main() {
       await tester.pump();
 
       expect(tester.takeException(), isNull);
-      for (final label in ['Today', 'Plan', 'Progress', 'Subjects', 'Settings']) {
+      for (final label in [
+        'Today',
+        'Plan',
+        'Progress',
+        'Subjects',
+        'Settings',
+      ]) {
         expect(find.text(label), findsWidgets, reason: '$label lost from rail');
       }
 
@@ -225,8 +237,9 @@ void main() {
       expect(await pumpAt(tester, phonePortrait), isNull);
     });
 
-    testWidgets('a tablet is two columns but keeps the bottom bar',
-        (tester) async {
+    testWidgets('a tablet is two columns but keeps the bottom bar', (
+      tester,
+    ) async {
       tester.view.physicalSize = tablet;
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
@@ -234,8 +247,11 @@ void main() {
       await tester.pumpWidget(app());
       await tester.pump();
 
-      expect(find.byType(NavigationBar), findsOneWidget,
-          reason: 'tall enough that a bottom bar is still the easier reach');
+      expect(
+        find.byType(NavigationBar),
+        findsOneWidget,
+        reason: 'tall enough that a bottom bar is still the easier reach',
+      );
       expect(tester.takeException(), isNull);
 
       await tester.pumpWidget(const SizedBox.shrink());

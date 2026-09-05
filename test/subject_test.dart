@@ -16,17 +16,17 @@ void main() {
   const windowEnd = 22 * 60;
 
   Subject exam({DateTime? date, int? minute}) => Subject(
-        id: 's',
-        name: 'Physics',
-        examDate: date,
-        examMinuteOfDay: minute,
-      );
+    id: 's',
+    name: 'Physics',
+    examDate: date,
+    examMinuteOfDay: minute,
+  );
 
   double? days(Subject s, {DateTime? from}) => s.prepDaysFrom(
-        from ?? today,
-        windowStartMinute: windowStart,
-        windowEndMinute: windowEnd,
-      );
+    from ?? today,
+    windowStartMinute: windowStart,
+    windowEndMinute: windowEnd,
+  );
 
   group('with no exam time', () {
     test('the exam day counts as a whole day, exactly as before', () {
@@ -47,14 +47,19 @@ void main() {
 
     test('an exam tomorrow is a full day plus tomorrow morning', () {
       final tomorrow = DateTime(2026, 9, 5);
-      expect(days(exam(date: tomorrow, minute: 9 * 60)),
-          closeTo(1 + 3 / 16, 0.001));
+      expect(
+        days(exam(date: tomorrow, minute: 9 * 60)),
+        closeTo(1 + 3 / 16, 0.001),
+      );
     });
 
     test('a first-thing exam leaves nothing on the day itself', () {
       expect(days(exam(date: today, minute: windowStart)), 0.0);
-      expect(days(exam(date: today, minute: 5 * 60)), 0.0,
-          reason: 'an exam before the window opens cannot be prepared for');
+      expect(
+        days(exam(date: today, minute: 5 * 60)),
+        0.0,
+        reason: 'an exam before the window opens cannot be prepared for',
+      );
     });
 
     test('an exam after the window closes still gives only a whole day', () {
@@ -85,14 +90,13 @@ void main() {
       Subject s, {
       required int remaining,
       DateTime? at,
-    }) =>
-        s.examDemand(
-          remainingMinutes: remaining,
-          from: at ?? today,
-          studyMinutesPerDay: windowMinutes,
-          windowStartMinute: windowStart,
-          windowEndMinute: windowEnd,
-        );
+    }) => s.examDemand(
+      remainingMinutes: remaining,
+      from: at ?? today,
+      studyMinutesPerDay: windowMinutes,
+      windowStartMinute: windowStart,
+      windowEndMinute: windowEnd,
+    );
 
     test('is a plain rate when the work fits', () {
       final d = demand(
@@ -106,10 +110,7 @@ void main() {
     test('refuses to quote a rate no day could hold', () {
       // The bug this guard exists for: 4h of work against an exam at 9am
       // divides by 0.19 of a day and reports "needs 56h a day".
-      final d = demand(
-        exam(date: today, minute: 9 * 60),
-        remaining: 240,
-      );
+      final d = demand(exam(date: today, minute: 9 * 60), remaining: 240);
       expect(d.perDay, isNull, reason: '56h a day is an artefact, not advice');
       expect(d.impossible, isTrue);
     });
@@ -135,8 +136,11 @@ void main() {
     test('finished work says nothing at all', () {
       final d = demand(exam(date: DateTime(2026, 9, 14)), remaining: 0);
       expect(d.perDay, isNull);
-      expect(d.impossible, isFalse,
-          reason: 'nothing left to do is not a failure to fit it in');
+      expect(
+        d.impossible,
+        isFalse,
+        reason: 'nothing left to do is not a failure to fit it in',
+      );
     });
 
     test('no exam date says nothing at all', () {
@@ -148,10 +152,18 @@ void main() {
 
   group('examHasPassed', () {
     test('is false on the day of the exam, however late', () {
-      expect(exam(date: today).examHasPassed(DateTime(2026, 9, 4, 23)), isFalse);
-      expect(exam(date: today, minute: 9 * 60)
-          .examHasPassed(DateTime(2026, 9, 4, 23)), isFalse,
-          reason: 'the paper is over, but "exam passed" is for another day');
+      expect(
+        exam(date: today).examHasPassed(DateTime(2026, 9, 4, 23)),
+        isFalse,
+      );
+      expect(
+        exam(
+          date: today,
+          minute: 9 * 60,
+        ).examHasPassed(DateTime(2026, 9, 4, 23)),
+        isFalse,
+        reason: 'the paper is over, but "exam passed" is for another day',
+      );
     });
 
     test('is true the day after', () {
@@ -169,8 +181,10 @@ void main() {
     });
 
     test('carries the time when it is known', () {
-      expect(exam(date: today, minute: 14 * 60 + 45).examAt,
-          DateTime(2026, 9, 4, 14, 45));
+      expect(
+        exam(date: today, minute: 14 * 60 + 45).examAt,
+        DateTime(2026, 9, 4, 14, 45),
+      );
     });
   });
 }

@@ -109,13 +109,13 @@ class Prefs {
   int get windowMinutes => dayEndMinute - dayStartMinute;
 
   PlannerConfig toConfig() => PlannerConfig(
-        dayStartMinute: dayStartMinute,
-        dayEndMinute: dayEndMinute,
-        maxSessionMinutes: blockMinutes,
-        // A minimum longer than the block itself would reject every block.
-        minSessionMinutes: blockMinutes >= 40 ? 20 : (blockMinutes / 2).round(),
-        breakMinutes: breakMinutes,
-      );
+    dayStartMinute: dayStartMinute,
+    dayEndMinute: dayEndMinute,
+    maxSessionMinutes: blockMinutes,
+    // A minimum longer than the block itself would reject every block.
+    minSessionMinutes: blockMinutes >= 40 ? 20 : (blockMinutes / 2).round(),
+    breakMinutes: breakMinutes,
+  );
 
   Prefs copyWith({
     int? dayStartMinute,
@@ -128,32 +128,31 @@ class Prefs {
     String? timerMode,
     bool? digestEnabled,
     int? digestMinute,
-  }) =>
-      Prefs(
-        dayStartMinute: dayStartMinute ?? this.dayStartMinute,
-        dayEndMinute: dayEndMinute ?? this.dayEndMinute,
-        blockMinutes: blockMinutes ?? this.blockMinutes,
-        breakMinutes: breakMinutes ?? this.breakMinutes,
-        themeChoice: themeChoice ?? this.themeChoice,
-        materialChoice: materialChoice ?? this.materialChoice,
-        cardStyle: cardStyle ?? this.cardStyle,
-        timerMode: timerMode ?? this.timerMode,
-        digestEnabled: digestEnabled ?? this.digestEnabled,
-        digestMinute: digestMinute ?? this.digestMinute,
-      );
+  }) => Prefs(
+    dayStartMinute: dayStartMinute ?? this.dayStartMinute,
+    dayEndMinute: dayEndMinute ?? this.dayEndMinute,
+    blockMinutes: blockMinutes ?? this.blockMinutes,
+    breakMinutes: breakMinutes ?? this.breakMinutes,
+    themeChoice: themeChoice ?? this.themeChoice,
+    materialChoice: materialChoice ?? this.materialChoice,
+    cardStyle: cardStyle ?? this.cardStyle,
+    timerMode: timerMode ?? this.timerMode,
+    digestEnabled: digestEnabled ?? this.digestEnabled,
+    digestMinute: digestMinute ?? this.digestMinute,
+  );
 
   Map<String, String> toMap() => {
-        'day_start': '$dayStartMinute',
-        'day_end': '$dayEndMinute',
-        'block_minutes': '$blockMinutes',
-        'break_minutes': '$breakMinutes',
-        'theme': themeChoice.name,
-        'material': materialChoice.name,
-        'card_style': cardStyle.name,
-        'timer_mode': timerMode,
-        'digest': digestEnabled ? '1' : '0',
-        'digest_minute': '$digestMinute',
-      };
+    'day_start': '$dayStartMinute',
+    'day_end': '$dayEndMinute',
+    'block_minutes': '$blockMinutes',
+    'break_minutes': '$breakMinutes',
+    'theme': themeChoice.name,
+    'material': materialChoice.name,
+    'card_style': cardStyle.name,
+    'timer_mode': timerMode,
+    'digest': digestEnabled ? '1' : '0',
+    'digest_minute': '$digestMinute',
+  };
 
   /// Tolerant of missing or malformed values: a corrupt preference should fall
   /// back to a working default, never prevent the app starting.

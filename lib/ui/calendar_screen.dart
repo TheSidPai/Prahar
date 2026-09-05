@@ -58,12 +58,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       children: [
         _MonthHeader(
           month: _month,
-          onPrev: () => setState(
-              () => _month = DateTime(_month.year, _month.month - 1)),
-          onNext: () => setState(
-              () => _month = DateTime(_month.year, _month.month + 1)),
-          onToday: () => setState(
-              () => _month = DateTime(today.year, today.month)),
+          onPrev: () =>
+              setState(() => _month = DateTime(_month.year, _month.month - 1)),
+          onNext: () =>
+              setState(() => _month = DateTime(_month.year, _month.month + 1)),
+          onToday: () =>
+              setState(() => _month = DateTime(today.year, today.month)),
         ),
         const SizedBox(height: 8),
         _WeekdayHeader(),
@@ -79,11 +79,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       day: gridStart.add(Duration(days: week * 7 + d)),
                       currentMonth: _month.month,
                       today: today,
-                      exams: examsByKey[dateKey(
-                              gridStart.add(Duration(days: week * 7 + d)))] ??
+                      exams:
+                          examsByKey[dateKey(
+                            gridStart.add(Duration(days: week * 7 + d)),
+                          )] ??
                           const [],
-                      isBusy: busyDates.contains(dateKey(
-                          gridStart.add(Duration(days: week * 7 + d)))),
+                      isBusy: busyDates.contains(
+                        dateKey(gridStart.add(Duration(days: week * 7 + d))),
+                      ),
                     ),
                   ),
                   if (d < 6) const SizedBox(width: 4),
@@ -94,20 +97,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
         const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-          child: Row(children: [
-            Text('Upcoming exams', style: theme.textTheme.titleSmall),
-            const Spacer(),
-            TextButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => const BusySlotsScreen(),
+          child: Row(
+            children: [
+              Text('Upcoming exams', style: theme.textTheme.titleSmall),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const BusySlotsScreen(),
+                  ),
                 ),
+                icon: const Icon(Icons.event_busy_outlined, size: 18),
+                label: const Text('Busy slots'),
               ),
-              icon: const Icon(Icons.event_busy_outlined, size: 18),
-              label: const Text('Busy slots'),
-            ),
-          ]),
+            ],
+          ),
         ),
         _ExamList(subjects: state.subjects, today: today),
       ],
@@ -129,8 +134,18 @@ class _MonthHeader extends StatelessWidget {
   final VoidCallback onToday;
 
   static const _names = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
 
   @override
@@ -140,8 +155,7 @@ class _MonthHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
       child: Row(
         children: [
-          IconButton(
-              icon: const Icon(Icons.chevron_left), onPressed: onPrev),
+          IconButton(icon: const Icon(Icons.chevron_left), onPressed: onPrev),
           Expanded(
             child: Center(
               child: TextButton(
@@ -149,13 +163,13 @@ class _MonthHeader extends StatelessWidget {
                 child: Text(
                   '${_names[month.month - 1]} ${month.year}',
                   style: theme.textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.onSurface),
+                    color: theme.colorScheme.onSurface,
+                  ),
                 ),
               ),
             ),
           ),
-          IconButton(
-              icon: const Icon(Icons.chevron_right), onPressed: onNext),
+          IconButton(icon: const Icon(Icons.chevron_right), onPressed: onNext),
         ],
       ),
     );
@@ -213,7 +227,9 @@ class _DayCell extends StatelessWidget {
     final dayText = TextStyle(
       color: outside
           ? theme.colorScheme.outline.withValues(alpha: 0.6)
-          : (isToday ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface),
+          : (isToday
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.onSurface),
       fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
     );
 
@@ -300,10 +316,11 @@ class _ExamList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final upcoming = subjects
-        .where((s) => s.examDate != null && !s.examDate!.isBefore(today))
-        .toList()
-      ..sort((a, b) => a.examDate!.compareTo(b.examDate!));
+    final upcoming =
+        subjects
+            .where((s) => s.examDate != null && !s.examDate!.isBefore(today))
+            .toList()
+          ..sort((a, b) => a.examDate!.compareTo(b.examDate!));
 
     if (upcoming.isEmpty) {
       return Padding(
@@ -325,10 +342,9 @@ class _ExamList extends StatelessWidget {
             // this screen exists to reveal.
             gapAfterPrevious: i == 0
                 ? null
-                : upcoming[i]
-                    .examDate!
-                    .difference(upcoming[i - 1].examDate!)
-                    .inDays,
+                : upcoming[i].examDate!
+                      .difference(upcoming[i - 1].examDate!)
+                      .inDays,
           ),
           const SizedBox(height: 8),
         ],
@@ -380,7 +396,7 @@ class _ExamRow extends StatelessWidget {
                       subject.examMinuteOfDay == null
                           ? formatDateFull(exam)
                           : '${formatDateFull(exam)}, '
-                              '${formatClock(subject.examMinuteOfDay!)}',
+                                '${formatClock(subject.examMinuteOfDay!)}',
                       style: theme.textTheme.bodySmall,
                     ),
                     if (gapAfterPrevious != null && gapAfterPrevious! <= 3) ...[
@@ -388,7 +404,8 @@ class _ExamRow extends StatelessWidget {
                       Text(
                         '$gapAfterPrevious day${gapAfterPrevious == 1 ? '' : 's'} after the previous — tight',
                         style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.tertiary),
+                          color: theme.colorScheme.tertiary,
+                        ),
                       ),
                     ],
                   ],
@@ -401,9 +418,12 @@ class _ExamRow extends StatelessWidget {
                     daysLeft == 0 ? 'Today' : '$daysLeft d',
                     style: theme.textTheme.titleMedium,
                   ),
-                  Text('left',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.outline)),
+                  Text(
+                    'left',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
                 ],
               ),
             ],

@@ -72,15 +72,18 @@ class Availability {
   }) {
     if (windowEnd <= windowStart) return const [];
 
-    final blocks = busy
-        .where((b) => b.appliesTo(day))
-        .map((b) => (
-              b.startMinute.clamp(windowStart, windowEnd),
-              b.endMinute.clamp(windowStart, windowEnd),
-            ))
-        .where((r) => r.$2 > r.$1)
-        .toList()
-      ..sort((a, b) => a.$1.compareTo(b.$1));
+    final blocks =
+        busy
+            .where((b) => b.appliesTo(day))
+            .map(
+              (b) => (
+                b.startMinute.clamp(windowStart, windowEnd),
+                b.endMinute.clamp(windowStart, windowEnd),
+              ),
+            )
+            .where((r) => r.$2 > r.$1)
+            .toList()
+          ..sort((a, b) => a.$1.compareTo(b.$1));
 
     final merged = <(int, int)>[];
     for (final b in blocks) {
@@ -107,26 +110,30 @@ class Availability {
     DateTime day, {
     required int windowStart,
     required int windowEnd,
-  }) =>
-      freeIntervals(day, windowStart: windowStart, windowEnd: windowEnd)
-          .fold(0, (a, r) => a + (r.$2 - r.$1));
+  }) => freeIntervals(
+    day,
+    windowStart: windowStart,
+    windowEnd: windowEnd,
+  ).fold(0, (a, r) => a + (r.$2 - r.$1));
 
   Availability withBusy(List<BusySlot> next) => Availability(
-        minutesByWeekday: minutesByWeekday,
-        overrides: overrides,
-        busy: next,
-      );
+    minutesByWeekday: minutesByWeekday,
+    overrides: overrides,
+    busy: next,
+  );
 
   /// A sane starting point: 2h on weekdays, 4h on weekends.
-  factory Availability.standard() => const Availability(minutesByWeekday: {
-        DateTime.monday: 120,
-        DateTime.tuesday: 120,
-        DateTime.wednesday: 120,
-        DateTime.thursday: 120,
-        DateTime.friday: 120,
-        DateTime.saturday: 240,
-        DateTime.sunday: 240,
-      });
+  factory Availability.standard() => const Availability(
+    minutesByWeekday: {
+      DateTime.monday: 120,
+      DateTime.tuesday: 120,
+      DateTime.wednesday: 120,
+      DateTime.thursday: 120,
+      DateTime.friday: 120,
+      DateTime.saturday: 240,
+      DateTime.sunday: 240,
+    },
+  );
 
   int minutesOn(DateTime day) {
     final o = overrides[dateKey(day)];
@@ -141,25 +148,27 @@ class Availability {
   int totalBetween(DateTime from, DateTime to) {
     final end = dateOnly(to);
     var total = 0;
-    for (var d = dateOnly(from);
-        !d.isAfter(end);
-        d = DateTime(d.year, d.month, d.day + 1)) {
+    for (
+      var d = dateOnly(from);
+      !d.isAfter(end);
+      d = DateTime(d.year, d.month, d.day + 1)
+    ) {
       total += minutesOn(d);
     }
     return total;
   }
 
   Availability withOverride(DateTime day, int minutes) => Availability(
-        minutesByWeekday: minutesByWeekday,
-        overrides: {...overrides, dateKey(day): minutes},
-        busy: busy,
-      );
+    minutesByWeekday: minutesByWeekday,
+    overrides: {...overrides, dateKey(day): minutes},
+    busy: busy,
+  );
 
   Availability withWeekday(int weekday, int minutes) => Availability(
-        minutesByWeekday: {...minutesByWeekday, weekday: minutes},
-        overrides: overrides,
-        busy: busy,
-      );
+    minutesByWeekday: {...minutesByWeekday, weekday: minutes},
+    overrides: overrides,
+    busy: busy,
+  );
 }
 
 enum SessionKind { newMaterial, review }
@@ -200,25 +209,24 @@ class StudySession {
   DateTime get startsAt =>
       DateTime(date.year, date.month, date.day, 0, startMinuteOfDay);
 
-  DateTime get endsAt =>
-      startsAt.add(Duration(minutes: durationMinutes));
+  DateTime get endsAt => startsAt.add(Duration(minutes: durationMinutes));
 
   int get endMinuteOfDay => startMinuteOfDay + durationMinutes;
 
   bool get isReview => kind == SessionKind.review;
 
   StudySession copyWith({SessionStatus? status}) => StudySession(
-        id: id,
-        topicId: topicId,
-        subjectId: subjectId,
-        topicTitle: topicTitle,
-        subjectName: subjectName,
-        date: date,
-        startMinuteOfDay: startMinuteOfDay,
-        durationMinutes: durationMinutes,
-        kind: kind,
-        status: status ?? this.status,
-      );
+    id: id,
+    topicId: topicId,
+    subjectId: subjectId,
+    topicTitle: topicTitle,
+    subjectName: subjectName,
+    date: date,
+    startMinuteOfDay: startMinuteOfDay,
+    durationMinutes: durationMinutes,
+    kind: kind,
+    status: status ?? this.status,
+  );
 }
 
 /// What actually happened, as opposed to what was planned.
@@ -286,8 +294,9 @@ class Feasibility {
   bool get fits => unscheduledMinutes == 0;
 
   /// >1 means more work than time.
-  double get loadRatio =>
-      availableMinutes == 0 ? double.infinity : requiredMinutes / availableMinutes;
+  double get loadRatio => availableMinutes == 0
+      ? double.infinity
+      : requiredMinutes / availableMinutes;
 
   /// Extra minutes per day needed over [days] to close the gap.
   int extraMinutesPerDay(int days) =>

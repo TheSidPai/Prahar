@@ -35,21 +35,23 @@ void main() {
     if (dir.existsSync()) dir.deleteSync(recursive: true);
   });
 
-  Subject subject({String id = 's1', String name = 'Physics', int weight = 3}) =>
-      Subject(id: id, name: name, weight: weight);
+  Subject subject({
+    String id = 's1',
+    String name = 'Physics',
+    int weight = 3,
+  }) => Subject(id: id, name: name, weight: weight);
 
   Topic topic({
     String id = 't1',
     String subjectId = 's1',
     String title = 'Kinematics',
     int minutes = 120,
-  }) =>
-      Topic(
-        id: id,
-        subjectId: subjectId,
-        title: title,
-        estimatedMinutes: minutes,
-      );
+  }) => Topic(
+    id: id,
+    subjectId: subjectId,
+    title: title,
+    estimatedMinutes: minutes,
+  );
 
   group('editing must not destroy children', () {
     test('editing a subject keeps its topics', () async {
@@ -70,20 +72,25 @@ void main() {
     test('editing a topic keeps its resources', () async {
       await db.upsertSubject(subject());
       await db.upsertTopic(topic());
-      await db.upsertResource(const Resource(
-        id: 'r1',
-        topicId: 't1',
-        kind: ResourceKind.book,
-        title: 'HC Verma',
-        pageStart: 1,
-        pageEnd: 40,
-      ));
+      await db.upsertResource(
+        const Resource(
+          id: 'r1',
+          topicId: 't1',
+          kind: ResourceKind.book,
+          title: 'HC Verma',
+          pageStart: 1,
+          pageEnd: 40,
+        ),
+      );
       expect((await db.resourcesFor('t1')).length, 1);
 
       await db.upsertTopic(topic(title: 'Kinematics revised', minutes: 200));
 
-      expect((await db.resourcesFor('t1')).length, 1,
-          reason: 'editing a topic deleted its resources');
+      expect(
+        (await db.resourcesFor('t1')).length,
+        1,
+        reason: 'editing a topic deleted its resources',
+      );
       final t = (await db.topicsFor('s1')).single;
       expect(t.title, 'Kinematics revised');
       expect(t.estimatedMinutes, 200);
@@ -111,19 +118,24 @@ void main() {
       await db.deleteSubject('s1');
 
       expect(await db.subjects(), isEmpty);
-      expect(await db.topics(), isEmpty,
-          reason: 'an explicit subject delete should still cascade');
+      expect(
+        await db.topics(),
+        isEmpty,
+        reason: 'an explicit subject delete should still cascade',
+      );
     });
 
     test('deleting a topic removes its resources', () async {
       await db.upsertSubject(subject());
       await db.upsertTopic(topic());
-      await db.upsertResource(const Resource(
-        id: 'r1',
-        topicId: 't1',
-        kind: ResourceKind.url,
-        title: 'notes',
-      ));
+      await db.upsertResource(
+        const Resource(
+          id: 'r1',
+          topicId: 't1',
+          kind: ResourceKind.url,
+          title: 'notes',
+        ),
+      );
 
       await db.deleteTopic('t1');
       expect(await db.resourcesFor('t1'), isEmpty);
@@ -133,13 +145,15 @@ void main() {
   group('round trips', () {
     test('subject fields survive a save and load', () async {
       final exam = DateTime(2026, 10, 24);
-      await db.upsertSubject(Subject(
-        id: 's1',
-        name: 'DSA',
-        examDate: exam,
-        weight: 4,
-        colorValue: 0xFFD97706,
-      ));
+      await db.upsertSubject(
+        Subject(
+          id: 's1',
+          name: 'DSA',
+          examDate: exam,
+          weight: 4,
+          colorValue: 0xFFD97706,
+        ),
+      );
 
       final s = (await db.subjects()).single;
       expect(s.name, 'DSA');
@@ -150,15 +164,17 @@ void main() {
 
     test('topic prerequisites survive as a list', () async {
       await db.upsertSubject(subject());
-      await db.upsertTopic(Topic(
-        id: 't2',
-        subjectId: 's1',
-        title: 'Advanced',
-        estimatedMinutes: 60,
-        prerequisiteIds: const ['t1', 'tx'],
-        status: TopicStatus.inProgress,
-        completedMinutes: 30,
-      ));
+      await db.upsertTopic(
+        Topic(
+          id: 't2',
+          subjectId: 's1',
+          title: 'Advanced',
+          estimatedMinutes: 60,
+          prerequisiteIds: const ['t1', 'tx'],
+          status: TopicStatus.inProgress,
+          completedMinutes: 30,
+        ),
+      );
 
       final t = (await db.topicsFor('s1')).single;
       expect(t.prerequisiteIds, ['t1', 'tx']);
@@ -187,14 +203,16 @@ void main() {
   group('estimate provenance', () {
     test('the unit and figure entered survive a save and load', () async {
       await db.upsertSubject(subject());
-      await db.upsertTopic(Topic.fromEstimate(
-        id: 't1',
-        subjectId: 's1',
-        title: 'Ch 4',
-        unit: EffortUnit.pages,
-        amount: 200,
-        rate: 3.0,
-      ));
+      await db.upsertTopic(
+        Topic.fromEstimate(
+          id: 't1',
+          subjectId: 's1',
+          title: 'Ch 4',
+          unit: EffortUnit.pages,
+          amount: 200,
+          rate: 3.0,
+        ),
+      );
 
       final t = (await db.topicsFor('s1')).single;
       expect(t.estimateUnit, EffortUnit.pages);
@@ -206,14 +224,16 @@ void main() {
 
     test('minutes-entered topics round trip unchanged', () async {
       await db.upsertSubject(subject());
-      await db.upsertTopic(Topic.fromEstimate(
-        id: 't1',
-        subjectId: 's1',
-        title: 'Revision',
-        unit: EffortUnit.minutes,
-        amount: 90,
-        rate: 1.0,
-      ));
+      await db.upsertTopic(
+        Topic.fromEstimate(
+          id: 't1',
+          subjectId: 's1',
+          title: 'Revision',
+          unit: EffortUnit.minutes,
+          amount: 90,
+          rate: 1.0,
+        ),
+      );
 
       final t = (await db.topicsFor('s1')).single;
       expect(t.estimatedMinutes, 90);
@@ -282,12 +302,14 @@ void main() {
 
   group('exam time', () {
     test('the exam start time survives a save and load', () async {
-      await db.upsertSubject(Subject(
-        id: 's1',
-        name: 'Physics',
-        examDate: DateTime(2026, 10, 24),
-        examMinuteOfDay: 9 * 60 + 30,
-      ));
+      await db.upsertSubject(
+        Subject(
+          id: 's1',
+          name: 'Physics',
+          examDate: DateTime(2026, 10, 24),
+          examMinuteOfDay: 9 * 60 + 30,
+        ),
+      );
 
       final s = (await db.subjects()).single;
       expect(s.examDate, DateTime(2026, 10, 24));
@@ -296,34 +318,37 @@ void main() {
     });
 
     test('a date with no time round trips as time-unknown', () async {
-      await db.upsertSubject(Subject(
-        id: 's1',
-        name: 'Physics',
-        examDate: DateTime(2026, 10, 24),
-      ));
+      await db.upsertSubject(
+        Subject(id: 's1', name: 'Physics', examDate: DateTime(2026, 10, 24)),
+      );
 
       final s = (await db.subjects()).single;
       expect(s.examMinuteOfDay, isNull);
-      expect(s.examAt, DateTime(2026, 10, 24),
-          reason: 'no time means the date itself, not midnight-plus-guesswork');
+      expect(
+        s.examAt,
+        DateTime(2026, 10, 24),
+        reason: 'no time means the date itself, not midnight-plus-guesswork',
+      );
     });
 
-    test('clearing the time writes null rather than leaving the old one',
-        () async {
-      await db.upsertSubject(Subject(
-        id: 's1',
-        name: 'Physics',
-        examDate: DateTime(2026, 10, 24),
-        examMinuteOfDay: 540,
-      ));
-      await db.upsertSubject(Subject(
-        id: 's1',
-        name: 'Physics',
-        examDate: DateTime(2026, 10, 24),
-      ));
+    test(
+      'clearing the time writes null rather than leaving the old one',
+      () async {
+        await db.upsertSubject(
+          Subject(
+            id: 's1',
+            name: 'Physics',
+            examDate: DateTime(2026, 10, 24),
+            examMinuteOfDay: 540,
+          ),
+        );
+        await db.upsertSubject(
+          Subject(id: 's1', name: 'Physics', examDate: DateTime(2026, 10, 24)),
+        );
 
-      expect((await db.subjects()).single.examMinuteOfDay, isNull);
-    });
+        expect((await db.subjects()).single.examMinuteOfDay, isNull);
+      },
+    );
   });
 
   group('migration from v1', () {
@@ -353,8 +378,12 @@ void main() {
                 status TEXT NOT NULL DEFAULT 'notStarted',
                 first_completed_on TEXT,
                 sort_order INTEGER NOT NULL DEFAULT 0)''');
-            await d.insert('subjects',
-                {'id': 's1', 'name': 'Physics', 'weight': 3, 'color': 1});
+            await d.insert('subjects', {
+              'id': 's1',
+              'name': 'Physics',
+              'weight': 3,
+              'color': 1,
+            });
             await d.insert('topics', {
               'id': 't1',
               'subject_id': 's1',
@@ -378,8 +407,11 @@ void main() {
       expect(t.title, 'Old topic');
       expect(t.estimatedMinutes, 450);
       expect(t.completedMinutes, 120, reason: 'progress must survive');
-      expect(t.estimateUnit, EffortUnit.minutes,
-          reason: 'pre-v2 rows were entered as minutes');
+      expect(
+        t.estimateUnit,
+        EffortUnit.minutes,
+        reason: 'pre-v2 rows were entered as minutes',
+      );
       expect(t.estimateAmount, 450, reason: 'backfilled from the minutes');
       expect(t.estimateRate, 1.0);
 
@@ -421,37 +453,41 @@ void main() {
 
   group('session log', () {
     StudySession session({String id = 'n|2026-09-03|360|t1'}) => StudySession(
-          id: id,
-          topicId: 't1',
-          subjectId: 's1',
-          topicTitle: 'Kinematics',
-          subjectName: 'Physics',
-          date: DateTime(2026, 9, 3),
-          startMinuteOfDay: 360,
-          durationMinutes: 50,
-          status: SessionStatus.done,
+      id: id,
+      topicId: 't1',
+      subjectId: 's1',
+      topicTitle: 'Kinematics',
+      subjectName: 'Physics',
+      date: DateTime(2026, 9, 3),
+      startMinuteOfDay: 360,
+      durationMinutes: 50,
+      status: SessionStatus.done,
+    );
+
+    test(
+      'logging twice with the same id updates rather than duplicates',
+      () async {
+        await db.logSession(session(), actualMinutes: 50);
+        await db.logSession(session(), actualMinutes: 65);
+
+        final entries = await db.logEntriesOn(DateTime(2026, 9, 3));
+        expect(entries.length, 1);
+        expect(entries.single.actualMinutes, 65);
+      },
+    );
+
+    test(
+      'a skipped block consumes its planned time, a done one its actual',
+      () async {
+        await db.logSession(
+          session().copyWith(status: SessionStatus.skipped),
+          actualMinutes: 0,
         );
-
-    test('logging twice with the same id updates rather than duplicates',
-        () async {
-      await db.logSession(session(), actualMinutes: 50);
-      await db.logSession(session(), actualMinutes: 65);
-
-      final entries = await db.logEntriesOn(DateTime(2026, 9, 3));
-      expect(entries.length, 1);
-      expect(entries.single.actualMinutes, 65);
-    });
-
-    test('a skipped block consumes its planned time, a done one its actual',
-        () async {
-      await db.logSession(
-        session().copyWith(status: SessionStatus.skipped),
-        actualMinutes: 0,
-      );
-      final e = (await db.logEntriesOn(DateTime(2026, 9, 3))).single;
-      expect(e.wasSkipped, isTrue);
-      expect(e.consumedMinutes, 50);
-    });
+        final e = (await db.logEntriesOn(DateTime(2026, 9, 3))).single;
+        expect(e.wasSkipped, isTrue);
+        expect(e.consumedMinutes, 50);
+      },
+    );
 
     test('streak counts consecutive days back from today', () async {
       for (var i = 0; i < 3; i++) {

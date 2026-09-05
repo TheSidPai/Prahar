@@ -56,9 +56,9 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
     bool matches(Subject s) {
       if (q.isEmpty) return true;
       if (s.name.toLowerCase().contains(q)) return true;
-      return state.topicsFor(s.id).any(
-            (t) => t.title.toLowerCase().contains(q),
-          );
+      return state
+          .topicsFor(s.id)
+          .any((t) => t.title.toLowerCase().contains(q));
     }
 
     final active = state.activeSubjects.where(matches).toList();
@@ -69,9 +69,7 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
     // the subject and not the row you were looking for.
     final matchedTopics = q.isEmpty
         ? const <Topic>[]
-        : state.topics
-            .where((t) => t.title.toLowerCase().contains(q))
-            .toList();
+        : state.topics.where((t) => t.title.toLowerCase().contains(q)).toList();
 
     // Two panes when there is width: the list stops being a menu you leave in
     // order to look at something, and becomes an index you read alongside it.
@@ -102,13 +100,12 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
             child: Text(
               'MATCHED TOPICS',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                    letterSpacing: 1.0,
-                  ),
+                color: Theme.of(context).colorScheme.outline,
+                letterSpacing: 1.0,
+              ),
             ),
           ),
-          for (final t in matchedTopics)
-            _TopicHit(topic: t, state: state),
+          for (final t in matchedTopics) _TopicHit(topic: t, state: state),
         ],
 
         if (archived.isNotEmpty) ...[
@@ -117,10 +114,14 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('Archive · ${archived.length}',
-                  style: Theme.of(context).textTheme.titleSmall),
+              title: Text(
+                'Archive · ${archived.length}',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
               subtitle: const Text('Subjects whose exam has passed'),
-              trailing: Icon(_showArchive ? Icons.expand_less : Icons.expand_more),
+              trailing: Icon(
+                _showArchive ? Icons.expand_less : Icons.expand_more,
+              ),
               onTap: () => setState(() => _showArchive = !_showArchive),
             ),
           ),
@@ -171,7 +172,8 @@ class _DetailPane extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final subject = context.select<AppState, Subject?>(
-        (s) => s.subjectFor(subjectId));
+      (s) => s.subjectFor(subjectId),
+    );
     if (subject == null) return const SizedBox.shrink();
 
     return Column(
@@ -204,8 +206,7 @@ class _DetailPane extends StatelessWidget {
                 onPressed: () => showSubjectSheet(context, existing: subject),
               ),
               TextButton.icon(
-                onPressed: () =>
-                    showTopicSheet(context, subjectId: subject.id),
+                onPressed: () => showTopicSheet(context, subjectId: subject.id),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Topic'),
               ),
@@ -329,13 +330,14 @@ class _SubjectRow extends StatelessWidget {
             : null,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: onTap ??
+          onTap:
+              onTap ??
               () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => SubjectDetailScreen(subjectId: subject.id),
-                    ),
-                  ),
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SubjectDetailScreen(subjectId: subject.id),
+                ),
+              ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 16, 12, 16),
             child: Row(
@@ -362,33 +364,41 @@ class _SubjectRow extends StatelessWidget {
                           if (subject.examDate != null)
                             'exam ${formatDate(subject.examDate!)}'
                                 '${subject.examMinuteOfDay == null ? '' : ' '
-                                    '${formatClock(subject.examMinuteOfDay!)}'}',
+                                          '${formatClock(subject.examMinuteOfDay!)}'}',
                         ].join('  ·  '),
                         style: theme.textTheme.bodySmall,
                       ),
                       if (needsTopics || needsDate) ...[
                         const SizedBox(height: 8),
-                        Row(children: [
-                          Icon(Icons.error_outline,
-                              size: 14, color: theme.colorScheme.tertiary),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              needsTopics
-                                  ? 'No topics yet — nothing is being scheduled'
-                                  : 'No exam date — scheduled last',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.tertiary,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 14,
+                              color: theme.colorScheme.tertiary,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                needsTopics
+                                    ? 'No topics yet — nothing is being scheduled'
+                                    : 'No exam date — scheduled last',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.tertiary,
+                                ),
                               ),
                             ),
-                          ),
-                        ]),
+                          ],
+                        ),
                       ],
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right,
-                    size: 20, color: theme.colorScheme.outline),
+                Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: theme.colorScheme.outline,
+                ),
               ],
             ),
           ),
@@ -418,184 +428,201 @@ Future<void> showSubjectSheet(BuildContext context, {Subject? existing}) async {
         ),
         child: StatefulBuilder(
           builder: (context, setState) => Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(existing == null ? 'New subject' : 'Edit subject',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 16),
-              TextField(
-                controller: nameController,
-                autofocus: existing == null,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Subject',
-                  hintText: 'Organic Chemistry',
-                  border: OutlineInputBorder(),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  existing == null ? 'New subject' : 'Edit subject',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.event_outlined),
-                title: Text(examDate == null
-                    ? 'No exam date'
-                    : 'Exam ${formatDateFull(examDate!)}'),
-                subtitle: const Text('Drives how urgently this is scheduled'),
-                trailing: examDate == null
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => setState(() {
-                          examDate = null;
-                          examMinute = null;
-                        }),
-                      ),
-                onTap: () async {
-                  final now = DateTime.now();
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: examDate ??
-                        now.add(const Duration(days: 30)),
-                    firstDate: now,
-                    lastDate: now.add(const Duration(days: 730)),
-                  );
-                  if (picked != null) setState(() => examDate = picked);
-                },
-              ),
-              // The time is optional and only offered once a date exists —
-              // a start time without a day is meaningless. Setting it stops
-              // the exam day from counting as a whole day of preparation,
-              // which is the whole reason it is here, so the row says so.
-              if (examDate != null)
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameController,
+                  autofocus: existing == null,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Subject',
+                    hintText: 'Organic Chemistry',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.schedule_outlined),
-                  title: Text(examMinute == null
-                      ? 'Time not set'
-                      : 'Starts at ${formatClock(examMinute!)}'),
-                  subtitle: Text(examMinute == null
-                      ? 'The whole day counts as preparation time'
-                      : 'Only the hours before it count as preparation'),
-                  trailing: examMinute == null
+                  leading: const Icon(Icons.event_outlined),
+                  title: Text(
+                    examDate == null
+                        ? 'No exam date'
+                        : 'Exam ${formatDateFull(examDate!)}',
+                  ),
+                  subtitle: const Text('Drives how urgently this is scheduled'),
+                  trailing: examDate == null
                       ? null
                       : IconButton(
                           icon: const Icon(Icons.clear),
-                          onPressed: () => setState(() => examMinute = null),
+                          onPressed: () => setState(() {
+                            examDate = null;
+                            examMinute = null;
+                          }),
                         ),
                   onTap: () async {
-                    final picked = await showTimePicker(
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
                       context: context,
-                      initialTime: examMinute == null
-                          ? const TimeOfDay(hour: 9, minute: 0)
-                          : TimeOfDay(
-                              hour: examMinute! ~/ 60,
-                              minute: examMinute! % 60,
-                            ),
+                      initialDate:
+                          examDate ?? now.add(const Duration(days: 30)),
+                      firstDate: now,
+                      lastDate: now.add(const Duration(days: 730)),
                     );
-                    if (picked != null) {
-                      setState(() => examMinute = picked.hour * 60 + picked.minute);
-                    }
+                    if (picked != null) setState(() => examDate = picked);
                   },
                 ),
-              // Said before saving, not after: the consequence of omitting a
-              // date is invisible once the sheet closes.
-              if (examDate == null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .tertiaryContainer
-                        .withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(children: [
-                    const Icon(Icons.info_outline, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Without a date this subject is scheduled only after '
-                        'every subject that has one.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
+                // The time is optional and only offered once a date exists —
+                // a start time without a day is meaningless. Setting it stops
+                // the exam day from counting as a whole day of preparation,
+                // which is the whole reason it is here, so the row says so.
+                if (examDate != null)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.schedule_outlined),
+                    title: Text(
+                      examMinute == null
+                          ? 'Time not set'
+                          : 'Starts at ${formatClock(examMinute!)}',
                     ),
-                  ]),
+                    subtitle: Text(
+                      examMinute == null
+                          ? 'The whole day counts as preparation time'
+                          : 'Only the hours before it count as preparation',
+                    ),
+                    trailing: examMinute == null
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () => setState(() => examMinute = null),
+                          ),
+                    onTap: () async {
+                      final picked = await showTimePicker(
+                        context: context,
+                        initialTime: examMinute == null
+                            ? const TimeOfDay(hour: 9, minute: 0)
+                            : TimeOfDay(
+                                hour: examMinute! ~/ 60,
+                                minute: examMinute! % 60,
+                              ),
+                      );
+                      if (picked != null) {
+                        setState(
+                          () => examMinute = picked.hour * 60 + picked.minute,
+                        );
+                      }
+                    },
+                  ),
+                // Said before saving, not after: the consequence of omitting a
+                // date is invisible once the sheet closes.
+                if (examDate == null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.tertiaryContainer
+                          .withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline, size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Without a date this subject is scheduled only after '
+                            'every subject that has one.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                Text(
+                  'Importance',
+                  style: Theme.of(context).textTheme.labelLarge,
                 ),
-              const SizedBox(height: 12),
-              Text('Importance', style: Theme.of(context).textTheme.labelLarge),
-              Slider(
-                value: weight.toDouble(),
-                min: 1,
-                max: 5,
-                divisions: 4,
-                label: '$weight',
-                onChanged: (v) => setState(() => weight = v.round()),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 10,
-                children: [
-                  for (final c in subjectPalette)
-                    GestureDetector(
-                      onTap: () => setState(() => color = c),
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: Color(c),
-                          shape: BoxShape.circle,
-                          border: color == c
-                              ? Border.all(width: 3, color: Colors.black54)
-                              : null,
+                Slider(
+                  value: weight.toDouble(),
+                  min: 1,
+                  max: 5,
+                  divisions: 4,
+                  label: '$weight',
+                  onChanged: (v) => setState(() => weight = v.round()),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  children: [
+                    for (final c in subjectPalette)
+                      GestureDetector(
+                        onTap: () => setState(() => color = c),
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: Color(c),
+                            shape: BoxShape.circle,
+                            border: color == c
+                                ? Border.all(width: 3, color: Colors.black54)
+                                : null,
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(children: [
-                if (existing != null)
-                  TextButton(
-                    onPressed: () async {
-                      await state.deleteSubject(existing.id);
-                      if (context.mounted) Navigator.pop(context);
-                    },
-                    child: const Text('Delete'),
-                  ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: () async {
-                    final name = nameController.text.trim();
-                    if (name.isEmpty) return;
-                    if (existing == null) {
-                      await state.addSubject(
-                        name: name,
-                        examDate: examDate,
-                        examMinuteOfDay: examMinute,
-                        weight: weight,
-                        color: color,
-                      );
-                    } else {
-                      await state.updateSubject(Subject(
-                        id: existing.id,
-                        name: name,
-                        examDate: examDate,
-                        examMinuteOfDay: examMinute,
-                        weight: weight,
-                        colorValue: color,
-                      ));
-                    }
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                  child: const Text('Save'),
+                  ],
                 ),
-              ]),
-              const SizedBox(height: 8),
-            ],
-          ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    if (existing != null)
+                      TextButton(
+                        onPressed: () async {
+                          await state.deleteSubject(existing.id);
+                          if (context.mounted) Navigator.pop(context);
+                        },
+                        child: const Text('Delete'),
+                      ),
+                    const Spacer(),
+                    FilledButton(
+                      onPressed: () async {
+                        final name = nameController.text.trim();
+                        if (name.isEmpty) return;
+                        if (existing == null) {
+                          await state.addSubject(
+                            name: name,
+                            examDate: examDate,
+                            examMinuteOfDay: examMinute,
+                            weight: weight,
+                            color: color,
+                          );
+                        } else {
+                          await state.updateSubject(
+                            Subject(
+                              id: existing.id,
+                              name: name,
+                              examDate: examDate,
+                              examMinuteOfDay: examMinute,
+                              weight: weight,
+                              colorValue: color,
+                            ),
+                          );
+                        }
+                        if (context.mounted) Navigator.pop(context);
+                      },
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),

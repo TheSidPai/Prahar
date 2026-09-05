@@ -87,8 +87,9 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
     // PraharTheme; read from the theme rather than assumed.
     final glass = state.prefs.materialChoice == MaterialChoice.glass;
     final barHeight = theme.appBarTheme.toolbarHeight ?? kToolbarHeight;
-    final topInset =
-        glass ? MediaQuery.paddingOf(context).top + barHeight : 0.0;
+    final topInset = glass
+        ? MediaQuery.paddingOf(context).top + barHeight
+        : 0.0;
 
     if (state.subjects.isEmpty) return _FirstRun(topInset: topInset);
 
@@ -99,10 +100,9 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
       nowMinuteOfDay: now.hour * 60 + now.minute,
     );
 
-    final rest = state.todaySessions
-        .where((s) => s.id != focus.session?.id)
-        .toList()
-      ..sort((a, b) => a.startMinuteOfDay.compareTo(b.startMinuteOfDay));
+    final rest =
+        state.todaySessions.where((s) => s.id != focus.session?.id).toList()
+          ..sort((a, b) => a.startMinuteOfDay.compareTo(b.startMinuteOfDay));
 
     // What the day is about, and what is around it. The split exists because
     // the two answer different questions, which is also why they separate so
@@ -121,8 +121,9 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
       _Hero(
         focus: focus,
         state: state,
-        onStart:
-            focus.session == null ? null : () => _openTimer(focus.session!),
+        onStart: focus.session == null
+            ? null
+            : () => _openTimer(focus.session!),
       ),
     ];
 
@@ -133,8 +134,9 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
         for (final s in rest)
           _RailRow(
             session: s,
-            color:
-                Color(state.subjectFor(s.subjectId)?.colorValue ?? 0xFF4F46E5),
+            color: Color(
+              state.subjectFor(s.subjectId)?.colorValue ?? 0xFF4F46E5,
+            ),
             open: _openRow == s.id,
             onToggle: () =>
                 setState(() => _openRow = _openRow == s.id ? null : s.id),
@@ -160,8 +162,9 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
       Center(
         child: Text(
           'Tap a block to start a focus timer.',
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.outline),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
         ),
       ),
     ];
@@ -221,20 +224,28 @@ class _DayHeader extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(formatDateFull(state.today),
-                    style: theme.textTheme.titleLarge),
+                child: Text(
+                  formatDateFull(state.today),
+                  style: theme.textTheme.titleLarge,
+                ),
               ),
               if (state.streak > 0)
-                Row(children: [
-                  Icon(Icons.local_fire_department,
-                      size: 18, color: theme.colorScheme.tertiary),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${state.streak}',
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(color: theme.colorScheme.tertiary),
-                  ),
-                ]),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.local_fire_department,
+                      size: 18,
+                      color: theme.colorScheme.tertiary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${state.streak}',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: theme.colorScheme.tertiary,
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 10),
@@ -311,68 +322,77 @@ class _Hero extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          done
-              ? "That's everything."
-              : 'No study time today.',
+          done ? "That's everything." : 'No study time today.',
           style: theme.textTheme.headlineSmall,
         ),
         const SizedBox(height: 6),
         Text(
           done
               ? '${formatMinutes(state.doneMinutesToday)} done. '
-                  'Tomorrow is already planned.'
+                    'Tomorrow is already planned.'
               : 'Add time in Settings, or a subject to study.',
-          style: theme.textTheme.bodyMedium
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
   }
 
   Widget _blockBody(
-      BuildContext context, ThemeData theme, StudySession session) {
+    BuildContext context,
+    ThemeData theme,
+    StudySession session,
+  ) {
     final running = focus.kind == FocusKind.now;
-    final subjectColour =
-        Color(state.subjectFor(session.subjectId)?.colorValue ?? 0xFF4F46E5);
+    final subjectColour = Color(
+      state.subjectFor(session.subjectId)?.colorValue ?? 0xFF4F46E5,
+    );
 
     final kicker = running
         ? 'NOW · ${formatClock(session.startMinuteOfDay)}'
-            '–${formatClock(session.startMinuteOfDay + session.durationMinutes)}'
+              '–${formatClock(session.startMinuteOfDay + session.durationMinutes)}'
         : focus.minutesUntilStart == 0
-            ? 'UP NEXT · DUE'
-            : 'UP NEXT · IN ${formatMinutes(focus.minutesUntilStart).toUpperCase()}';
+        ? 'UP NEXT · DUE'
+        : 'UP NEXT · IN ${formatMinutes(focus.minutesUntilStart).toUpperCase()}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration:
-                BoxDecoration(color: subjectColour, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              kicker,
-              style: theme.textTheme.labelSmall?.copyWith(
-                letterSpacing: 1.6,
-                fontWeight: FontWeight.w700,
-                // tertiary is amber-as-text, already brightness-aware.
-                color: running
-                    ? theme.colorScheme.tertiary
-                    : theme.colorScheme.onSurfaceVariant,
+        Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: subjectColour,
+                shape: BoxShape.circle,
               ),
             ),
-          ),
-          if (session.isReview)
-            Text('REVIEW',
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                kicker,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  letterSpacing: 1.6,
+                  fontWeight: FontWeight.w700,
+                  // tertiary is amber-as-text, already brightness-aware.
+                  color: running
+                      ? theme.colorScheme.tertiary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            if (session.isReview)
+              Text(
+                'REVIEW',
                 style: theme.textTheme.labelSmall?.copyWith(
                   letterSpacing: 1.4,
                   color: theme.colorScheme.onSurfaceVariant,
-                )),
-        ]),
+                ),
+              ),
+          ],
+        ),
         const SizedBox(height: 14),
         Text(
           session.topicTitle,
@@ -382,8 +402,9 @@ class _Hero extends StatelessWidget {
         Text(
           '${session.subjectName} · ${formatMinutes(session.durationMinutes)}'
           '${running ? ' · ${formatMinutes(focus.minutesLeft)} left' : ''}',
-          style: theme.textTheme.bodyMedium
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 20),
         // Wrap, not Row: three buttons and a Spacer overflowed a 411dp phone
@@ -498,8 +519,7 @@ class _RailRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(16, 12, 12, 12),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
                   child: Row(
                     children: [
                       SizedBox(
@@ -507,7 +527,8 @@ class _RailRow extends StatelessWidget {
                         child: Text(
                           formatClock(session.startMinuteOfDay),
                           style: theme.textTheme.labelLarge?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant),
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                       Container(
@@ -529,8 +550,10 @@ class _RailRow extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            Text(session.subjectName,
-                                style: theme.textTheme.bodySmall),
+                            Text(
+                              session.subjectName,
+                              style: theme.textTheme.bodySmall,
+                            ),
                           ],
                         ),
                       ),
@@ -546,8 +569,11 @@ class _RailRow extends StatelessWidget {
                         turns: open ? 0.5 : 0,
                         duration: const Duration(milliseconds: 220),
                         curve: Curves.easeOutCubic,
-                        child: Icon(Icons.keyboard_arrow_down,
-                            size: 20, color: theme.colorScheme.outline),
+                        child: Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 20,
+                          color: theme.colorScheme.outline,
+                        ),
                       ),
                     ],
                   ),
@@ -592,8 +618,9 @@ class _RailActions extends StatelessWidget {
       required VoidCallback onTap,
       bool accented = false,
     }) {
-      final colour =
-          accented ? theme.colorScheme.tertiary : theme.colorScheme.onSurfaceVariant;
+      final colour = accented
+          ? theme.colorScheme.tertiary
+          : theme.colorScheme.onSurfaceVariant;
       return Expanded(
         child: InkWell(
           onTap: onTap,
@@ -683,32 +710,37 @@ class _DoneStripState extends State<_DoneStrip> {
           onTap: () => setState(() => _open = !_open),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Row(children: [
-              Text(
-                'BEHIND YOU',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  letterSpacing: 1.4,
-                  fontWeight: FontWeight.w600,
+            child: Row(
+              children: [
+                Text(
+                  'BEHIND YOU',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.4,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(summary, style: theme.textTheme.bodySmall),
+                ),
+                Icon(
+                  _open ? Icons.expand_less : Icons.expand_more,
+                  size: 20,
                   color: theme.colorScheme.outline,
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(summary, style: theme.textTheme.bodySmall),
-              ),
-              Icon(_open ? Icons.expand_less : Icons.expand_more,
-                  size: 20, color: theme.colorScheme.outline),
-            ]),
+              ],
+            ),
           ),
         ),
         if (_open)
           for (final entry in log)
             LoggedTile(
               entry: entry,
-              color: Color(widget.state
-                      .subjectFor(entry.subjectId)
-                      ?.colorValue ??
-                  0xFF4F46E5),
+              color: Color(
+                widget.state.subjectFor(entry.subjectId)?.colorValue ??
+                    0xFF4F46E5,
+              ),
               onUndo: () async {
                 await widget.state.undoLogged(entry);
                 if (context.mounted) {
@@ -748,8 +780,9 @@ class _FirstRun extends StatelessWidget {
           child: Text(
             'A study planner that tells you the truth about whether your '
             'plan is possible.',
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         const HowItWorks(),

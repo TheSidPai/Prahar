@@ -18,7 +18,10 @@ void main() {
     });
 
     test('crosses into rest exactly at the end of the work interval', () {
-      final working = snapshotOf(pomodoro, const Duration(minutes: 24, seconds: 59));
+      final working = snapshotOf(
+        pomodoro,
+        const Duration(minutes: 24, seconds: 59),
+      );
       expect(working.phase, TimerPhase.work);
       expect(working.secondsLeft, 1);
 
@@ -39,8 +42,14 @@ void main() {
   group('focused time', () {
     test('counts work only, never the break', () {
       // 25 on, then 5 off: the break adds nothing.
-      expect(snapshotOf(pomodoro, const Duration(minutes: 25)).focusedMinutes, 25);
-      expect(snapshotOf(pomodoro, const Duration(minutes: 30)).focusedMinutes, 25);
+      expect(
+        snapshotOf(pomodoro, const Duration(minutes: 25)).focusedMinutes,
+        25,
+      );
+      expect(
+        snapshotOf(pomodoro, const Duration(minutes: 30)).focusedMinutes,
+        25,
+      );
     });
 
     test('accumulates across cycles', () {
@@ -51,7 +60,10 @@ void main() {
     });
 
     test('counts a part-finished interval', () {
-      expect(snapshotOf(pomodoro, const Duration(minutes: 7)).focusedMinutes, 7);
+      expect(
+        snapshotOf(pomodoro, const Duration(minutes: 7)).focusedMinutes,
+        7,
+      );
     });
   });
 
@@ -65,8 +77,10 @@ void main() {
     });
 
     test('a pause freezes the clock', () {
-      final run = TimerRun(mode: pomodoro, startedAt: start)
-          .pause(start.add(const Duration(minutes: 10)));
+      final run = TimerRun(
+        mode: pomodoro,
+        startedAt: start,
+      ).pause(start.add(const Duration(minutes: 10)));
 
       // Half an hour of real time passes, all of it paused.
       final later = start.add(const Duration(minutes: 40));
@@ -76,16 +90,26 @@ void main() {
     });
 
     test('resuming picks up where it stopped', () {
-      final paused = TimerRun(mode: pomodoro, startedAt: start)
-          .pause(start.add(const Duration(minutes: 10)));
+      final paused = TimerRun(
+        mode: pomodoro,
+        startedAt: start,
+      ).pause(start.add(const Duration(minutes: 10)));
       final resumed = paused.resume(start.add(const Duration(minutes: 40)));
 
       // Ten minutes of work happened, then thirty minutes of nothing.
-      expect(resumed.snapshotAt(start.add(const Duration(minutes: 40)))
-          .focusedMinutes, 10);
+      expect(
+        resumed
+            .snapshotAt(start.add(const Duration(minutes: 40)))
+            .focusedMinutes,
+        10,
+      );
       // Five more minutes of real time is five more minutes of work.
-      expect(resumed.snapshotAt(start.add(const Duration(minutes: 45)))
-          .focusedMinutes, 15);
+      expect(
+        resumed
+            .snapshotAt(start.add(const Duration(minutes: 45)))
+            .focusedMinutes,
+        15,
+      );
       expect(resumed.isPaused, isFalse);
     });
 
@@ -93,8 +117,10 @@ void main() {
       final run = TimerRun(mode: pomodoro, startedAt: start)
           .pause(start.add(const Duration(minutes: 5)))
           .pause(start.add(const Duration(minutes: 9)));
-      expect(run.snapshotAt(start.add(const Duration(minutes: 20)))
-          .focusedMinutes, 5);
+      expect(
+        run.snapshotAt(start.add(const Duration(minutes: 20))).focusedMinutes,
+        5,
+      );
     });
 
     test('the next phase boundary is a wall-clock instant', () {
@@ -105,16 +131,29 @@ void main() {
 
     test('a clock that jumps backwards cannot produce negative time', () {
       final run = TimerRun(mode: pomodoro, startedAt: start);
-      expect(run.snapshotAt(start.subtract(const Duration(minutes: 5)))
-          .focusedSeconds, 0);
+      expect(
+        run
+            .snapshotAt(start.subtract(const Duration(minutes: 5)))
+            .focusedSeconds,
+        0,
+      );
     });
   });
 
   test('deep mode is a longer sitting with a longer break', () {
     const deep = TimerMode.deep;
-    expect(snapshotOf(deep, const Duration(minutes: 49)).phase, TimerPhase.work);
-    expect(snapshotOf(deep, const Duration(minutes: 50)).phase, TimerPhase.rest);
-    expect(snapshotOf(deep, const Duration(minutes: 60)).phase, TimerPhase.work);
+    expect(
+      snapshotOf(deep, const Duration(minutes: 49)).phase,
+      TimerPhase.work,
+    );
+    expect(
+      snapshotOf(deep, const Duration(minutes: 50)).phase,
+      TimerPhase.rest,
+    );
+    expect(
+      snapshotOf(deep, const Duration(minutes: 60)).phase,
+      TimerPhase.work,
+    );
     expect(snapshotOf(deep, const Duration(minutes: 60)).focusedMinutes, 50);
   });
 }

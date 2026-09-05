@@ -29,154 +29,163 @@ class SettingsScreen extends StatelessWidget {
     final state = context.watch<AppState>();
     final theme = Theme.of(context);
     final weekly = state.availability;
-    final weekTotal = List.generate(7, (i) => weekly.minutesByWeekday[i + 1] ?? 0)
-        .fold(0, (a, b) => a + b);
+    final weekTotal = List.generate(
+      7,
+      (i) => weekly.minutesByWeekday[i + 1] ?? 0,
+    ).fold(0, (a, b) => a + b);
 
     Widget row({
       required IconData icon,
       required String title,
       required String value,
       required VoidCallback onTap,
-    }) =>
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Card(
-            child: ListTile(
-              leading: Icon(icon, color: theme.colorScheme.onSurfaceVariant),
-              title: Text(title),
-              subtitle: Text(value),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: onTap,
-            ),
-          ),
-        );
+    }) => Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Card(
+        child: ListTile(
+          leading: Icon(icon, color: theme.colorScheme.onSurfaceVariant),
+          title: Text(title),
+          subtitle: Text(value),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: onTap,
+        ),
+      ),
+    );
 
     Widget group(String label) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-          child: Text(
-            label.toUpperCase(),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.outline,
-              letterSpacing: 1.0,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        );
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      child: Text(
+        label.toUpperCase(),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.outline,
+          letterSpacing: 1.0,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
 
     // Settings rows are a column of short lines; stretched across a tablet the
     // value on the right ends up a hand's width from the label on the left.
     return ReadableColumn(
       child: ListView(
-      padding: const EdgeInsets.only(bottom: 90),
-      children: [
-        group('Schedule'),
-        row(
-          icon: Icons.schedule,
-          title: 'Study time',
-          value: '${formatMinutes(weekTotal)} a week',
-          onTap: () => Navigator.push(
+        padding: const EdgeInsets.only(bottom: 90),
+        children: [
+          group('Schedule'),
+          row(
+            icon: Icons.schedule,
+            title: 'Study time',
+            value: '${formatMinutes(weekTotal)} a week',
+            onTap: () => Navigator.push(
               context,
-              MaterialPageRoute<void>(
-                  builder: (_) => const _StudyTimePage())),
-        ),
-        row(
-          icon: Icons.watch_later_outlined,
-          title: 'Study window',
-          value:
-              '${formatClock(state.prefs.dayStartMinute)} – ${formatClock(state.prefs.dayEndMinute)}, '
-              '${state.prefs.blockMinutes} min blocks',
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                  builder: (_) => const _StudyWindowPage())),
-        ),
-        row(
-          icon: Icons.event_busy_outlined,
-          title: 'Busy slots',
-          value: state.availability.busy.isEmpty
-              ? 'None'
-              : '${state.availability.busy.length} recorded',
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                  builder: (_) => const BusySlotsScreen())),
-        ),
-
-        group('Reminders'),
-        row(
-          icon: Icons.notifications_outlined,
-          title: 'Notifications',
-          value: state.exactAlarmsAllowed
-              ? 'Exact timing allowed'
-              : 'Exact alarms blocked — may arrive late',
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                  builder: (_) => const _RemindersPage())),
-        ),
-
-        group('Appearance'),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: _ThemeToggle(
-            selected: state.prefs.themeChoice,
-            onChanged: (c) => _savePrefs(
-                context, state, state.prefs.copyWith(themeChoice: c)),
+              MaterialPageRoute<void>(builder: (_) => const _StudyTimePage()),
+            ),
           ),
-        ),
-        row(
-          icon: Icons.dashboard_outlined,
-          title: 'Cards',
-          value: PraharTheme.describeCards(state.prefs.cardStyle).$1,
-          onTap: () => Navigator.push(context,
-              MaterialPageRoute<void>(builder: (_) => const _CardStylePage())),
-        ),
-        row(
-          icon: Icons.blur_on,
-          title: 'Materials',
-          value: state.prefs.materialChoice == MaterialChoice.glass
-              ? 'Glass (preview) — nav, sheets, panels'
-              : 'Matte',
-          onTap: () => Navigator.push(context,
-              MaterialPageRoute<void>(builder: (_) => const _MaterialPage())),
-        ),
-
-        group('Data'),
-        row(
-          icon: Icons.backup_outlined,
-          title: 'Backup & restore',
-          value: 'Export or restore a JSON file',
-          onTap: () => Navigator.push(context,
-              MaterialPageRoute<void>(builder: (_) => const _BackupPage())),
-        ),
-
-        group('About'),
-        row(
-          icon: Icons.help_outline,
-          title: 'How Prahar works',
-          value: 'Guide to the tabs and scheduling',
-          onTap: () => HowItWorks.open(context),
-        ),
-        // Brand footer. Mark + wordmark centred, one line of provenance
-        // beneath. Reads as a signature at the end of a document rather
-        // than an About card competing for attention.
-        Padding(
-          padding: const EdgeInsets.only(top: 40, bottom: 12),
-          child: Center(
-            child: PraharLogo(markSize: 40, filled: false),
+          row(
+            icon: Icons.watch_later_outlined,
+            title: 'Study window',
+            value:
+                '${formatClock(state.prefs.dayStartMinute)} – ${formatClock(state.prefs.dayEndMinute)}, '
+                '${state.prefs.blockMinutes} min blocks',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const _StudyWindowPage()),
+            ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-          child: Text(
-            'Everything stays on this device. No account, no server, no '
-            'subscription.',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.outline),
-            textAlign: TextAlign.center,
+          row(
+            icon: Icons.event_busy_outlined,
+            title: 'Busy slots',
+            value: state.availability.busy.isEmpty
+                ? 'None'
+                : '${state.availability.busy.length} recorded',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const BusySlotsScreen()),
+            ),
           ),
-        ),
-      ],
+
+          group('Reminders'),
+          row(
+            icon: Icons.notifications_outlined,
+            title: 'Notifications',
+            value: state.exactAlarmsAllowed
+                ? 'Exact timing allowed'
+                : 'Exact alarms blocked — may arrive late',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const _RemindersPage()),
+            ),
+          ),
+
+          group('Appearance'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: _ThemeToggle(
+              selected: state.prefs.themeChoice,
+              onChanged: (c) => _savePrefs(
+                context,
+                state,
+                state.prefs.copyWith(themeChoice: c),
+              ),
+            ),
+          ),
+          row(
+            icon: Icons.dashboard_outlined,
+            title: 'Cards',
+            value: PraharTheme.describeCards(state.prefs.cardStyle).$1,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const _CardStylePage()),
+            ),
+          ),
+          row(
+            icon: Icons.blur_on,
+            title: 'Materials',
+            value: state.prefs.materialChoice == MaterialChoice.glass
+                ? 'Glass (preview) — nav, sheets, panels'
+                : 'Matte',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const _MaterialPage()),
+            ),
+          ),
+
+          group('Data'),
+          row(
+            icon: Icons.backup_outlined,
+            title: 'Backup & restore',
+            value: 'Export or restore a JSON file',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const _BackupPage()),
+            ),
+          ),
+
+          group('About'),
+          row(
+            icon: Icons.help_outline,
+            title: 'How Prahar works',
+            value: 'Guide to the tabs and scheduling',
+            onTap: () => HowItWorks.open(context),
+          ),
+          // Brand footer. Mark + wordmark centred, one line of provenance
+          // beneath. Reads as a signature at the end of a document rather
+          // than an About card competing for attention.
+          Padding(
+            padding: const EdgeInsets.only(top: 40, bottom: 12),
+            child: Center(child: PraharLogo(markSize: 40, filled: false)),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+            child: Text(
+              'Everything stays on this device. No account, no server, no '
+              'subscription.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -188,7 +197,13 @@ class _StudyTimePage extends StatelessWidget {
   const _StudyTimePage();
 
   static const _weekdayNames = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
   ];
 
   @override
@@ -207,8 +222,9 @@ class _StudyTimePage extends StatelessWidget {
             child: Text(
               'Minutes you can genuinely study each day. Be honest — an '
               'optimistic number just produces a plan you fall behind on.',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           for (var day = 1; day <= 7; day++)
@@ -241,21 +257,28 @@ class _StudyWindowPage extends StatelessWidget {
             child: Text(
               'The hours blocks may be placed between, and how long each block '
               'is. Set the hours to when you are actually free.',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           _TimeRow(
             label: 'Earliest start',
             minute: state.prefs.dayStartMinute,
             onPicked: (m) => _savePrefs(
-                context, state, state.prefs.copyWith(dayStartMinute: m)),
+              context,
+              state,
+              state.prefs.copyWith(dayStartMinute: m),
+            ),
           ),
           _TimeRow(
             label: 'Latest end',
             minute: state.prefs.dayEndMinute,
             onPicked: (m) => _savePrefs(
-                context, state, state.prefs.copyWith(dayEndMinute: m)),
+              context,
+              state,
+              state.prefs.copyWith(dayEndMinute: m),
+            ),
           ),
           _StepRow(
             label: 'Block length',
@@ -264,7 +287,10 @@ class _StudyWindowPage extends StatelessWidget {
             max: 120,
             step: 5,
             onChanged: (v) => _savePrefs(
-                context, state, state.prefs.copyWith(blockMinutes: v)),
+              context,
+              state,
+              state.prefs.copyWith(blockMinutes: v),
+            ),
           ),
           _StepRow(
             label: 'Break between',
@@ -273,7 +299,10 @@ class _StudyWindowPage extends StatelessWidget {
             max: 30,
             step: 5,
             onChanged: (v) => _savePrefs(
-                context, state, state.prefs.copyWith(breakMinutes: v)),
+              context,
+              state,
+              state.prefs.copyWith(breakMinutes: v),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -310,86 +339,90 @@ class _ThemeToggle extends StatelessWidget {
     final theme = Theme.of(context);
     final index = _options.indexWhere((o) => o.$1 == selected);
 
-    return LayoutBuilder(builder: (context, cons) {
-      final w = cons.maxWidth;
-      final segW = w / _options.length;
+    return LayoutBuilder(
+      builder: (context, cons) {
+        final w = cons.maxWidth;
+        final segW = w / _options.length;
 
-      return Container(
-        height: 56,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(28),
-        ),
-        padding: const EdgeInsets.all(4),
-        child: Stack(
-          children: [
-            // The moving selector. AnimatedPositioned rather than
-            // AnimatedContainer so a rapid re-tap still animates from the
-            // current position, not from the target.
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOutCubic,
-              left: index * (segW - 8 / _options.length),
-              top: 0,
-              bottom: 0,
-              width: segW - 8,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.24),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+        return Container(
+          height: 56,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          padding: const EdgeInsets.all(4),
+          child: Stack(
+            children: [
+              // The moving selector. AnimatedPositioned rather than
+              // AnimatedContainer so a rapid re-tap still animates from the
+              // current position, not from the target.
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                left: index * (segW - 8 / _options.length),
+                top: 0,
+                bottom: 0,
+                width: segW - 8,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.24,
+                        ),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Row(
-              children: [
-                for (final o in _options)
-                  Expanded(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => onChanged(o.$1),
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 180),
-                              child: Icon(
-                                o.$2,
-                                key: ValueKey('${o.$1}-${o.$1 == selected}'),
-                                size: 18,
-                                color: o.$1 == selected
-                                    ? theme.colorScheme.onPrimary
-                                    : theme.colorScheme.onSurfaceVariant,
+              Row(
+                children: [
+                  for (final o in _options)
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => onChanged(o.$1),
+                        child: Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 180),
+                                child: Icon(
+                                  o.$2,
+                                  key: ValueKey('${o.$1}-${o.$1 == selected}'),
+                                  size: 18,
+                                  color: o.$1 == selected
+                                      ? theme.colorScheme.onPrimary
+                                      : theme.colorScheme.onSurfaceVariant,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              o.$3,
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: o.$1 == selected
-                                    ? theme.colorScheme.onPrimary
-                                    : theme.colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w600,
+                              const SizedBox(width: 6),
+                              Text(
+                                o.$3,
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: o.$1 == selected
+                                      ? theme.colorScheme.onPrimary
+                                      : theme.colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      );
-    });
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -415,10 +448,18 @@ class _MaterialPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           for (final entry in const [
-            (MaterialChoice.matte, 'Matte', Icons.rectangle_outlined,
-                'Flat surfaces, hairline borders. Restrained and quick.'),
-            (MaterialChoice.glass, 'Glass', Icons.blur_on,
-                'Translucent surfaces with a backdrop blur. Frosted, layered.'),
+            (
+              MaterialChoice.matte,
+              'Matte',
+              Icons.rectangle_outlined,
+              'Flat surfaces, hairline borders. Restrained and quick.',
+            ),
+            (
+              MaterialChoice.glass,
+              'Glass',
+              Icons.blur_on,
+              'Translucent surfaces with a backdrop blur. Frosted, layered.',
+            ),
           ])
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -437,11 +478,17 @@ class _MaterialPage extends StatelessWidget {
                   title: Text(entry.$2),
                   subtitle: Text(entry.$4),
                   trailing: entry.$1 == state.prefs.materialChoice
-                      ? Icon(Icons.check_circle,
-                          color: theme.colorScheme.primary, size: 20)
+                      ? Icon(
+                          Icons.check_circle,
+                          color: theme.colorScheme.primary,
+                          size: 20,
+                        )
                       : null,
-                  onTap: () => _savePrefs(context, state,
-                      state.prefs.copyWith(materialChoice: entry.$1)),
+                  onTap: () => _savePrefs(
+                    context,
+                    state,
+                    state.prefs.copyWith(materialChoice: entry.$1),
+                  ),
                 ),
               ),
             ),
@@ -503,8 +550,9 @@ class _BackupPageState extends State<_BackupPage> {
               leading: const Icon(Icons.file_download_outlined),
               title: const Text('Restore'),
               subtitle: const Text(
-                  'Reads /Download/Prahar/prahar-restore.json — put a backup '
-                  'there first, then tap.'),
+                'Reads /Download/Prahar/prahar-restore.json — put a backup '
+                'there first, then tap.',
+              ),
               onTap: () => _confirmRestore(context, state),
             ),
           ),
@@ -517,8 +565,9 @@ class _BackupPageState extends State<_BackupPage> {
             Text(
               'Open your file manager > Downloads > Prahar to send it '
               'somewhere safe.',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.outline),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
             ),
           ],
         ],
@@ -540,11 +589,13 @@ class _BackupPageState extends State<_BackupPage> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Restore')),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Restore'),
+          ),
         ],
       ),
     );
@@ -601,7 +652,10 @@ class _CardStylePage extends StatelessWidget {
                 style: style,
                 selected: style == state.prefs.cardStyle,
                 onTap: () => _savePrefs(
-                    context, state, state.prefs.copyWith(cardStyle: style)),
+                  context,
+                  state,
+                  state.prefs.copyWith(cardStyle: style),
+                ),
               ),
             ),
         ],
@@ -631,7 +685,8 @@ class _CardSpecimen extends StatelessWidget {
     final preview = PraharTheme.of(
       outer.brightness,
       material: context.select<AppState, MaterialChoice>(
-          (s) => s.prefs.materialChoice),
+        (s) => s.prefs.materialChoice,
+      ),
       cardStyle: style,
     );
 
@@ -641,22 +696,30 @@ class _CardSpecimen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Text(
-              desc.$1,
-              style: outer.textTheme.titleSmall?.copyWith(
-                color: selected ? outer.colorScheme.tertiary : null,
+          Row(
+            children: [
+              Text(
+                desc.$1,
+                style: outer.textTheme.titleSmall?.copyWith(
+                  color: selected ? outer.colorScheme.tertiary : null,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            if (selected)
-              Icon(Icons.check_circle,
-                  size: 16, color: outer.colorScheme.tertiary),
-            const Spacer(),
-            Text(desc.$2,
-                style: outer.textTheme.bodySmall
-                    ?.copyWith(color: outer.colorScheme.outline)),
-          ]),
+              const SizedBox(width: 8),
+              if (selected)
+                Icon(
+                  Icons.check_circle,
+                  size: 16,
+                  color: outer.colorScheme.tertiary,
+                ),
+              const Spacer(),
+              Text(
+                desc.$2,
+                style: outer.textTheme.bodySmall?.copyWith(
+                  color: outer.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           // Two stacked specimens: a single card can look fine in isolation
           // and turn into a grid the moment it has a neighbour, which is the
@@ -723,22 +786,29 @@ class _SpecimenCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(name,
+            Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    name,
                     style: theme.textTheme.titleMedium,
                     maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right, size: 18),
-            ]),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right, size: 18),
+              ],
+            ),
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
@@ -753,8 +823,9 @@ class _SpecimenCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               deadline,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.primary),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
             ),
           ],
         ),
@@ -778,11 +849,15 @@ class _RemindersPage extends StatelessWidget {
             secondary: const Icon(Icons.nightlight_outlined),
             title: const Text('Evening digest'),
             subtitle: const Text(
-                "One quiet notification with tomorrow's blocks, so the plan "
-                'reaches you without you having to open anything'),
+              "One quiet notification with tomorrow's blocks, so the plan "
+              'reaches you without you having to open anything',
+            ),
             value: state.prefs.digestEnabled,
             onChanged: (on) => _savePrefs(
-                context, state, state.prefs.copyWith(digestEnabled: on)),
+              context,
+              state,
+              state.prefs.copyWith(digestEnabled: on),
+            ),
           ),
           if (state.prefs.digestEnabled)
             ListTile(
@@ -806,7 +881,8 @@ class _RemindersPage extends StatelessWidget {
                     context,
                     state,
                     state.prefs.copyWith(
-                        digestMinute: picked.hour * 60 + picked.minute),
+                      digestMinute: picked.hour * 60 + picked.minute,
+                    ),
                   );
                 }
               },
@@ -816,8 +892,9 @@ class _RemindersPage extends StatelessWidget {
             leading: const Icon(Icons.notifications_active_outlined),
             title: const Text('Re-request permissions'),
             subtitle: const Text(
-                'Includes "Alarms & reminders", which Android hides in a '
-                'separate screen'),
+              'Includes "Alarms & reminders", which Android hides in a '
+              'separate screen',
+            ),
             onTap: () async {
               await state.notifier.requestPermissions();
               await state.refreshAlarms();
@@ -827,8 +904,9 @@ class _RemindersPage extends StatelessWidget {
             leading: const Icon(Icons.notifications_none),
             title: const Text('Send a test reminder'),
             subtitle: const Text(
-                'Fires in 1 minute. The only way to check delivery actually '
-                'works without waiting for a real block'),
+              'Fires in 1 minute. The only way to check delivery actually '
+              'works without waiting for a real block',
+            ),
             onTap: () async {
               final when = await state.notifier.scheduleTest();
               if (context.mounted) {
@@ -878,7 +956,10 @@ class _RemindersPage extends StatelessWidget {
 
 /// Saves a preference, refusing a window too narrow to hold a single block.
 Future<void> _savePrefs(
-    BuildContext context, AppState state, Prefs next) async {
+  BuildContext context,
+  AppState state,
+  Prefs next,
+) async {
   final ok = await state.updatePrefs(next);
   if (!ok && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -950,8 +1031,9 @@ class _StepRow extends StatelessWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.remove_circle_outline),
-            onPressed:
-                value - step >= min ? () => onChanged(value - step) : null,
+            onPressed: value - step >= min
+                ? () => onChanged(value - step)
+                : null,
           ),
           SizedBox(
             width: 56,
@@ -963,8 +1045,9 @@ class _StepRow extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
-            onPressed:
-                value + step <= max ? () => onChanged(value + step) : null,
+            onPressed: value + step <= max
+                ? () => onChanged(value + step)
+                : null,
           ),
         ],
       ),

@@ -69,7 +69,8 @@ class PraharDatabase {
     // SQLite permits ADD COLUMN ... NOT NULL only with a DEFAULT.
     if (!has.contains('estimate_unit')) {
       await db.execute(
-          "ALTER TABLE topics ADD COLUMN estimate_unit TEXT NOT NULL DEFAULT 'minutes'");
+        "ALTER TABLE topics ADD COLUMN estimate_unit TEXT NOT NULL DEFAULT 'minutes'",
+      );
     }
     if (!has.contains('estimate_amount')) {
       await db.execute('ALTER TABLE topics ADD COLUMN estimate_amount INTEGER');
@@ -90,7 +91,6 @@ class PraharDatabase {
         key   TEXT PRIMARY KEY,
         value TEXT NOT NULL
       )''');
-
   }
 
   Future<void> _v3(Database db) async {
@@ -146,13 +146,13 @@ class PraharDatabase {
   }
 
   Future<void> upsertBusySlot(BusySlot s) => _upsert('busy_slots', {
-        'id': s.id,
-        'label': s.label,
-        'start_minute': s.startMinute,
-        'end_minute': s.endMinute,
-        'weekday': s.weekday,
-        'one_off_date': s.date == null ? null : dateKey(s.date!),
-      });
+    'id': s.id,
+    'label': s.label,
+    'start_minute': s.startMinute,
+    'end_minute': s.endMinute,
+    'weekday': s.weekday,
+    'one_off_date': s.date == null ? null : dateKey(s.date!),
+  });
 
   Future<void> deleteBusySlot(String id) =>
       _db.delete('busy_slots', where: 'id = ?', whereArgs: [id]);
@@ -178,21 +178,23 @@ class PraharDatabase {
 
   Future<Map<String, String>> settings() async {
     final rows = await _db.query('settings');
-    return {
-      for (final r in rows) r['key'] as String: r['value'] as String,
-    };
+    return {for (final r in rows) r['key'] as String: r['value'] as String};
   }
 
-  Future<void> putSetting(String key, String value) => _upsertKeyed(
-        'settings',
-        'key',
-        {'key': key, 'value': value},
-      );
+  Future<void> putSetting(String key, String value) =>
+      _upsertKeyed('settings', 'key', {'key': key, 'value': value});
 
   Future<void> _upsertKeyed(
-      String table, String keyColumn, Map<String, Object?> values) async {
-    final updated = await _db.update(table, values,
-        where: '$keyColumn = ?', whereArgs: [values[keyColumn]]);
+    String table,
+    String keyColumn,
+    Map<String, Object?> values,
+  ) async {
+    final updated = await _db.update(
+      table,
+      values,
+      where: '$keyColumn = ?',
+      whereArgs: [values[keyColumn]],
+    );
     if (updated == 0) await _db.insert(table, values);
   }
 
@@ -263,10 +265,8 @@ class PraharDatabase {
         status          TEXT NOT NULL
       )''');
 
-    await db.execute(
-        'CREATE INDEX idx_topics_subject ON topics(subject_id)');
-    await db.execute(
-        'CREATE INDEX idx_resources_topic ON resources(topic_id)');
+    await db.execute('CREATE INDEX idx_topics_subject ON topics(subject_id)');
+    await db.execute('CREATE INDEX idx_resources_topic ON resources(topic_id)');
     await db.execute('CREATE INDEX idx_log_day ON session_log(day)');
 
     final batch = db.batch();
@@ -307,27 +307,27 @@ class PraharDatabase {
   }
 
   Future<void> upsertSubject(Subject s) => _upsert('subjects', {
-        'id': s.id,
-        'name': s.name,
-        'exam_date': s.examDate == null ? null : dateKey(s.examDate!),
-        'exam_minute': s.examMinuteOfDay,
-        'weight': s.weight,
-        'color': s.colorValue,
-      });
+    'id': s.id,
+    'name': s.name,
+    'exam_date': s.examDate == null ? null : dateKey(s.examDate!),
+    'exam_minute': s.examMinuteOfDay,
+    'weight': s.weight,
+    'color': s.colorValue,
+  });
 
   Future<void> deleteSubject(String id) =>
       _db.delete('subjects', where: 'id = ?', whereArgs: [id]);
 
   Subject _subjectFrom(Map<String, Object?> r) => Subject(
-        id: r['id'] as String,
-        name: r['name'] as String,
-        examDate: r['exam_date'] == null
-            ? null
-            : parseDateKey(r['exam_date'] as String),
-        examMinuteOfDay: r['exam_minute'] as int?,
-        weight: r['weight'] as int,
-        colorValue: r['color'] as int,
-      );
+    id: r['id'] as String,
+    name: r['name'] as String,
+    examDate: r['exam_date'] == null
+        ? null
+        : parseDateKey(r['exam_date'] as String),
+    examMinuteOfDay: r['exam_minute'] as int?,
+    weight: r['weight'] as int,
+    colorValue: r['color'] as int,
+  );
 
   // --------------------------------------------------------------- topics
 
@@ -337,30 +337,33 @@ class PraharDatabase {
   }
 
   Future<List<Topic>> topicsFor(String subjectId) async {
-    final rows = await _db.query('topics',
-        where: 'subject_id = ?',
-        whereArgs: [subjectId],
-        orderBy: 'sort_order, title');
+    final rows = await _db.query(
+      'topics',
+      where: 'subject_id = ?',
+      whereArgs: [subjectId],
+      orderBy: 'sort_order, title',
+    );
     return rows.map(_topicFrom).toList();
   }
 
   Future<void> upsertTopic(Topic t, {int sortOrder = 0}) => _upsert('topics', {
-        'id': t.id,
-        'subject_id': t.subjectId,
-        'title': t.title,
-        'estimated_minutes': t.estimatedMinutes,
-        'completed_minutes': t.completedMinutes,
-        'difficulty': t.difficulty,
-        'prerequisite_ids': t.prerequisiteIds.join(','),
-        'status': t.status.name,
-        'first_completed_on':
-            t.firstCompletedOn == null ? null : dateKey(t.firstCompletedOn!),
-        'sort_order': sortOrder,
-        'estimate_unit': t.estimateUnit.name,
-        'estimate_amount': t.estimateAmount,
-        'estimate_rate': t.estimateRate,
-        'link': t.link,
-      });
+    'id': t.id,
+    'subject_id': t.subjectId,
+    'title': t.title,
+    'estimated_minutes': t.estimatedMinutes,
+    'completed_minutes': t.completedMinutes,
+    'difficulty': t.difficulty,
+    'prerequisite_ids': t.prerequisiteIds.join(','),
+    'status': t.status.name,
+    'first_completed_on': t.firstCompletedOn == null
+        ? null
+        : dateKey(t.firstCompletedOn!),
+    'sort_order': sortOrder,
+    'estimate_unit': t.estimateUnit.name,
+    'estimate_amount': t.estimateAmount,
+    'estimate_rate': t.estimateRate,
+    'link': t.link,
+  });
 
   Future<void> deleteTopic(String id) =>
       _db.delete('topics', where: 'id = ?', whereArgs: [id]);
@@ -374,8 +377,9 @@ class PraharDatabase {
       estimatedMinutes: r['estimated_minutes'] as int,
       completedMinutes: r['completed_minutes'] as int,
       difficulty: r['difficulty'] as int,
-      prerequisiteIds:
-          raw.isEmpty ? const [] : raw.split(',').where((s) => s.isNotEmpty).toList(),
+      prerequisiteIds: raw.isEmpty
+          ? const []
+          : raw.split(',').where((s) => s.isNotEmpty).toList(),
       status: TopicStatus.values.firstWhere(
         (v) => v.name == r['status'],
         orElse: () => TopicStatus.notStarted,
@@ -399,42 +403,45 @@ class PraharDatabase {
   // ------------------------------------------------------------ resources
 
   Future<List<Resource>> resourcesFor(String topicId) async {
-    final rows = await _db
-        .query('resources', where: 'topic_id = ?', whereArgs: [topicId]);
+    final rows = await _db.query(
+      'resources',
+      where: 'topic_id = ?',
+      whereArgs: [topicId],
+    );
     return rows.map(_resourceFrom).toList();
   }
 
   Future<void> upsertResource(Resource r) => _upsert('resources', {
-        'id': r.id,
-        'topic_id': r.topicId,
-        'kind': r.kind.name,
-        'title': r.title,
-        'locator': r.locator,
-        'page_start': r.pageStart,
-        'page_end': r.pageEnd,
-        'duration_seconds': r.durationSeconds,
-        'problem_count': r.problemCount,
-        'completed_units': r.completedUnits,
-      });
+    'id': r.id,
+    'topic_id': r.topicId,
+    'kind': r.kind.name,
+    'title': r.title,
+    'locator': r.locator,
+    'page_start': r.pageStart,
+    'page_end': r.pageEnd,
+    'duration_seconds': r.durationSeconds,
+    'problem_count': r.problemCount,
+    'completed_units': r.completedUnits,
+  });
 
   Future<void> deleteResource(String id) =>
       _db.delete('resources', where: 'id = ?', whereArgs: [id]);
 
   Resource _resourceFrom(Map<String, Object?> r) => Resource(
-        id: r['id'] as String,
-        topicId: r['topic_id'] as String,
-        kind: ResourceKind.values.firstWhere(
-          (v) => v.name == r['kind'],
-          orElse: () => ResourceKind.url,
-        ),
-        title: r['title'] as String,
-        locator: r['locator'] as String?,
-        pageStart: r['page_start'] as int?,
-        pageEnd: r['page_end'] as int?,
-        durationSeconds: r['duration_seconds'] as int?,
-        problemCount: r['problem_count'] as int?,
-        completedUnits: r['completed_units'] as int,
-      );
+    id: r['id'] as String,
+    topicId: r['topic_id'] as String,
+    kind: ResourceKind.values.firstWhere(
+      (v) => v.name == r['kind'],
+      orElse: () => ResourceKind.url,
+    ),
+    title: r['title'] as String,
+    locator: r['locator'] as String?,
+    pageStart: r['page_start'] as int?,
+    pageEnd: r['page_end'] as int?,
+    durationSeconds: r['duration_seconds'] as int?,
+    problemCount: r['problem_count'] as int?,
+    completedUnits: r['completed_units'] as int,
+  );
 
   // --------------------------------------------------------- availability
 
@@ -461,16 +468,17 @@ class PraharDatabase {
   Future<void> saveAvailability(Availability a) async {
     final batch = _db.batch();
     for (final e in a.minutesByWeekday.entries) {
-      batch.insert(
-        'availability',
-        {'weekday': e.key, 'minutes': e.value},
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      batch.insert('availability', {
+        'weekday': e.key,
+        'minutes': e.value,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
     batch.delete('availability_overrides');
     for (final e in a.overrides.entries) {
-      batch.insert('availability_overrides',
-          {'day': e.key, 'minutes': e.value});
+      batch.insert('availability_overrides', {
+        'day': e.key,
+        'minutes': e.value,
+      });
     }
     await batch.commit(noResult: true);
   }
@@ -502,8 +510,11 @@ class PraharDatabase {
   /// does *not* cascade here, so a deleted subject went on appearing in
   /// today's log and counting towards the streak. Deleting a subject is a
   /// statement that it should be gone; this is the other half of it.
-  Future<void> deleteLogForSubject(String subjectId) =>
-      _db.delete('session_log', where: 'subject_id = ?', whereArgs: [subjectId]);
+  Future<void> deleteLogForSubject(String subjectId) => _db.delete(
+    'session_log',
+    where: 'subject_id = ?',
+    whereArgs: [subjectId],
+  );
 
   /// Every completed session ever logged for [topicIds]. Used by the
   /// calibration pass, which asks "given how long this student actually took
@@ -513,7 +524,8 @@ class PraharDatabase {
     final placeholders = List.filled(topicIds.length, '?').join(',');
     final rows = await _db.query(
       'session_log',
-      where: "topic_id IN ($placeholders) AND status = 'done' "
+      where:
+          "topic_id IN ($placeholders) AND status = 'done' "
           "AND kind = 'newMaterial' AND actual_minutes > 0",
       whereArgs: topicIds.toList(),
       orderBy: 'day',
@@ -523,29 +535,33 @@ class PraharDatabase {
 
   /// Everything logged on [day], newest last.
   Future<List<LoggedSession>> logEntriesOn(DateTime day) async {
-    final rows = await _db.query('session_log',
-        where: 'day = ?', whereArgs: [dateKey(day)], orderBy: 'rowid');
+    final rows = await _db.query(
+      'session_log',
+      where: 'day = ?',
+      whereArgs: [dateKey(day)],
+      orderBy: 'rowid',
+    );
     return rows.map(_logFrom).toList();
   }
 
   LoggedSession _logFrom(Map<String, Object?> r) => LoggedSession(
-        id: r['id'] as String,
-        topicId: r['topic_id'] as String,
-        subjectId: r['subject_id'] as String,
-        topicTitle: (r['topic_title'] as String?) ?? '',
-        subjectName: (r['subject_name'] as String?) ?? '',
-        day: parseDateKey(r['day'] as String),
-        plannedMinutes: r['planned_minutes'] as int,
-        actualMinutes: r['actual_minutes'] as int,
-        kind: SessionKind.values.firstWhere(
-          (v) => v.name == r['kind'],
-          orElse: () => SessionKind.newMaterial,
-        ),
-        status: SessionStatus.values.firstWhere(
-          (v) => v.name == r['status'],
-          orElse: () => SessionStatus.done,
-        ),
-      );
+    id: r['id'] as String,
+    topicId: r['topic_id'] as String,
+    subjectId: r['subject_id'] as String,
+    topicTitle: (r['topic_title'] as String?) ?? '',
+    subjectName: (r['subject_name'] as String?) ?? '',
+    day: parseDateKey(r['day'] as String),
+    plannedMinutes: r['planned_minutes'] as int,
+    actualMinutes: r['actual_minutes'] as int,
+    kind: SessionKind.values.firstWhere(
+      (v) => v.name == r['kind'],
+      orElse: () => SessionKind.newMaterial,
+    ),
+    status: SessionStatus.values.firstWhere(
+      (v) => v.name == r['status'],
+      orElse: () => SessionStatus.done,
+    ),
+  );
 
   Future<int> minutesStudiedOn(DateTime day) async {
     final rows = await _db.rawQuery(
@@ -566,7 +582,7 @@ class PraharDatabase {
     );
     final days = rows.map((r) => r['day'] as String).toSet();
     var streak = 0;
-    for (var d = dateOnly(from);; d = d.subtract(const Duration(days: 1))) {
+    for (var d = dateOnly(from); ; d = d.subtract(const Duration(days: 1))) {
       if (!days.contains(dateKey(d))) break;
       streak++;
     }

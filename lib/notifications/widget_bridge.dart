@@ -26,22 +26,23 @@ class WidgetBridge {
   }) async {
     if (!Platform.isAndroid) return;
     final at = now ?? DateTime.now();
-    final upcoming =
-        todaySessions.where((s) => s.endsAt.isAfter(at)).toList();
+    final upcoming = todaySessions.where((s) => s.endsAt.isAfter(at)).toList();
 
     final progress = plannedMinutes <= 0
         ? 0
-        : ((doneMinutes / plannedMinutes) * 100)
-            .clamp(0, 100)
-            .round();
+        : ((doneMinutes / plannedMinutes) * 100).clamp(0, 100).round();
     final progressText = plannedMinutes <= 0
         ? 'No plan today'
         : '${formatMinutes(doneMinutes)} of ${formatMinutes(plannedMinutes)}';
 
     if (upcoming.isEmpty) {
       await _push({
-        'title': '', 'subject': '', 'time': '',
-        'title2': '', 'subject2': '', 'time2': '',
+        'title': '',
+        'subject': '',
+        'time': '',
+        'title2': '',
+        'subject2': '',
+        'time2': '',
         'status': 'none',
         'progress': progress,
         'progressText': progressText,
