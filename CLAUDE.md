@@ -82,35 +82,51 @@ tools\make_v2_launcher.ps1      # any icon variant at every launcher density
 
 ### Use these exact command shapes, or the permission prompts come back
 
-`.claude/settings.json` allows commands by matching a **glob** against the
-literal command string, and getting one prompt-free needs two things at once:
+This cost the user a night of interruptions and three wrong theories, so the
+conclusion is written down plainly.
 
-- **Doubled backslashes.** A single `\` escapes the next character in a glob,
-  so a pattern must say `c:\\Users` to match a command containing `c:\Users`.
-  This is why Claude Code writes them doubled when you pick "always allow".
-- **A trailing wildcard.** Without one the rule is an exact string, so
-  `dev.ps1 test` does not cover `dev.ps1 test | Select-Object -Last 5`.
+**Matching is exact.** Not prefix, not glob. A bare-prefix rule for
+`git … add` did not stop `git … add -A -- lib test …` from prompting, and a
+trailing `*` never matched anything either. Nothing about the mechanism is
+broken: the reason the prompts never stopped is that **Claude never ran the
+same command string twice.** Varying pipes (`-Last 5`, `-Last 3`,
+`-First 40`), `;` chains, and one-off `git log --format=…` calls meant every
+command was a new string needing a new approval.
 
-The file had the first and not the second for weeks, so every rule in it was
-dead on arrival and the same commands were approved by hand dozens of times.
-A first attempt at fixing it supplied the second and dropped the first, which
-worked no better. It needs both.
+So the fix is a **fixed vocabulary**. Use these exact strings, character for
+character; approve each once and it stays quiet:
 
-The rules only keep paying off if the command shape stays stable, so:
+```powershell
+& 'c:\Users\TheSidPai\Prahar\tools\dev.ps1' <task> *> 'c:\Users\TheSidPai\Prahar\build\dev.log'
+git -C c:\Users\TheSidPai\Prahar add -A -- lib test tools CLAUDE.md pubspec.yaml assets android .claude
+git -C c:\Users\TheSidPai\Prahar commit -q -F 'c:\Users\TheSidPai\Prahar\build\commit-msg.txt'
+git -C c:\Users\TheSidPai\Prahar status --short
+git -C c:\Users\TheSidPai\Prahar log --oneline -3
+```
+
+`*>` to `build\dev.log` replaces every `| Select-Object -Last N`: no pipe, a
+constant string, and the whole log is there to page through with an offset,
+which is more useful than a fixed tail. `/build/` is gitignored.
+
+**Never pipe. Never chain with `;`.** Both make a string that will never
+repeat, which is the entire problem. If a new kind of command is genuinely
+needed, add it to `.claude/settings.json` *and* to this list, so it is stable
+from its second use onward.
+
+Also, to keep those strings stable:
 
 - **Tools scripts:** single quotes, lowercase drive letter, exactly
-  `& 'c:\Users\TheSidPai\Prahar\tools\dev.ps1' <task> [suffix]`. A rule for
-  the double-quoted `& "C:\..."` form already existed and never matched this
-  session's single-quoted calls. Any suffix (`2>&1`, `| Select-Object …`) is
-  covered by the trailing wildcard; the *prefix* is what must not vary.
+  `& 'c:\Users\TheSidPai\Prahar\tools\dev.ps1' <task>`. The quoting is part of
+  the match — a rule for the double-quoted `& "C:\..."` form existed for weeks
+  and never matched a single-quoted call.
 - **Commit messages:** write to `build\commit-msg.txt` — a fixed path, and
   `/build/` is gitignored. Never the scratchpad: its path contains the
   session id, so a scratchpad rule is dead the moment the session ends.
 - **Staging:** always
   `git add -A -- lib test tools CLAUDE.md pubspec.yaml assets android`.
   One fixed list, whatever the change; `-A` handles deletions within it.
-- **One command per call.** Chaining unrelated commands with `;` makes a
-  string that matches no single rule. Two calls cost nothing.
+- **One command per call, and no pipes.** Both make a string no prefix rule
+  can match. Two calls cost nothing; `*>` to `build\dev.log` costs one Read.
 - **Git reads:** the Bash tool auto-allows read-only git, the PowerShell tool
   does not. Either is fine now that both are covered, but Bash needs no rule.
 

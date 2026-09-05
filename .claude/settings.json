@@ -1,27 +1,27 @@
 {
+  "//": "These are EXACT commands, in the doubled-backslash form Claude Code itself writes when you pick 'always allow'. The evidence says matching is exact, not prefix and not glob: a bare-prefix rule for 'git ... add' did not stop 'git ... add -A -- lib test ...' from prompting. Nothing is broken — the reason the prompts never stopped is that Claude never ran the same string twice, because of varying pipes (-Last 5, -Last 3, -First 40) and ';' chains. The fix is a fixed vocabulary: the handful of commands below, character for character, every time. Approve each once and it goes quiet. CLAUDE.md holds the discipline that keeps them stable.",
   "permissions": {
     "allow": [
-      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' *)",
-      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\status.ps1'*)",
-      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\make_icon.ps1'*)",
-      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\make_logos.ps1'*)",
-      "PowerShell(& \"C:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1\" *)",
-      "PowerShell(& \"C:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\status.ps1\"*)",
-      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar status *)",
-      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar log *)",
-      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar diff *)",
-      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar show *)",
-      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar add *)",
-      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar rm *)",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' analyze *> 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\build\\\\dev.log')",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' test *> 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\build\\\\dev.log')",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' apk *> 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\build\\\\dev.log')",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' install *> 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\build\\\\dev.log')",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' screenshot *> 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\build\\\\dev.log')",
+      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' devices *> 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\build\\\\dev.log')",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar add -A -- lib test tools CLAUDE.md pubspec.yaml assets android .claude)",
       "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar commit -q -F 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\build\\\\commit-msg.txt')",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar status --short)",
+      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar log --oneline -3)",
+      "PowerShell(& 'c:\\Users\\TheSidPai\\Prahar\\tools\\dev.ps1' analyze *> 'c:\\Users\\TheSidPai\\Prahar\\build\\dev.log')",
+      "PowerShell(& 'c:\\Users\\TheSidPai\\Prahar\\tools\\dev.ps1' test *> 'c:\\Users\\TheSidPai\\Prahar\\build\\dev.log')",
+      "PowerShell(& 'c:\\Users\\TheSidPai\\Prahar\\tools\\dev.ps1' apk *> 'c:\\Users\\TheSidPai\\Prahar\\build\\dev.log')",
+      "PowerShell(& 'c:\\Users\\TheSidPai\\Prahar\\tools\\dev.ps1' install *> 'c:\\Users\\TheSidPai\\Prahar\\build\\dev.log')",
+      "PowerShell(git -C c:\\Users\\TheSidPai\\Prahar add -A -- lib test tools CLAUDE.md pubspec.yaml assets android .claude)",
+      "PowerShell(git -C c:\\Users\\TheSidPai\\Prahar commit -q -F 'c:\\Users\\TheSidPai\\Prahar\\build\\commit-msg.txt')",
+      "PowerShell(git -C c:\\Users\\TheSidPai\\Prahar status --short)",
+      "PowerShell(git -C c:\\Users\\TheSidPai\\Prahar log --oneline -3)",
       "Read(//c/Users/TheSidPai/AppData/Local/Temp/claude/**)",
-      "Write(//c/Users/TheSidPai/Prahar/build/commit-msg.txt)",
-      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' test 'progress portrait' 2>&1)",
-      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' analyze 2>&1)",
-      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' test 2>&1)",
-      "PowerShell(& 'c:\\\\Users\\\\TheSidPai\\\\Prahar\\\\tools\\\\dev.ps1' install 2>&1)",
-      "PowerShell(git -C c:\\\\Users\\\\TheSidPai\\\\Prahar add -A -- lib test tools CLAUDE.md pubspec.yaml assets android .claude)"
+      "Write(//c/Users/TheSidPai/Prahar/build/commit-msg.txt)"
     ]
-  },
-  "//": "Backslashes are doubled on purpose. These patterns are globs, where a single backslash escapes the next character, so a Windows path must be written c:\\\\Users to match c:\\Users. That is why Claude Code writes them doubled when you pick 'always allow'. The other half is the trailing wildcard: without it a rule is an exact string, so 'dev.ps1 test' does not cover 'dev.ps1 test | Select-Object -Last 5' and you get asked again. Doubled backslashes AND a wildcard, or it will not match."
+  }
 }
