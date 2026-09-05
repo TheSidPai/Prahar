@@ -116,12 +116,31 @@ void main() {
     await tester.pump();
 
     if (tab != 0) {
-      // Move by tapping the destination, so the test exercises the same path
-      // a finger does.
-      final label = const ['Today', 'Plan', 'Progress', 'Subjects', 'Settings'][tab];
-      await tester.tap(find.text(label).last);
+      // Move by tapping the destination's icon, so the test exercises the same
+      // path a finger does. The icon rather than the label because a label in
+      // the rail is not always the hit target, and a tap that quietly misses
+      // would leave these tests checking the Today screen five times over
+      // while claiming to check five different ones.
+      const icons = [
+        Icons.today_outlined,
+        Icons.calendar_month_outlined,
+        Icons.insights_outlined,
+        Icons.library_books_outlined,
+        Icons.settings_outlined,
+      ];
+      await tester.tap(find.byIcon(icons[tab]).last);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
+
+      // And prove it landed: the app bar titles the current tab, so this fails
+      // loudly if the tap missed rather than silently testing nothing.
+      final label =
+          const ['Today', 'Plan', 'Progress', 'Subjects', 'Settings'][tab];
+      expect(
+        find.descendant(of: find.byType(AppBar), matching: find.text(label)),
+        findsOneWidget,
+        reason: 'the tap did not switch to $label',
+      );
     }
 
     final thrown = tester.takeException();

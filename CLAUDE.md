@@ -10,16 +10,40 @@ whatever section your task touches. The whole file is here because every
 paragraph was learned the hard way, but the state + feedback + decisions
 are what let a new session act, not just understand.
 
+### Three things waiting for a human, as of 5 Sep
+
+1. **Is this session being asked for permission?** `bypassPermissions` was
+   set in `.claude/settings.local.json` at the end of the last session, but
+   a mid-session edit did not appear to take effect, so **a fresh session is
+   the test**. Run one harmless novel command — `tools\dev.ps1 devices` —
+   and *ask the user whether they were prompted*. Do not infer it from
+   silence: a command running proves nothing, because they may simply have
+   clicked allow. That mistake was made twice and cost them an evening.
+   - No prompt → the setting works; say so and carry on.
+   - Prompted → the settings file is inert on this machine. Stop trying to
+     fix it with patterns (see below, it has been thoroughly falsified) and
+     tell them to relaunch with `claude --dangerously-skip-permissions`.
+2. **Landscape has never been seen on the device.** The layout was written
+   and tested blind, because MIUI refuses adb input injection and nothing
+   here can rotate the phone. `test/landscape_test.dart` says it lays out;
+   only a human turning the phone sideways can say it looks right.
+3. **A few commits are unpushed and the keystore has not been checked.** The
+   user pushes, never Claude. If a keystore or `android/key.properties`
+   exists it is gitignored, so a copy outside the repo is the only backup —
+   losing it means the app can never be updated again.
+
 Files you will touch most:
 
 - `lib/planner/planner.dart` — the greedy scheduler
 - `lib/planner/calibration.dart` — the per-subject rate learning
 - `lib/state/app_state.dart` — the single `ChangeNotifier`
 - `lib/data/database.dart` — SQLite DAO + migrations (bump the version!)
+- `lib/ui/today_editorial_screen.dart` — Today: hero, rail, done-strip
+- `lib/ui/layout.dart` — breakpoints; width sets columns, height sets nav
 - `lib/ui/brand.dart` — `PraharMark`, `PraharLogo` CustomPainters
 - `lib/ui/glass.dart` — `GlassSurface`, `SheetBackground`
 - `lib/ui/theme.dart` — one place for every visual token
-- `tools/dev.ps1` — the only command shape allow-listed for this session
+- `tools/dev.ps1` — every build action; noisy tasks log to `build\dev.log`
 - `tools/make_icon.ps1` — the launcher-icon generator (T3+K4 numbers live here)
 
 ## Run Claude from this directory
@@ -29,6 +53,11 @@ Files you will touch most:
 project. Starting from a parent directory (a home folder, say) silently skips
 both, and any permission granted lands in *global* settings instead of the
 project's, where it follows you into every unrelated repo.
+
+Which settings file holds what: `.claude/settings.json` is **tracked in git**
+and so holds nothing machine-specific and no standing permission grants;
+`.claude/settings.local.json` is **gitignored** and holds both, including the
+`bypassPermissions` mode, so that a "never ask" grant cannot travel to a clone.
 
 ## What this is
 
@@ -54,9 +83,10 @@ tools\dev.ps1 androidsdk   # install the Android SDK headlessly via sdkmanager
 tools\dev.ps1 gradledist   # pre-fetch the Gradle distribution with curl
 tools\dev.ps1 fonts        # download bundled variable fonts to assets/fonts
 tools\dev.ps1 pubget
-tools\dev.ps1 test         # full suite
+tools\dev.ps1 test         # full suite, output also copied to build\dev.log
+tools\dev.ps1 testq        # same, but prints only the last 12 lines
 tools\dev.ps1 test <name>  # one test by name substring
-tools\dev.ps1 analyze
+tools\dev.ps1 analyze      # prints the last 8 lines; full run in build\dev.log
 tools\dev.ps1 format
 tools\dev.ps1 doctor
 tools\dev.ps1 devices      # also diagnoses "no device" causes on MIUI
@@ -85,50 +115,74 @@ tools\make_v2_launcher.ps1      # any icon variant at every launcher density
 This cost the user a night of interruptions and three wrong theories, so the
 conclusion is written down plainly.
 
-**Matching is exact.** Not prefix, not glob. A bare-prefix rule for
-`git … add` did not stop `git … add -A -- lib test …` from prompting, and a
-trailing `*` never matched anything either. Nothing about the mechanism is
-broken: the reason the prompts never stopped is that **Claude never ran the
-same command string twice.** Varying pipes (`-Last 5`, `-Last 3`,
-`-First 40`), `;` chains, and one-off `git log --format=…` calls meant every
-command was a new string needing a new approval.
+**Do not try to fix this with permission patterns. It does not work here.**
 
-So the fix is a **fixed vocabulary**. Use these exact strings, character for
-character; approve each once and it stays quiet:
+The decisive test: `dev.ps1 testq` prompted, the user chose *always allow*,
+and Claude Code wrote the rule itself, in its own format —
 
-```powershell
-& 'c:\Users\TheSidPai\Prahar\tools\dev.ps1' <task> *> 'c:\Users\TheSidPai\Prahar\build\dev.log'
-git -C c:\Users\TheSidPai\Prahar add -A -- lib test tools CLAUDE.md pubspec.yaml assets android .claude
-git -C c:\Users\TheSidPai\Prahar commit -q -F 'c:\Users\TheSidPai\Prahar\build\commit-msg.txt'
-git -C c:\Users\TheSidPai\Prahar status --short
-git -C c:\Users\TheSidPai\Prahar log --oneline -3
+```
+"PowerShell(& 'c:\\Users\\TheSidPai\\Prahar\\tools\\dev.ps1' testq)"
 ```
 
-`*>` to `build\dev.log` replaces every `| Select-Object -Last N`: no pipe, a
-constant string, and the whole log is there to page through with an offset,
-which is more useful than a fixed tail. `/build/` is gitignored.
+— and the very next **byte-identical** run prompted again. A plain command,
+no pipe, no redirect, no chaining, a rule the tool authored for itself: still
+prompted. PowerShell command rules do not stick on this setup.
 
-**Never pipe. Never chain with `;`.** Both make a string that will never
-repeat, which is the entire problem. If a new kind of command is genuinely
-needed, add it to `.claude/settings.json` *and* to this list, so it is stable
-from its second use onward.
+Three theories were tried and falsified before that, each costing the user a
+round of interruptions, so they are recorded here to save the next session
+repeating them: it is *not* the escaping (doubled vs single backslashes), not
+a missing trailing wildcard, and not prefix-versus-exact matching. Do not
+re-derive any of it. Two further traps are real but were not the cause:
 
-Also, to keep those strings stable:
+- **A piped command can never be permanently allowed.** Choosing *always
+  allow* on `A | B` saves the rule as `A`, so it never matches `A | B` again.
+- **Redirects are not offered an "always allow" at all** — the prompt is a
+  bare yes/no, so nothing can be saved.
 
-- **Tools scripts:** single quotes, lowercase drive letter, exactly
-  `& 'c:\Users\TheSidPai\Prahar\tools\dev.ps1' <task>`. The quoting is part of
-  the match — a rule for the double-quoted `& "C:\..."` form existed for weeks
-  and never matched a single-quoted call.
-- **Commit messages:** write to `build\commit-msg.txt` — a fixed path, and
-  `/build/` is gitignored. Never the scratchpad: its path contains the
-  session id, so a scratchpad rule is dead the moment the session ends.
+The one rule that demonstrably works is `dev.ps1 analyze` in
+`settings.local.json`, which never prompted all session. Why that one holds
+and an identically-shaped new one does not is unexplained. Leave it alone.
+
+**So: for long or unattended runs the user launches
+`claude --dangerously-skip-permissions`.** That is a deliberate, informed
+choice for this repo — local, single-developer, fully version-controlled,
+nothing secret in the tree — and it comes with standing conditions, which
+are binding:
+
+- **No WebFetch, no WebSearch in such a session.** They are the only route by
+  which untrusted text could reach the context, and with no prompts there is
+  no checkpoint behind them. If something genuinely needs looking up, stop
+  and say so.
+- **Stay inside `c:\Users\TheSidPai\Prahar`.** The flag is session-wide, not
+  repo-scoped: a shell command can reach any path on the machine. Only
+  behaviour keeps it confined.
+- **Still never push**, and commit after each verified step so the distance
+  back to a good state stays short.
+
+None of that makes the command hygiene below pointless — it is simply good
+practice now rather than a workaround:
+
+- **No pipes, no `;` chains, one command per call.** `dev.ps1` does its own
+  output trimming (below), so there is nothing left to pipe.
+- **Commit messages:** write to `build\commit-msg.txt`, a fixed path under
+  gitignored `/build/`. Never the scratchpad, whose path carries the session
+  id and is dead the moment the session ends.
 - **Staging:** always
-  `git add -A -- lib test tools CLAUDE.md pubspec.yaml assets android`.
-  One fixed list, whatever the change; `-A` handles deletions within it.
-- **One command per call, and no pipes.** Both make a string no prefix rule
-  can match. Two calls cost nothing; `*>` to `build\dev.log` costs one Read.
-- **Git reads:** the Bash tool auto-allows read-only git, the PowerShell tool
-  does not. Either is fine now that both are covered, but Bash needs no rule.
+  `git add -A -- lib test tools CLAUDE.md pubspec.yaml assets android .claude`.
+- **Tools scripts:** single quotes, lowercase drive letter, exactly
+  `& 'c:\Users\TheSidPai\Prahar\tools\dev.ps1' <task>`.
+
+### Noisy tasks log themselves
+
+`analyze` prints its last 8 lines, `testq` its last 12, and both leave the
+whole run in `build\dev.log` to read with an offset. `test` tees: full output
+on screen and a copy in the log. This replaced trimming with
+`| Select-Object -Last N` at the call site.
+
+Use `>` inside the script, never `*>&1`: merging a native command's stderr
+wraps every line in an ErrorRecord in PowerShell 5.1 and buries the very
+output the task exists to show. That mistake was made and caught here — the
+warning further down this file about `2>&1` is the same trap.
 
 ### Working unattended
 

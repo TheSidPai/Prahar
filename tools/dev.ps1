@@ -38,6 +38,11 @@ if (-not (Test-Path (Join-Path $FlutterBin 'flutter.bat'))) {
 $Flutter = Join-Path $FlutterBin 'flutter.bat'
 $Dart = Join-Path $FlutterBin 'dart.bat'
 
+# Where the noisy tasks put their full output. Under /build/, which is
+# gitignored. Tasks that use it print only a tail; read the file for the rest.
+$LogFile = Join-Path $Project 'build\dev.log'
+New-Item -ItemType Directory -Force (Split-Path $LogFile) | Out-Null
+
 if (-not (Test-Path $Flutter)) {
     Write-Output "flutter not found (looked in $FlutterBin and on PATH)"
     exit 1
@@ -319,13 +324,43 @@ switch ($Task.ToLower()) {
 
     'pubget'  { & $Flutter pub get; exit $LASTEXITCODE }
 
+    # 'test' and 'analyze' write their full output to build\dev.log and print
+    # only the tail.
+    #
+    # This exists for a permissions reason, not a cosmetic one. Claude used to
+    # trim these with `| Select-Object -Last 5`, and a command containing a
+    # shell operator cannot be turned into a permission rule: a pipe is
+    # stripped when the rule is saved, so the rule never matches that command
+    # again, and a redirect is not offered an "always allow" at all. Either way
+    # the same command prompts forever. Keeping the pipe *inside* this script
+    # leaves the invocation a plain `dev.ps1 test`, which can be allowed once
+    # and then stays quiet. See CLAUDE.md.
+    # Note `>` and not `*>&1`: merging a native command's stderr wraps every
+    # line in an ErrorRecord in PowerShell 5.1, which buries the output these
+    # tasks exist to show. Stdout to the file, stderr straight to the console.
     'test' {
-        if ($Rest) { & $Flutter test --plain-name ($Rest -join ' ') }
-        else       { & $Flutter test }
+        if ($Rest) { & $Flutter test --plain-name ($Rest -join ' ') | Tee-Object $LogFile }
+        else       { & $Flutter test | Tee-Object $LogFile }
         exit $LASTEXITCODE
     }
 
-    'analyze' { & $Flutter analyze; exit $LASTEXITCODE }
+    'testq' {
+        # Quiet: the summary only. The whole run is still in build\dev.log.
+        if ($Rest) { & $Flutter test --plain-name ($Rest -join ' ') > $LogFile }
+        else       { & $Flutter test > $LogFile }
+        $code = $LASTEXITCODE
+        Get-Content $LogFile -Tail 12
+        Write-Output "--- full log: $LogFile"
+        exit $code
+    }
+
+    'analyze' {
+        & $Flutter analyze > $LogFile
+        $code = $LASTEXITCODE
+        Get-Content $LogFile -Tail 8
+        Write-Output "--- full log: $LogFile"
+        exit $code
+    }
     'format'  { & $Dart format lib test; exit $LASTEXITCODE }
     'doctor'  { & $Flutter doctor -v; exit $LASTEXITCODE }
     'devices' {
