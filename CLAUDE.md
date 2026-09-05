@@ -265,6 +265,22 @@ MIUI gates it behind a developer-option the phone does not have on. So a
 screenshot shows whichever screen the user left open; to see a particular
 screen, ask them to open it. Do not build a tap-based verification flow.
 
+**Two install failures worth recognising on sight.**
+
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE ... signatures do not match` means the
+build is signed with a different key than the app on the phone. Expected once,
+on the switch from the debug key to the release one, and the only way through
+is an uninstall — which destroys the local database, so export first.
+
+`INSTALL_FAILED_USER_RESTRICTED: Install canceled by user` is MIUI, not
+signing. It appeared on 5 Sep on the first *fresh package* install after that
+uninstall, with "Install via USB" already enabled, and then succeeded on an
+immediate retry with nothing changed. So the cause is almost certainly the
+on-screen confirmation MIUI throws up for a new package, which cancels itself
+if it is not tapped in time. Updates to an already-installed package never
+show it, which is why hundreds of installs had never hit this. Retry once, and
+look at the phone.
+
 **`install` builds first — it did not always.** Until 4 Sep it installed
 whatever APK was already sitting in `build/`, so after a code change it
 silently reinstalled the *previous* build. Everything looks correct, the
@@ -525,12 +541,22 @@ undo without reason.
   tempting evidence but prorating by minutes cancels arithmetically and
   always recovers the prior rate. This bug hid in the first draft; the test
   suite pins it now — don't "improve" it back into a broken model.
-- **Widget layouts must use pre-API-26 XML only.** MIUI's widget host has a
-  stripped-down RemoteViews inflater that rejects `paddingHorizontal`,
-  `layout_marginVertical`, `letterSpacing`, ProgressBar `min`, and
-  `?android:attr/...` style refs — with a generic "Can't load widget" error.
-  Use `paddingLeft/Right/Top/Bottom` and legacy variants only; the
-  `TodayWidget` layout was rewritten twice before this rule stuck.
+- **Widget layouts: only view classes marked `@RemoteView`, and only
+  pre-API-26 attributes.** RemoteViews inflates through a filter that rejects
+  any class without that annotation, and `android.view.View` does not have it
+  — so a bare `<View>` used as a divider takes the whole layout down. That is
+  what was still breaking `TodayWidget` on 5 Sep, long after the attribute
+  problems were fixed: `LinearLayout` and `TextView` throughout, and an empty
+  `TextView` with a background where a divider is wanted.
+  Attributes to avoid: `paddingHorizontal`, `layout_marginVertical`,
+  ProgressBar `min`, `?android:attr/...` style refs. Use
+  `paddingLeft/Right/Top/Bottom` and legacy variants.
+  **One correction to the old note: `letterSpacing` is fine.** The 2x1 widget
+  has used it since it shipped and renders correctly; it was on the banned
+  list for years on no evidence.
+  Every failure of any of these is the same generic "Can't load widget" with
+  no line number, so adding a new view type here is a gamble that has to be
+  tested on the device.
 
 ## Open feedback — start here
 

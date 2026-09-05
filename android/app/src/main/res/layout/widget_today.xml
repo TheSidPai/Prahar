@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Kept intentionally minimal after "Can't load widget" on MIUI. Only the
-  narrow subset of views RemoteViews always accepts: LinearLayout, TextView,
-  View. No ProgressBar (drawable references and framework styles are the
-  common inflate-fail culprits), no nested weight layouts, no ?android:attr
-  references. Progress is drawn as two coloured Views with dynamic widths set
-  from code in TodayWidget.
+  Kept intentionally minimal after "Can't load widget" on MIUI: LinearLayout
+  and TextView, and nothing else. No ProgressBar, no nested weight layouts, no
+  ?android:attr references — and, since 5 Sep, no bare <View> either, which is
+  what was still breaking it. Progress is drawn as text, because a real bar
+  needs either a ProgressBar or a runtime width change RemoteViews only offers
+  from API 31.
+
+  The rule that actually matters: RemoteViews accepts only classes marked
+  @RemoteView. If a view type is not in that set the whole layout fails to
+  inflate with one generic message and no line number, so adding any new view
+  type here is a gamble that has to be tested on the device.
 -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -50,12 +55,24 @@
         android:includeFontPadding="false"
         android:text=""/>
 
-    <View
+    <!--
+      A TextView, not a View, and that is the whole point of this element.
+      RemoteViews inflates through a filter that only accepts classes marked
+      @RemoteView, and android.view.View is not one of them — so a bare <View>
+      divider takes the entire layout down with a generic "Can't load widget"
+      and no clue which line caused it. The widget that works has no <View> in
+      it; this one did, and that was the only structural difference between
+      them. An empty TextView with a background draws an identical hairline
+      from a class that is on the list.
+    -->
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginTop="12dp"
         android:layout_marginBottom="12dp"
-        android:background="#33FFFFFF"/>
+        android:includeFontPadding="false"
+        android:background="#33FFFFFF"
+        android:text=""/>
 
     <TextView
         android:id="@+id/today_block2_title"
