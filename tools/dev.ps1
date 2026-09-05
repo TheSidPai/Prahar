@@ -494,8 +494,15 @@ switch ($Task.ToLower()) {
     'adb' {
         # Pass-through to adb so ad-hoc debugging goes through one command
         # shape instead of a new allow rule per invocation.
-        #   tools\dev.ps1 adb logcat -d -t 200
+        #   tools\dev.ps1 adb logcat -d -v brief -s flutter:V
         #   tools\dev.ps1 adb shell input keyevent KEYCODE_HOME
+        #
+        # NEVER pass `-t` here. PowerShell binds parameters by unambiguous
+        # prefix, and `-t` is a prefix of this script's own -Task, so
+        # `adb logcat -d -t 200` sets Task='200' and prints the help instead.
+        # It fails silently and looks exactly like adb returning nothing — an
+        # hour went into "the log buffer is empty" before that was spotted.
+        # Use `-v brief -s <tag>` to limit output instead.
         $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
         if (-not (Test-Path $adb)) { Write-Output 'adb not installed'; exit 1 }
         & $adb @Rest
@@ -622,6 +629,7 @@ switch ($Task.ToLower()) {
 
     'run'     { & $Flutter run --release; exit $LASTEXITCODE }
     'apk'     { & $Flutter build apk --release; exit $LASTEXITCODE }
+
 
     # Play takes an App Bundle, never an APK. The APK task stays because it is
     # what goes on your own phone and what `install` uses.

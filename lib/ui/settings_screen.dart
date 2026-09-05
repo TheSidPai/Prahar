@@ -1,9 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:flutter/services.dart';
+
 import '../data/backup.dart';
+import '../data/file_exchange.dart';
 import '../domain/format.dart';
 import '../domain/preferences.dart';
 import '../notifications/notifier.dart';
@@ -530,19 +531,8 @@ class _BackupPageState extends State<_BackupPage> {
             child: ListTile(
               leading: const Icon(Icons.file_upload_outlined),
               title: const Text('Export'),
-              subtitle: const Text('Writes to /Download/Prahar on the phone'),
-              onTap: () async {
-                try {
-                  final io = BackupIO(state.db);
-                  final path = await io.exportToFile();
-                  setState(() {
-                    _lastExport = path;
-                    _message = 'Exported to $path';
-                  });
-                } catch (e) {
-                  setState(() => _message = 'Export failed: $e');
-                }
-              },
+              subtitle: const Text('Choose where to save it'),
+              onTap: () => _export(state),
             ),
           ),
           const SizedBox(height: 12),
@@ -550,11 +540,8 @@ class _BackupPageState extends State<_BackupPage> {
             child: ListTile(
               leading: const Icon(Icons.file_download_outlined),
               title: const Text('Restore'),
-              subtitle: const Text(
-                'Reads /Download/Prahar/prahar-restore.json — put a backup '
-                'there first, then tap.',
-              ),
-              onTap: () => _confirmRestore(context, state),
+              subtitle: const Text('Pick a backup file to restore from'),
+              onTap: () => _restore(state),
             ),
           ),
           if (_message != null) ...[
@@ -564,8 +551,8 @@ class _BackupPageState extends State<_BackupPage> {
           if (_lastExport != null) ...[
             const SizedBox(height: 6),
             Text(
-              'Open your file manager > Downloads > Prahar to send it '
-              'somewhere safe.',
+              'Keep a copy somewhere other than this phone. A backup that '
+              'only exists on the device it is backing up is not a backup.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline,
               ),
@@ -576,7 +563,60 @@ class _BackupPageState extends State<_BackupPage> {
     );
   }
 
-  Future<void> _confirmRestore(BuildContext context, AppState state) async {
+  Future<void> _export(AppState state) async {
+    try {
+      final io = BackupIO(state.db);
+      final json = await io.serialise();
+      final stamp = DateTime.now().toIso8601String().split('T').first;
+
+      final saved = await FileExchange.save(
+        suggestedName: 'prahar-backup-$stamp.json',
+        contents: json,
+      );
+      if (!mounted) return;
+
+      // Null means the picker was dismissed, which is not a failure and does
+      // not deserve a message.
+      if (saved == null) return;
+      setState(() {
+        _lastExport = saved;
+        _message = 'Saved as $saved';
+      });
+    } on MissingPluginException {
+      // No picker on this platform — desktop, or a test binding. Fall back to
+      // the old behaviour rather than leaving the user with nothing.
+      try {
+        final path = await BackupIO(state.db).exportToFile();
+        if (mounted) {
+          setState(() {
+            _lastExport = path;
+            _message = 'Exported to $path';
+          });
+        }
+      } catch (e) {
+        if (mounted) setState(() => _message = 'Export failed: $e');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _message = 'Export failed: $e');
+    }
+  }
+
+  // Takes no BuildContext: the dialog opens after an await, so it has to use
+  // this State's own context behind its own `mounted` check.
+  Future<void> _restore(AppState state) async {
+    // The file is chosen first and confirmed second. Asking "replace
+    // everything?" before knowing whether the user even has a backup to hand
+    // makes them affirm a destructive action to reach a file browser they may
+    // then cancel out of.
+    final String? json;
+    try {
+      json = await FileExchange.open();
+    } catch (e) {
+      if (mounted) setState(() => _message = 'Could not open the file: $e');
+      return;
+    }
+    if (json == null || !mounted) return;
+
     // Restore is destructive by design (see BackupIO.import), so the
     // confirmation is deliberate rather than a nicety.
     final ok = await showDialog<bool>(
@@ -585,8 +625,8 @@ class _BackupPageState extends State<_BackupPage> {
         title: const Text('Replace everything?'),
         content: const Text(
           'This deletes your current subjects, topics, history and settings, '
-          'and replaces them with the contents of the backup file. It cannot '
-          'be undone. Export first if unsure.',
+          'and replaces them with the contents of the file you picked. It '
+          'cannot be undone. Export first if unsure.',
         ),
         actions: [
           TextButton(
@@ -603,10 +643,7 @@ class _BackupPageState extends State<_BackupPage> {
     if (ok != true) return;
 
     try {
-      final path = '/sdcard/Download/Prahar/prahar-restore.json';
-      final json = await File(path).readAsString();
-      final io = BackupIO(state.db);
-      final report = await io.import(json);
+      final report = await BackupIO(state.db).import(json);
       await state.load();
       if (mounted) setState(() => _message = '$report');
     } catch (e) {
