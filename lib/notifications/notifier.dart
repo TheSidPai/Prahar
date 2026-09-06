@@ -112,12 +112,28 @@ class Notifier {
     _ready = true;
   }
 
+  /// The zone this app assumes it is in when it cannot be told otherwise.
+  ///
+  /// India, deliberately. Every user is here, it has no daylight saving, and
+  /// a fixed +05:30 is exactly right for all of them.
+  static const _fallbackZone = 'Asia/Kolkata';
+
   /// Resolves the device's IANA zone without pulling in another plugin.
   ///
-  /// `timezone` needs a named location, but Dart only exposes an abbreviation
-  /// and an offset. Matching on the current offset is exact for zones without
-  /// DST (India included) and, for the rest, picks a zone that agrees with the
-  /// device for the two weeks we actually schedule.
+  /// `timezone` needs a named location; Dart exposes only an abbreviation and
+  /// an offset. The name is tried first and occasionally works.
+  ///
+  /// What it does *not* do any more is scan the database for the first zone
+  /// with a matching offset. That is right in India by luck rather than by
+  /// reasoning — it returns whichever zone the map happens to yield first —
+  /// and abroad it is a trap: a London phone in winter matches a zone with no
+  /// daylight saving at all, and every reminder is an hour wrong from the day
+  /// the clocks change until the app is next opened.
+  ///
+  /// So an offset that matches India is treated as India, and anything else
+  /// falls back to it too, which is at least a stated assumption rather than
+  /// an arbitrary one. If this app ever ships outside India, the fix is
+  /// `flutter_timezone` for the real IANA name, and nothing else here changes.
   void _initTimeZone() {
     tzdata.initializeTimeZones();
     final now = DateTime.now();
@@ -129,14 +145,20 @@ class Notifier {
       // Abbreviation like "IST" is not a location name — fall through.
     }
 
-    final offsetMs = now.timeZoneOffset.inMilliseconds;
-    for (final loc in tz.timeZoneDatabase.locations.values) {
-      if (loc.currentTimeZone.offset == offsetMs) {
-        tz.setLocalLocation(loc);
-        return;
-      }
+    try {
+      tz.setLocalLocation(tz.getLocation(_fallbackZone));
+    } catch (_) {
+      tz.setLocalLocation(tz.UTC);
     }
-    tz.setLocalLocation(tz.UTC);
+
+    if (now.timeZoneOffset != const Duration(hours: 5, minutes: 30)) {
+      // Not fatal, and not silent either: reminders will be scheduled in IST
+      // on a device that is not in it.
+      debugPrint(
+        'Prahar: device offset ${now.timeZoneOffset} is not IST; '
+        'reminders assume $_fallbackZone.',
+      );
+    }
   }
 
   // --------------------------------------------------------- permissions

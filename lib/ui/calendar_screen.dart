@@ -58,7 +58,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
       // The month slider is the first thing under the header and has to stay
       // legible, so it starts below the glass rather than beneath it. Only
       // the grid it belongs to scrolls under.
-      padding: EdgeInsets.only(top: glassTopInset(context), bottom: 90),
+      padding: EdgeInsets.only(
+        top: glassTopInset(context),
+        bottom: navBottomInset(context),
+      ),
       children: [
         _MonthHeader(
           month: _month,

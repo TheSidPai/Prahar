@@ -195,7 +195,10 @@ class _WeekRows extends StatelessWidget {
       // 90 for the navigation bar, which the body runs under when the material
       // is glass. The legend lived below this list on the first attempt and
       // was drawn underneath the nav where nobody could see it.
-      padding: EdgeInsets.only(top: glassTopInset(context), bottom: 90),
+      padding: EdgeInsets.only(
+        top: glassTopInset(context),
+        bottom: navBottomInset(context),
+      ),
       children: [
         header,
         _HourAxis(windowStart: windowStart, windowEnd: windowEnd),

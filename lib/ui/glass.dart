@@ -189,6 +189,30 @@ class StyledPanel extends StatelessWidget {
   }
 }
 
+/// How much room a screen must leave at the *bottom* of its scroll view.
+///
+/// 90 was hardcoded in every list in the app: the height of the navigation
+/// bar on the developer's phone, which uses gesture navigation. A phone with
+/// the three-button bar turned on — a setting, not a rare device, and the
+/// default on plenty of Samsungs and Motorolas — puts roughly another 48dp of
+/// system bar underneath, and in glass the body runs behind all of it. The
+/// last item of every list was sitting under the navigation.
+///
+/// `viewPadding` rather than `padding`: Scaffold removes `padding` from the
+/// body it lays out, but `viewPadding` keeps reporting the physical inset,
+/// which is the number wanted here.
+///
+/// Only added under glass. In matte the scaffold stops the body above the bar
+/// and the 90 is already generous.
+double navBottomInset(BuildContext context) {
+  final glass =
+      context.select<AppState, MaterialChoice>(
+        (s) => s.prefs.materialChoice,
+      ) ==
+      MaterialChoice.glass;
+  return glass ? 90 + MediaQuery.viewPaddingOf(context).bottom : 90;
+}
+
 /// How much room a screen must leave at the top of its scroll view when the
 /// app bar is glass.
 ///

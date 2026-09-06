@@ -54,7 +54,10 @@ class LookScreen extends StatelessWidget {
 
     return ReadableColumn(
       child: ListView(
-        padding: EdgeInsets.only(top: glassTopInset(context), bottom: 90),
+        padding: EdgeInsets.only(
+          top: glassTopInset(context),
+          bottom: navBottomInset(context),
+        ),
         children: [
           const _Masthead(),
 
@@ -120,7 +123,7 @@ class LookScreen extends StatelessWidget {
           _GroupLabel('Schedule', colour: scheme.primary),
           _Tile(
             icon: Icons.schedule_rounded,
-            colour: scheme.primary,
+            colour: scheme.tertiary,
             title: 'Study time',
             value: '${formatMinutes(weekTotal)} a week',
             onTap: () => Navigator.push(
@@ -130,7 +133,7 @@ class LookScreen extends StatelessWidget {
           ),
           _Tile(
             icon: Icons.watch_later_outlined,
-            colour: scheme.primary,
+            colour: scheme.tertiary,
             title: 'Study window',
             value:
                 '${formatClock(state.prefs.dayStartMinute)} – '
@@ -143,7 +146,7 @@ class LookScreen extends StatelessWidget {
           ),
           _Tile(
             icon: Icons.event_busy_outlined,
-            colour: scheme.primary,
+            colour: scheme.tertiary,
             title: 'Busy slots',
             value: state.availability.busy.isEmpty
                 ? 'Nothing blocked out'
@@ -154,10 +157,10 @@ class LookScreen extends StatelessWidget {
             ),
           ),
 
-          _GroupLabel('Reminders', colour: _amber),
+          _GroupLabel('Reminders', colour: scheme.tertiary),
           _Tile(
             icon: Icons.notifications_active_outlined,
-            colour: _amber,
+            colour: scheme.tertiary,
             title: 'Notifications',
             // The one row in the app that is allowed to shout. A reminder that
             // will not fire is the failure this app cannot afford.
@@ -171,10 +174,10 @@ class LookScreen extends StatelessWidget {
             ),
           ),
 
-          _GroupLabel('Data', colour: _cyan),
+          _GroupLabel('Data', colour: scheme.tertiary),
           _Tile(
             icon: Icons.save_alt_rounded,
-            colour: _cyan,
+            colour: scheme.tertiary,
             title: 'Backup & restore',
             value: 'One JSON file, saved where you choose',
             onTap: () => Navigator.push(
@@ -183,10 +186,10 @@ class LookScreen extends StatelessWidget {
             ),
           ),
 
-          _GroupLabel('About', colour: _violet),
+          _GroupLabel('About', colour: scheme.tertiary),
           _Tile(
             icon: Icons.auto_stories_outlined,
-            colour: _violet,
+            colour: scheme.tertiary,
             title: 'How Prahar works',
             value: 'The tabs, and why blocks land where they do',
             onTap: () => HowItWorks.open(context),
@@ -212,13 +215,15 @@ class LookScreen extends StatelessWidget {
   }
 }
 
-// The two hues the app's own palette does not already carry a meaning for.
-// Kept here rather than in the theme because they mean "this group of
-// settings" and nothing else; promoting them to tokens would imply they are
-// part of the language.
-const _amber = Color(0xFFD97706);
-const _cyan = Color(0xFF0891B2);
-const _violet = Color(0xFF7C3AED);
+// One accent, not four.
+//
+// The first version gave each group its own hue — indigo, amber, cyan,
+// violet — on the theory that colour lets the eye find a section without
+// reading it. It does, and it also invented three colours the app does not
+// otherwise speak, which is a different app's screen wearing this one's name.
+// The palette is indigo for structure and amber for effort; a settings group
+// is neither, so every group borrows the amber that the nav bar and the theme
+// toggle already use to mean "this one".
 
 /// The band at the top: the mark, and the three choices that make the app look
 /// the way it currently looks.

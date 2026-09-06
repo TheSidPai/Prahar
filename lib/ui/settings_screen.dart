@@ -70,7 +70,10 @@ class SettingsScreen extends StatelessWidget {
     // value on the right ends up a hand's width from the label on the left.
     return ReadableColumn(
       child: ListView(
-        padding: EdgeInsets.only(top: glassTopInset(context), bottom: 90),
+        padding: EdgeInsets.only(
+          top: glassTopInset(context),
+          bottom: navBottomInset(context),
+        ),
         children: [
           group('Schedule'),
           row(
@@ -407,7 +410,15 @@ class ThemeToggle extends StatelessWidget {
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () => onChanged(o.$1),
-                        child: Center(
+                        // Each segment is a fixed third of the width, so the
+                        // icon and label inside it have a hard budget. At a
+                        // 1.5x system font, or on a 320dp phone, "Light" plus
+                        // its glyph is wider than that budget and the row
+                        // overflowed — on every device with the accessibility
+                        // font turned up, which is not a rare device.
+                        // Scaling down is better than clipping a word.
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -896,114 +907,136 @@ class _SpecimenCard extends StatelessWidget {
 class RemindersPage extends StatelessWidget {
   const RemindersPage({super.key});
 
+  /// Every row on this page is a Card, so the page answers to Settings >
+  /// Cards like the rest of the app.
+  ///
+  /// It used to be bare ListTiles straight onto the scaffold — which is not a
+  /// card ignoring the setting so much as no card at all, and it read as a
+  /// different app's screen once the surrounding lists were cards.
+  static Widget _card(Widget child) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+    child: Card(margin: EdgeInsets.zero, child: child),
+  );
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     return Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
       body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         children: [
-          SwitchListTile(
+          _card(
+            SwitchListTile(
             secondary: const Icon(Icons.nightlight_outlined),
             title: const Text('Evening digest'),
             subtitle: const Text(
               "One quiet notification with tomorrow's blocks, so the plan "
               'reaches you without you having to open anything',
             ),
-            value: state.prefs.digestEnabled,
-            onChanged: (on) => savePrefs(
-              context,
-              state,
-              state.prefs.copyWith(digestEnabled: on),
+              value: state.prefs.digestEnabled,
+              onChanged: (on) => savePrefs(
+                context,
+                state,
+                state.prefs.copyWith(digestEnabled: on),
+              ),
             ),
           ),
           if (state.prefs.digestEnabled)
+            _card(
+              ListTile(
+                leading: const Icon(Icons.schedule_outlined),
+                title: const Text('Digest time'),
+                subtitle: const Text('Late enough that the day is done'),
+                trailing: Text(
+                  formatClock(state.prefs.digestMinute),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                onTap: () async {
+                  final picked = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay(
+                      hour: state.prefs.digestMinute ~/ 60,
+                      minute: state.prefs.digestMinute % 60,
+                    ),
+                  );
+                  if (picked != null && context.mounted) {
+                    await savePrefs(
+                      context,
+                      state,
+                      state.prefs.copyWith(
+                        digestMinute: picked.hour * 60 + picked.minute,
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+          const SizedBox(height: 14),
+          _card(
             ListTile(
-              leading: const Icon(Icons.schedule_outlined),
-              title: const Text('Digest time'),
-              subtitle: const Text('Late enough that the day is done'),
-              trailing: Text(
-                formatClock(state.prefs.digestMinute),
-                style: Theme.of(context).textTheme.titleMedium,
+              leading: const Icon(Icons.notifications_active_outlined),
+              title: const Text('Re-request permissions'),
+              subtitle: const Text(
+                'Includes "Alarms & reminders", which Android hides in a '
+                'separate screen',
               ),
               onTap: () async {
-                final picked = await showTimePicker(
-                  context: context,
-                  initialTime: TimeOfDay(
-                    hour: state.prefs.digestMinute ~/ 60,
-                    minute: state.prefs.digestMinute % 60,
-                  ),
-                );
-                if (picked != null && context.mounted) {
-                  await savePrefs(
-                    context,
-                    state,
-                    state.prefs.copyWith(
-                      digestMinute: picked.hour * 60 + picked.minute,
+                await state.notifier.requestPermissions();
+                await state.refreshAlarms();
+              },
+            ),
+          ),
+          _card(
+            ListTile(
+              leading: const Icon(Icons.notifications_none),
+              title: const Text('Send a test reminder'),
+              subtitle: const Text(
+                'Fires in 1 minute. The only way to check delivery actually '
+                'works without waiting for a real block',
+              ),
+              onTap: () async {
+                final when = await state.notifier.scheduleTest();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Test reminder set for '
+                        '${formatClock(when.hour * 60 + when.minute)}. '
+                        'Lock the phone and wait.',
+                      ),
+                      duration: const Duration(seconds: 6),
                     ),
                   );
                 }
               },
             ),
-          const Divider(height: 24),
-          ListTile(
-            leading: const Icon(Icons.notifications_active_outlined),
-            title: const Text('Re-request permissions'),
-            subtitle: const Text(
-              'Includes "Alarms & reminders", which Android hides in a '
-              'separate screen',
-            ),
-            onTap: () async {
-              await state.notifier.requestPermissions();
-              await state.refreshAlarms();
-            },
           ),
-          ListTile(
-            leading: const Icon(Icons.notifications_none),
-            title: const Text('Send a test reminder'),
-            subtitle: const Text(
-              'Fires in 1 minute. The only way to check delivery actually '
-              'works without waiting for a real block',
-            ),
-            onTap: () async {
-              final when = await state.notifier.scheduleTest();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Test reminder set for '
-                      '${formatClock(when.hour * 60 + when.minute)}. '
-                      'Lock the phone and wait.',
+          _card(
+            ListTile(
+              leading: const Icon(Icons.sync),
+              title: const Text('Reschedule all reminders'),
+              subtitle: Text(
+                'One reminder per study block for the next '
+                '${Notifier.windowDays} days. '
+                '${state.exactAlarmsAllowed ? "Exact timing is allowed." : "Exact alarms are blocked — reminders may arrive late."}',
+              ),
+              onTap: () async {
+                await state.refreshAlarms();
+                final pending = await state.notifier.pendingCount();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '$pending reminders set — one for each study block in '
+                        'the next ${Notifier.windowDays} days.',
+                      ),
+                      duration: const Duration(seconds: 5),
                     ),
-                    duration: const Duration(seconds: 6),
-                  ),
-                );
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.sync),
-            title: const Text('Reschedule all reminders'),
-            subtitle: Text(
-              'One reminder per study block for the next ${Notifier.windowDays} '
-              'days. ${state.exactAlarmsAllowed ? "Exact timing is allowed." : "Exact alarms are blocked — reminders may arrive late."}',
+                  );
+                }
+              },
             ),
-            onTap: () async {
-              await state.refreshAlarms();
-              final pending = await state.notifier.pendingCount();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '$pending reminders set — one for each study block in the '
-                      'next ${Notifier.windowDays} days.',
-                    ),
-                    duration: const Duration(seconds: 5),
-                  ),
-                );
-              }
-            },
           ),
         ],
       ),

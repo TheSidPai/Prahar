@@ -533,6 +533,35 @@ class PraharDatabase {
     return rows.map(_logFrom).toList();
   }
 
+  /// The whole audit trail, oldest first.
+  ///
+  /// Only the backup needs this. Everything else in the app asks the log a
+  /// narrow question — this day, these topics — because the log grows without
+  /// bound and no screen wants all of it.
+  Future<List<LoggedSession>> allLogEntries() async {
+    final rows = await _db.query('session_log', orderBy: 'day, rowid');
+    return rows.map(_logFrom).toList();
+  }
+
+  /// Puts a logged session back, exactly as it was.
+  ///
+  /// Distinct from [logSession], which takes a live StudySession and records
+  /// what just happened to it. A restore has no session to speak of — the
+  /// block it describes was regenerated out of existence long ago — so it
+  /// writes the row directly.
+  Future<void> restoreLogEntry(LoggedSession e) => _upsert('session_log', {
+    'id': e.id,
+    'topic_id': e.topicId,
+    'subject_id': e.subjectId,
+    'topic_title': e.topicTitle,
+    'subject_name': e.subjectName,
+    'day': dateKey(e.day),
+    'planned_minutes': e.plannedMinutes,
+    'actual_minutes': e.actualMinutes,
+    'kind': e.kind.name,
+    'status': e.status.name,
+  });
+
   /// Everything logged on [day], newest last.
   Future<List<LoggedSession>> logEntriesOn(DateTime day) async {
     final rows = await _db.query(

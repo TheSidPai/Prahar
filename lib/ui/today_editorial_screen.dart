@@ -191,7 +191,10 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
     }
 
     return ListView(
-      padding: EdgeInsets.only(top: topInset, bottom: 100),
+      padding: EdgeInsets.only(
+        top: topInset,
+        bottom: navBottomInset(context) + 10,
+      ),
       children: [...lead, ...around],
     );
   }
@@ -757,7 +760,10 @@ class _FirstRun extends StatelessWidget {
     // not enough of it — a landscape phone has about 350dp here.
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
-        padding: EdgeInsets.only(top: topInset, bottom: 90),
+        padding: EdgeInsets.only(
+          top: topInset,
+          bottom: navBottomInset(context),
+        ),
         child: ConstrainedBox(
           constraints: BoxConstraints(
             minHeight: (constraints.maxHeight - topInset - 90).clamp(

@@ -77,7 +77,10 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
     final shown = _selected ?? (active.isNotEmpty ? active.first.id : null);
 
     final list = ListView(
-      padding: EdgeInsets.only(top: 8 + glassTopInset(context), bottom: 90),
+      padding: EdgeInsets.only(
+        top: 8 + glassTopInset(context),
+        bottom: navBottomInset(context),
+      ),
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),

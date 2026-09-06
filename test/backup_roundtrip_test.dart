@@ -204,7 +204,7 @@ void main() {
     File(path).deleteSync();
   });
 
-  test('the session log is NOT carried, and that is worth knowing', () async {
+  test('the session log comes back too', () async {
     await populate();
     await db.logSession(
       StudySession(
@@ -228,16 +228,24 @@ void main() {
     await db.clearAll();
     await io.import(json);
 
-    // Restoring does not bring history back. `completedMinutes` on the topic
-    // survives, so the plan and the progress figures are right; what is lost
-    // is the audit trail behind them — the streak, and the per-subject
-    // calibration samples that need three finished topics to say anything.
-    //
-    // Pinned rather than fixed: exporting the log is a format change, and the
-    // decision of whether history is worth carrying is the user's. This test
-    // exists so nobody is surprised by it at the moment of restoring.
-    expect(await db.logEntriesOn(DateTime(2026, 9, 4)), isEmpty);
-    expect((await db.topics()).firstWhere((t) => t.id == 't1').completedMinutes,
-        90);
+    // History used to be dropped: progress survived on the topic, so the plan
+    // and the percentages were right, but the streak reset and the
+    // calibration samples went with it. Both are things a student earned.
+    final restored = await db.logEntriesOn(DateTime(2026, 9, 4));
+    expect(restored, hasLength(1));
+
+    final entry = restored.single;
+    expect(entry.id, 'x1');
+    expect(entry.topicTitle, 'Rotational motion');
+    expect(entry.subjectName, 'Physics');
+    expect(entry.actualMinutes, 45, reason: 'the minutes are the calibration');
+    expect(entry.plannedMinutes, 45);
+    expect(entry.status, SessionStatus.done);
+    expect(entry.kind, SessionKind.newMaterial);
+
+    expect(
+      (await db.topics()).firstWhere((t) => t.id == 't1').completedMinutes,
+      90,
+    );
   });
 }

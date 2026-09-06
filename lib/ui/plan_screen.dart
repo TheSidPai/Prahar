@@ -87,7 +87,10 @@ class PlanScreen extends StatelessWidget {
       // Named so a test can measure this list and not the month view, which
       // IndexedStack keeps alive in the tree beside it.
       key: const ValueKey('plan-days'),
-      padding: EdgeInsets.only(top: 8 + glassTopInset(context), bottom: 90),
+      padding: EdgeInsets.only(
+        top: 8 + glassTopInset(context),
+        bottom: navBottomInset(context),
+      ),
       itemCount: days,
       itemBuilder: (context, i) {
         final day = today.add(Duration(days: i));
@@ -214,7 +217,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
     // more informative, only harder to read across.
     return ReadableColumn(
       child: ListView(
-        padding: EdgeInsets.only(top: 8 + glassTopInset(context), bottom: 90),
+        padding: EdgeInsets.only(
+        top: 8 + glassTopInset(context),
+        bottom: navBottomInset(context),
+      ),
         children: [
           _OverallCard(done: done, total: total, streak: state.streak),
           const _CalibrationSection(),

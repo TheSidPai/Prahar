@@ -34,6 +34,7 @@ class BackupIO {
     final topics = await db.topics();
     final avail = await db.availability();
     final settings = await db.settings();
+    final log = await db.allLogEntries();
 
     Object? d(DateTime? v) => v == null ? null : dateKey(v);
 
@@ -90,6 +91,29 @@ class BackupIO {
             },
         ],
       },
+      // The audit trail. Left out of the first format on the grounds that the
+      // plan can be rebuilt without it — which is true, and misses the point:
+      // completedMinutes survives on the topic, so progress and the schedule
+      // come back, but the streak and the calibration samples do not, and
+      // those are the parts a student has actually earned.
+      //
+      // Additive, so the format version does not move. An older Prahar reading
+      // this file ignores the key and behaves exactly as it did.
+      'session_log': [
+        for (final e in log)
+          {
+            'id': e.id,
+            'topic_id': e.topicId,
+            'subject_id': e.subjectId,
+            'topic_title': e.topicTitle,
+            'subject_name': e.subjectName,
+            'day': d(e.day),
+            'planned_minutes': e.plannedMinutes,
+            'actual_minutes': e.actualMinutes,
+            'kind': e.kind.name,
+            'status': e.status.name,
+          },
+      ],
       'settings': settings,
     });
   }
@@ -199,6 +223,30 @@ class BackupIO {
         e.key as String: '${e.value}',
     };
 
+    // Absent in files written before the log was carried, which is why every
+    // field is read defensively rather than asserted.
+    final log = <LoggedSession>[
+      for (final e in ((root['session_log'] as List?) ?? const []).cast<Map>())
+        LoggedSession(
+          id: e['id'] as String,
+          topicId: e['topic_id'] as String,
+          subjectId: e['subject_id'] as String,
+          topicTitle: (e['topic_title'] as String?) ?? '',
+          subjectName: (e['subject_name'] as String?) ?? '',
+          day: parse(e['day']) ?? DateTime.now(),
+          plannedMinutes: (e['planned_minutes'] as num?)?.toInt() ?? 0,
+          actualMinutes: (e['actual_minutes'] as num?)?.toInt() ?? 0,
+          kind: SessionKind.values.firstWhere(
+            (v) => v.name == e['kind'],
+            orElse: () => SessionKind.newMaterial,
+          ),
+          status: SessionStatus.values.firstWhere(
+            (v) => v.name == e['status'],
+            orElse: () => SessionStatus.done,
+          ),
+        ),
+    ];
+
     // Now write. Delete children first so the cascade is deterministic.
     await db.clearAll();
     for (final s in subjects) {
@@ -216,8 +264,11 @@ class BackupIO {
     for (final e in settings.entries) {
       await db.putSetting(e.key, e.value);
     }
+    for (final e in log) {
+      await db.restoreLogEntry(e);
+    }
 
-    return ImportReport(subjects.length, topics.length, busy.length);
+    return ImportReport(subjects.length, topics.length, busy.length, log.length);
   }
 }
 
@@ -225,9 +276,11 @@ class ImportReport {
   final int subjects;
   final int topics;
   final int busy;
-  const ImportReport(this.subjects, this.topics, this.busy);
+  final int logged;
+  const ImportReport(this.subjects, this.topics, this.busy, [this.logged = 0]);
 
   @override
   String toString() =>
-      'Restored $subjects subjects, $topics topics, $busy busy slots.';
+      'Restored $subjects subjects, $topics topics, $busy busy slots, '
+      '$logged logged sessions.';
 }
