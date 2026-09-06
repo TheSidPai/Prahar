@@ -94,10 +94,18 @@ void main() {
   // disposes the tree, and disposal is what makes the binding fail a test for
   // any timer still pending. Progress starts a sqflite query during build with
   // a ten-second timeout on it, so there is reliably one.
+  // The theme is built from prefs, as PraharApp builds it. Passing the
+  // defaults instead meant the card theme never changed with the setting
+  // under test, so two different styles produced identical trees and an
+  // assertion about the difference could only ever fail.
   Widget app() => ChangeNotifierProvider<AppState>.value(
     value: state,
     child: MaterialApp(
-      theme: PraharTheme.of(Brightness.dark),
+      theme: PraharTheme.of(
+        Brightness.dark,
+        material: state.prefs.materialChoice,
+        cardStyle: state.prefs.cardStyle,
+      ),
       home: HomeScreen(key: UniqueKey()),
     ),
   );
@@ -220,6 +228,36 @@ void main() {
         ),
         findsWidgets,
         reason: 'the Card is what carries the outline, shadow and corner',
+      );
+    });
+
+    testWidgets('a hairline hero shows its edge over the glass', (
+      tester,
+    ) async {
+      // A Card paints its outline underneath its child, and the glass fills
+      // the whole shape — so the border was drawn and then covered, and the
+      // hero looked borderless whatever Settings said. It is painted as a
+      // foreground decoration now, which is what this counts.
+      int borders() => tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
+          .where(
+            (d) =>
+                d.position == DecorationPosition.foreground &&
+                d.decoration is BoxDecoration &&
+                (d.decoration as BoxDecoration).border != null,
+          )
+          .length;
+
+      await glassPanelsOnToday(tester, CardStyle.plain);
+      final plain = borders();
+
+      await glassPanelsOnToday(tester, CardStyle.hairline);
+      final hairline = borders();
+
+      expect(
+        hairline,
+        greaterThan(plain),
+        reason: 'the hairline style draws no edge on the glass hero',
       );
     });
 

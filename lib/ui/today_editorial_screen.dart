@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../domain/format.dart';
-import '../domain/preferences.dart';
 import '../domain/schedule.dart';
 import '../domain/today_focus.dart';
 import '../state/app_state.dart';
@@ -13,7 +12,6 @@ import 'glass.dart';
 import 'how_it_works.dart';
 import 'layout.dart';
 import 'subjects_screen.dart';
-import 'theme.dart';
 import 'timer_screen.dart';
 import 'widgets.dart';
 
@@ -274,61 +272,21 @@ class _Hero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final glass = state.prefs.materialChoice == MaterialChoice.glass;
     final session = focus.session;
 
     final content = session == null
         ? _emptyBody(theme)
         : _blockBody(context, theme, session);
 
-    const inset = EdgeInsets.fromLTRB(22, 22, 22, 18);
-    final style = state.prefs.cardStyle;
-
-    // The hero has to answer to Settings > Cards in *both* materials.
-    //
-    // In matte it always did, being a plain Card. In glass it did not: it was
-    // a GlassSurface with a hard-coded 24dp corner and its own fill, so every
-    // one of the five styles drew the identical panel. Glass is the material;
-    // the card style is the edge language, and they are separate questions.
-    //
-    // So the glass hero is now a transparent Card wrapped around the glass.
-    // The Card contributes exactly what a style means — the hairline's
-    // outline, the lifted style's shadow, the shared corner — and the glass
-    // contributes the blur. Open means no card at all, which with glass has
-    // to mean no panel either; anything else would be the one style that
-    // still ignores the setting.
-    final Widget panel;
-    if (!glass) {
-      panel = Card(child: Padding(padding: inset, child: content));
-    } else if (style == CardStyle.open) {
-      panel = Padding(padding: inset, child: content);
-    } else {
-      final cards = theme.cardTheme;
-      panel = Card(
-        // Transparent so the blur is what fills the shape; the Card is here
-        // for its edge and its shadow.
-        color: Colors.transparent,
-        shadowColor: cards.shadowColor,
-        elevation: cards.elevation ?? 0,
-        shape: cards.shape,
-        clipBehavior: Clip.antiAlias,
-        child: GlassSurface(
-          borderRadius: BorderRadius.circular(PraharTheme.cardRadius),
-          padding: inset,
-          // Tinted washes its fill through the card; taking that colour at the
-          // standard glass alpha keeps the wash without inventing a second
-          // number for it.
-          tint: style == CardStyle.tinted
-              ? cards.color?.withValues(alpha: 0.28)
-              : null,
-          child: content,
-        ),
-      );
-    }
-
+    // The hero answers to Settings > Cards in both materials. That logic now
+    // lives in StyledPanel, because Look's header needs exactly the same
+    // surface and a second hand-rolled one drifted immediately.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: panel,
+      child: StyledPanel(
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+        child: content,
+      ),
     );
   }
 

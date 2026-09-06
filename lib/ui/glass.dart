@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../domain/preferences.dart';
 import '../state/app_state.dart';
+import 'theme.dart';
 
 /// Frosted-glass surfaces.
 ///
@@ -108,6 +109,83 @@ class SheetBackground extends StatelessWidget {
       );
     }
     return GlassSurface(borderRadius: shape, child: child);
+  }
+}
+
+/// A panel that answers to both Settings > Materials and Settings > Cards.
+///
+/// Extracted from Today's hero because Look needs the identical thing: a
+/// surface that demonstrably *is* the current look. Hand-rolling a second one
+/// is how the first version of Look's header ended up ignoring the card style
+/// entirely — a Container with its own border looks convincing and reflects
+/// nothing, which is the trap CLAUDE.md warns about in as many words.
+///
+/// The three cases, and why:
+///
+///  * **Matte** — a plain Card. It has always answered to the style, because
+///    the style is the Card theme.
+///  * **Glass, Open** — no panel at all. "No card" cannot quietly mean one.
+///  * **Glass, anything else** — a transparent Card for its shadow and
+///    geometry, the blur inside it, and the edge drawn *over* the top. A Card
+///    paints its outline beneath its child, so a filled child hides it; that
+///    is why the hairline never appeared on the glass hero until it was moved
+///    to a foreground decoration.
+class StyledPanel extends StatelessWidget {
+  const StyledPanel({super.key, required this.child, required this.padding});
+
+  final Widget child;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final prefs = context.select<AppState, Prefs>((s) => s.prefs);
+    final glass = prefs.materialChoice == MaterialChoice.glass;
+    final style = prefs.cardStyle;
+
+    if (!glass) {
+      return Card(child: Padding(padding: padding, child: child));
+    }
+    if (style == CardStyle.open) {
+      return Padding(padding: padding, child: child);
+    }
+
+    final cards = theme.cardTheme;
+    final radius = BorderRadius.circular(PraharTheme.cardRadius);
+
+    // Taken from the style rather than read back off the theme's ShapeBorder:
+    // that introspection returned no side at runtime even where the theme
+    // plainly had one.
+    final side = style == CardStyle.hairline
+        ? BorderSide(color: theme.colorScheme.outlineVariant, width: 1)
+        : BorderSide.none;
+
+    return Card(
+      color: Colors.transparent,
+      shadowColor: cards.shadowColor,
+      elevation: cards.elevation ?? 0,
+      shape: cards.shape,
+      clipBehavior: Clip.antiAlias,
+      child: DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          border: side.style == BorderStyle.none
+              ? null
+              : Border.fromBorderSide(side),
+        ),
+        child: GlassSurface(
+          borderRadius: radius,
+          padding: padding,
+          // Tinted washes its fill through the card; taking that colour at the
+          // standard glass alpha keeps the wash without a second number.
+          tint: style == CardStyle.tinted
+              ? cards.color?.withValues(alpha: 0.28)
+              : null,
+          child: child,
+        ),
+      ),
+    );
   }
 }
 

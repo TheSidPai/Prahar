@@ -79,7 +79,7 @@ class SettingsScreen extends StatelessWidget {
             value: '${formatMinutes(weekTotal)} a week',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute<void>(builder: (_) => const _StudyTimePage()),
+              MaterialPageRoute<void>(builder: (_) => const StudyTimePage()),
             ),
           ),
           row(
@@ -90,7 +90,7 @@ class SettingsScreen extends StatelessWidget {
                 '${state.prefs.blockMinutes} min blocks',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute<void>(builder: (_) => const _StudyWindowPage()),
+              MaterialPageRoute<void>(builder: (_) => const StudyWindowPage()),
             ),
           ),
           row(
@@ -114,16 +114,16 @@ class SettingsScreen extends StatelessWidget {
                 : 'Exact alarms blocked — may arrive late',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute<void>(builder: (_) => const _RemindersPage()),
+              MaterialPageRoute<void>(builder: (_) => const RemindersPage()),
             ),
           ),
 
           group('Appearance'),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: _ThemeToggle(
+            child: ThemeToggle(
               selected: state.prefs.themeChoice,
-              onChanged: (c) => _savePrefs(
+              onChanged: (c) => savePrefs(
                 context,
                 state,
                 state.prefs.copyWith(themeChoice: c),
@@ -136,7 +136,7 @@ class SettingsScreen extends StatelessWidget {
             value: PraharTheme.describeCards(state.prefs.cardStyle).$1,
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute<void>(builder: (_) => const _CardStylePage()),
+              MaterialPageRoute<void>(builder: (_) => const CardStylePage()),
             ),
           ),
           row(
@@ -147,7 +147,9 @@ class SettingsScreen extends StatelessWidget {
                 : 'Matte',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute<void>(builder: (_) => const _MaterialPage()),
+              MaterialPageRoute<void>(
+                builder: (_) => const MaterialStylePage(),
+              ),
             ),
           ),
 
@@ -158,7 +160,7 @@ class SettingsScreen extends StatelessWidget {
             value: 'Export or restore a JSON file',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute<void>(builder: (_) => const _BackupPage()),
+              MaterialPageRoute<void>(builder: (_) => const BackupPage()),
             ),
           ),
 
@@ -195,8 +197,8 @@ class SettingsScreen extends StatelessWidget {
 
 // ------------------------------------------------------------ subpages
 
-class _StudyTimePage extends StatelessWidget {
-  const _StudyTimePage();
+class StudyTimePage extends StatelessWidget {
+  const StudyTimePage({super.key});
 
   static const _weekdayNames = [
     'Monday',
@@ -241,8 +243,8 @@ class _StudyTimePage extends StatelessWidget {
   }
 }
 
-class _StudyWindowPage extends StatelessWidget {
-  const _StudyWindowPage();
+class StudyWindowPage extends StatelessWidget {
+  const StudyWindowPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -267,7 +269,7 @@ class _StudyWindowPage extends StatelessWidget {
           _TimeRow(
             label: 'Earliest start',
             minute: state.prefs.dayStartMinute,
-            onPicked: (m) => _savePrefs(
+            onPicked: (m) => savePrefs(
               context,
               state,
               state.prefs.copyWith(dayStartMinute: m),
@@ -276,7 +278,7 @@ class _StudyWindowPage extends StatelessWidget {
           _TimeRow(
             label: 'Latest end',
             minute: state.prefs.dayEndMinute,
-            onPicked: (m) => _savePrefs(
+            onPicked: (m) => savePrefs(
               context,
               state,
               state.prefs.copyWith(dayEndMinute: m),
@@ -288,7 +290,7 @@ class _StudyWindowPage extends StatelessWidget {
             min: 15,
             max: 120,
             step: 5,
-            onChanged: (v) => _savePrefs(
+            onChanged: (v) => savePrefs(
               context,
               state,
               state.prefs.copyWith(blockMinutes: v),
@@ -300,7 +302,7 @@ class _StudyWindowPage extends StatelessWidget {
             min: 0,
             max: 30,
             step: 5,
-            onChanged: (v) => _savePrefs(
+            onChanged: (v) => savePrefs(
               context,
               state,
               state.prefs.copyWith(breakMinutes: v),
@@ -324,11 +326,26 @@ class _StudyWindowPage extends StatelessWidget {
 /// Settings list, no subpage — a three-option choice does not deserve one.
 /// The selected pill slides between positions with a spring, so the change of
 /// value feels physical rather than a checkbox flip.
-class _ThemeToggle extends StatelessWidget {
-  const _ThemeToggle({required this.selected, required this.onChanged});
+class ThemeToggle extends StatelessWidget {
+  const ThemeToggle({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+    this.accent,
+    this.onAccent,
+  });
 
   final ThemeChoice selected;
   final ValueChanged<ThemeChoice> onChanged;
+
+  /// The moving selector's fill. Defaults to the indigo primary, which is what
+  /// Settings has always used; Look passes the amber the nav bar marks its own
+  /// selection with, so one idea — "this is the thing you chose" — is one
+  /// colour throughout the app.
+  final Color? accent;
+
+  /// What is legible on [accent].
+  final Color? onAccent;
 
   static const _options = <(ThemeChoice, IconData, String)>[
     (ThemeChoice.light, Icons.light_mode_rounded, 'Light'),
@@ -340,6 +357,8 @@ class _ThemeToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final index = _options.indexWhere((o) => o.$1 == selected);
+    final fill = accent ?? theme.colorScheme.primary;
+    final ink = onAccent ?? theme.colorScheme.onPrimary;
 
     return LayoutBuilder(
       builder: (context, cons) {
@@ -367,11 +386,11 @@ class _ThemeToggle extends StatelessWidget {
                 width: segW - 8,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
+                    color: fill,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: theme.colorScheme.primary.withValues(
+                        color: fill.withValues(
                           alpha: 0.24,
                         ),
                         blurRadius: 12,
@@ -399,7 +418,7 @@ class _ThemeToggle extends StatelessWidget {
                                   key: ValueKey('${o.$1}-${o.$1 == selected}'),
                                   size: 18,
                                   color: o.$1 == selected
-                                      ? theme.colorScheme.onPrimary
+                                      ? ink
                                       : theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
@@ -408,7 +427,7 @@ class _ThemeToggle extends StatelessWidget {
                                 o.$3,
                                 style: theme.textTheme.labelLarge?.copyWith(
                                   color: o.$1 == selected
-                                      ? theme.colorScheme.onPrimary
+                                      ? ink
                                       : theme.colorScheme.onSurfaceVariant,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -428,8 +447,10 @@ class _ThemeToggle extends StatelessWidget {
   }
 }
 
-class _MaterialPage extends StatelessWidget {
-  const _MaterialPage();
+// Not `MaterialPage`: Flutter exports a class by that name from
+// material.dart, and any file importing both cannot say which it means.
+class MaterialStylePage extends StatelessWidget {
+  const MaterialStylePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -486,7 +507,7 @@ class _MaterialPage extends StatelessWidget {
                           size: 20,
                         )
                       : null,
-                  onTap: () => _savePrefs(
+                  onTap: () => savePrefs(
                     context,
                     state,
                     state.prefs.copyWith(materialChoice: entry.$1),
@@ -500,14 +521,14 @@ class _MaterialPage extends StatelessWidget {
   }
 }
 
-class _BackupPage extends StatefulWidget {
-  const _BackupPage();
+class BackupPage extends StatefulWidget {
+  const BackupPage({super.key});
 
   @override
-  State<_BackupPage> createState() => _BackupPageState();
+  State<BackupPage> createState() => BackupPageState();
 }
 
-class _BackupPageState extends State<_BackupPage> {
+class BackupPageState extends State<BackupPage> {
   String? _lastExport;
   String? _message;
 
@@ -660,8 +681,8 @@ class _BackupPageState extends State<_BackupPage> {
 /// affects. Tapping applies immediately, so the other tabs can be browsed
 /// before deciding: the font picker worked exactly this way, and being able to
 /// *use* the app in a style beats studying a swatch of it.
-class _CardStylePage extends StatelessWidget {
-  const _CardStylePage();
+class CardStylePage extends StatelessWidget {
+  const CardStylePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -689,7 +710,7 @@ class _CardStylePage extends StatelessWidget {
               child: _CardSpecimen(
                 style: style,
                 selected: style == state.prefs.cardStyle,
-                onTap: () => _savePrefs(
+                onTap: () => savePrefs(
                   context,
                   state,
                   state.prefs.copyWith(cardStyle: style),
@@ -872,8 +893,8 @@ class _SpecimenCard extends StatelessWidget {
   }
 }
 
-class _RemindersPage extends StatelessWidget {
-  const _RemindersPage();
+class RemindersPage extends StatelessWidget {
+  const RemindersPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -891,7 +912,7 @@ class _RemindersPage extends StatelessWidget {
               'reaches you without you having to open anything',
             ),
             value: state.prefs.digestEnabled,
-            onChanged: (on) => _savePrefs(
+            onChanged: (on) => savePrefs(
               context,
               state,
               state.prefs.copyWith(digestEnabled: on),
@@ -915,7 +936,7 @@ class _RemindersPage extends StatelessWidget {
                   ),
                 );
                 if (picked != null && context.mounted) {
-                  await _savePrefs(
+                  await savePrefs(
                     context,
                     state,
                     state.prefs.copyWith(
@@ -993,7 +1014,7 @@ class _RemindersPage extends StatelessWidget {
 // ------------------------------------------------------------ shared
 
 /// Saves a preference, refusing a window too narrow to hold a single block.
-Future<void> _savePrefs(
+Future<void> savePrefs(
   BuildContext context,
   AppState state,
   Prefs next,

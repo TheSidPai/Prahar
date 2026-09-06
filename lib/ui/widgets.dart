@@ -276,20 +276,33 @@ class FeasibilityBanner extends StatelessWidget {
           'across ${formatMinutes(feasibility.availableMinutes)} of study time.';
 
       if (condensed) {
+        // Reassurance, not news. It said "The plan fits · 8h 48m of work
+        // across 136h 30m of study time." at full body weight, wrapped to two
+        // lines, hard against the day's progress above it — three lines of
+        // emphasis for the one message on this screen that means nothing has
+        // to be done. Shorter copy, quiet colour, and room to breathe.
+        //
+        // The two figures stay: "it fits" without them is a claim, and with
+        // them it is a claim you can check.
         return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
           child: Row(
             children: [
               Icon(
                 Icons.check_circle_outline,
-                size: 14,
-                color: theme.colorScheme.onSurfaceVariant,
+                size: 13,
+                color: theme.colorScheme.outline,
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'The plan fits · $summary',
-                  style: theme.textTheme.bodySmall,
+                  'Plan fits · ${formatMinutes(feasibility.requiredMinutes)} '
+                  'of ${formatMinutes(feasibility.availableMinutes)} free',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
                 ),
               ),
             ],
