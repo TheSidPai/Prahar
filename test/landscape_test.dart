@@ -202,7 +202,6 @@ void main() {
         'Progress',
         'Subjects',
         'Settings',
-        'Look',
       ]) {
         expect(find.text(label), findsWidgets, reason: '$label lost from rail');
       }

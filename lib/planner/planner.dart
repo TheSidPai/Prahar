@@ -612,8 +612,8 @@ class Planner {
       final days = horizonEnd.difference(start).inDays + 1;
       final perDay = (unscheduled / days).ceil();
       warnings.add(
-        'Short by ${formatMinutes(unscheduled)} overall — '
-        'add about ${formatMinutes(perDay)} a day, or cut scope.',
+        'Short by ${formatMinutes(unscheduled)} overall. Add about '
+        '${formatMinutes(perDay)} a day, or cut something.',
       );
 
       final blocked = leftover.keys.where((id) {
@@ -625,8 +625,8 @@ class Planner {
       }).length;
       if (blocked > 0 && blocked == leftover.length) {
         warnings.add(
-          'Every unscheduled topic is waiting on a prerequisite — check for '
-          'a cycle in your prerequisites.',
+          'Every topic left over is waiting on a prerequisite. Check whether '
+          'two of them are waiting on each other.',
         );
       }
     }

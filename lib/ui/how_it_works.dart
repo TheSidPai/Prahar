@@ -64,7 +64,7 @@ class _Opening extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Four steps, once.',
+          'Set it up once',
           style: theme.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.w700,
             letterSpacing: -0.4,
@@ -72,9 +72,9 @@ class _Opening extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Tell Prahar what you have to learn and when you are free. It works '
-          'out the rest, every day, and tells you plainly when the plan will '
-          'not fit.',
+          "Tell Prahar what you have to learn and when you're free. It builds "
+          'the schedule from there, and says so when there is not enough time '
+          'left to finish.',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             height: 1.5,
@@ -112,7 +112,7 @@ class _Journey extends StatelessWidget {
           title: 'Add a subject',
           body:
               'Give it an exam date. That date is what makes the schedule '
-              'urgent — without one, Prahar treats the subject as background '
+              'urgent. Without one, Prahar treats the subject as background '
               'work and everything else takes priority.',
           visual: _ExamPill(),
         ),
@@ -121,7 +121,7 @@ class _Journey extends StatelessWidget {
           title: 'Break it into topics',
           body:
               'Chapters work well. For each one you enter pages, problems or '
-              'minutes — pages are easiest, and Prahar converts them. It then '
+              'minutes. Pages are easiest, and Prahar converts them, then '
               'learns your real reading speed and corrects the estimate.',
           visual: _EstimateBars(),
         ),
@@ -129,9 +129,9 @@ class _Journey extends StatelessWidget {
           n: '3',
           title: 'Say when you are free',
           body:
-              'Set the hours blocks may be placed between, then mark class '
-              'hours, lunch, a shift — anything the schedule should route '
-              'around. What is left is what you can genuinely spend.',
+              'Set the hours blocks can go between, then mark class times, '
+              'lunch, a shift, or anything else the schedule should avoid. '
+              'What is left is what you actually have.',
           visual: _DayTrack(),
         ),
         _JourneyStep(
@@ -139,9 +139,8 @@ class _Journey extends StatelessWidget {
           title: 'Follow Today, and tell it the truth',
           body:
               'Mark blocks done with the time they actually took. Missing a '
-              'day is fine — the plan is rebuilt from scratch whenever '
-              'anything changes, so work moves forward instead of piling up '
-              'as overdue.',
+              'day is fine. The plan is rebuilt whenever anything changes, so '
+              'work moves forward instead of piling up as overdue.',
           visual: _DoneBlock(),
           last: true,
         ),

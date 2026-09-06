@@ -701,7 +701,14 @@ void main() {
 
       expect(plan.sessions, isEmpty);
       expect(plan.feasibility.unscheduledMinutes, 400);
-      expect(plan.feasibility.warnings.any((w) => w.contains('cycle')), isTrue);
+      // Matched on "prerequisite", not on the word "cycle": the warning is
+      // read by a student, and it says two topics are waiting on each other
+      // rather than naming a graph property. Pinning the jargon would make
+      // the copy hostage to the test.
+      expect(
+        plan.feasibility.warnings.any((w) => w.contains('prerequisite')),
+        isTrue,
+      );
     });
 
     test('a prerequisite that does not exist does not deadlock', () {

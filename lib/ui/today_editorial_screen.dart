@@ -733,7 +733,7 @@ class _DoneStripState extends State<_DoneStrip> {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Undone — ${entry.topicTitle} is back'),
+                      content: Text('${entry.topicTitle} is back'),
                       duration: const Duration(seconds: 3),
                     ),
                   );

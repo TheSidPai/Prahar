@@ -34,7 +34,7 @@ class BusySlotsScreen extends StatelessWidget {
               icon: Icons.event_busy_outlined,
               title: 'No busy slots yet',
               message:
-                  'Tap Add to record class hours, lunch, a shift — '
+                  'Tap Add to record class hours, lunch, a shift, or '
                   'anything the schedule should route around. Weekly repeats '
                   'or a single date.',
             )

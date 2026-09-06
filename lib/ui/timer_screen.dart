@@ -126,7 +126,7 @@ class _TimerScreenState extends State<TimerScreen> {
       body: working
           ? '${_mode.workMinutes} minutes done. '
                 '${_mode.restMinutes} minutes off.'
-          : 'Break over — ${widget.session.topicTitle}.',
+          : 'Break over. Back to ${widget.session.topicTitle}.',
     );
   }
 

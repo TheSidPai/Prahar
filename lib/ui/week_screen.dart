@@ -380,7 +380,8 @@ class _DayRow extends StatelessWidget {
                       child: Text(
                         busy.isEmpty
                             ? 'Nothing scheduled.'
-                            : 'Nothing scheduled — the day is spoken for.',
+                            : 'Nothing scheduled. The day is fully blocked '
+                                  'out.',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.outline,
                         ),

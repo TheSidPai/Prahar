@@ -69,7 +69,7 @@ class SubjectDetailBody extends StatelessWidget {
         icon: Icons.topic_outlined,
         title: 'No topics',
         message:
-            'Break the syllabus into topics. Chapters work well — small '
+            'Break the syllabus into topics. Chapters work well, being small '
             'enough to finish in a session or two.',
         action: FilledButton.icon(
           onPressed: () => showTopicSheet(context, subjectId: subjectId),

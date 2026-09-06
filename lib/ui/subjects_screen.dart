@@ -386,8 +386,8 @@ class _SubjectRow extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 needsTopics
-                                    ? 'No topics yet — nothing is being scheduled'
-                                    : 'No exam date — scheduled last',
+                                    ? 'No topics yet, so nothing is scheduled'
+                                    : 'No exam date, so it is scheduled last',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.tertiary,
                                 ),

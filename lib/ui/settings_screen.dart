@@ -9,194 +9,15 @@ import '../domain/format.dart';
 import '../domain/preferences.dart';
 import '../notifications/notifier.dart';
 import '../state/app_state.dart';
-import 'brand.dart';
-import 'busy_slots_screen.dart';
-import 'glass.dart';
-import 'how_it_works.dart';
-import 'layout.dart';
 import 'theme.dart';
 
-/// A compact index of settings, not a wall of controls.
+/// The pages Settings pushes to, and the pieces it shares.
 ///
-/// The previous screen exposed every slider and step-button at once. This one
-/// is a set of rows, each showing the current value and opening a focused
-/// subpage. It reads more like a system Settings app, where the reveal happens
-/// on tap rather than by scroll, and it makes room to add categories later
-/// without the list turning into wallpaper.
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
-    final theme = Theme.of(context);
-    final weekly = state.availability;
-    final weekTotal = List.generate(
-      7,
-      (i) => weekly.minutesByWeekday[i + 1] ?? 0,
-    ).fold(0, (a, b) => a + b);
-
-    Widget row({
-      required IconData icon,
-      required String title,
-      required String value,
-      required VoidCallback onTap,
-    }) => Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Card(
-        child: ListTile(
-          leading: Icon(icon, color: theme.colorScheme.onSurfaceVariant),
-          title: Text(title),
-          subtitle: Text(value),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: onTap,
-        ),
-      ),
-    );
-
-    Widget group(String label) => Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-      child: Text(
-        label.toUpperCase(),
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.outline,
-          letterSpacing: 1.0,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-
-    // Settings rows are a column of short lines; stretched across a tablet the
-    // value on the right ends up a hand's width from the label on the left.
-    return ReadableColumn(
-      child: ListView(
-        padding: EdgeInsets.only(
-          top: glassTopInset(context),
-          bottom: navBottomInset(context),
-        ),
-        children: [
-          group('Schedule'),
-          row(
-            icon: Icons.schedule,
-            title: 'Study time',
-            value: '${formatMinutes(weekTotal)} a week',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(builder: (_) => const StudyTimePage()),
-            ),
-          ),
-          row(
-            icon: Icons.watch_later_outlined,
-            title: 'Study window',
-            value:
-                '${formatClock(state.prefs.dayStartMinute)} – ${formatClock(state.prefs.dayEndMinute)}, '
-                '${state.prefs.blockMinutes} min blocks',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(builder: (_) => const StudyWindowPage()),
-            ),
-          ),
-          row(
-            icon: Icons.event_busy_outlined,
-            title: 'Busy slots',
-            value: state.availability.busy.isEmpty
-                ? 'None'
-                : '${state.availability.busy.length} recorded',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(builder: (_) => const BusySlotsScreen()),
-            ),
-          ),
-
-          group('Reminders'),
-          row(
-            icon: Icons.notifications_outlined,
-            title: 'Notifications',
-            value: state.exactAlarmsAllowed
-                ? 'Exact timing allowed'
-                : 'Exact alarms blocked — may arrive late',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(builder: (_) => const RemindersPage()),
-            ),
-          ),
-
-          group('Appearance'),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: ThemeToggle(
-              selected: state.prefs.themeChoice,
-              onChanged: (c) => savePrefs(
-                context,
-                state,
-                state.prefs.copyWith(themeChoice: c),
-              ),
-            ),
-          ),
-          row(
-            icon: Icons.dashboard_outlined,
-            title: 'Cards',
-            value: PraharTheme.describeCards(state.prefs.cardStyle).$1,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(builder: (_) => const CardStylePage()),
-            ),
-          ),
-          row(
-            icon: Icons.blur_on,
-            title: 'Materials',
-            value: state.prefs.materialChoice == MaterialChoice.glass
-                ? 'Glass (preview) — nav, sheets, panels'
-                : 'Matte',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => const MaterialStylePage(),
-              ),
-            ),
-          ),
-
-          group('Data'),
-          row(
-            icon: Icons.backup_outlined,
-            title: 'Backup & restore',
-            value: 'Export or restore a JSON file',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(builder: (_) => const BackupPage()),
-            ),
-          ),
-
-          group('About'),
-          row(
-            icon: Icons.help_outline,
-            title: 'How Prahar works',
-            value: 'Guide to the tabs and scheduling',
-            onTap: () => HowItWorks.open(context),
-          ),
-          // Brand footer. Mark + wordmark centred, one line of provenance
-          // beneath. Reads as a signature at the end of a document rather
-          // than an About card competing for attention.
-          Padding(
-            padding: const EdgeInsets.only(top: 40, bottom: 12),
-            child: Center(child: PraharLogo(markSize: 40, filled: false)),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-            child: Text(
-              'Everything stays on this device. No account, no server, no '
-              'subscription.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+/// The Settings screen itself is in look_screen.dart. This file held both
+/// until 6 Sep, when the redesign that had been running beside it as a sixth
+/// "Look" tab replaced it and the original list was deleted. What is left
+/// here is everything that outlived that change: the focused subpages, the
+/// theme toggle, and `savePrefs`.
 
 // ------------------------------------------------------------ subpages
 
@@ -227,8 +48,8 @@ class StudyTimePage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             child: Text(
-              'Minutes you can genuinely study each day. Be honest — an '
-              'optimistic number just produces a plan you fall behind on.',
+              'How many minutes you can really study each day. Guess high and '
+              'you just get a plan you fall behind on.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -365,8 +186,15 @@ class ThemeToggle extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, cons) {
-        final w = cons.maxWidth;
-        final segW = w / _options.length;
+        // The Stack below sits inside 4dp of padding on each side, so the
+        // space the selector travels in is the width minus 8 — not the width.
+        //
+        // It used to divide the full width and then subtract a fudge from the
+        // offset, which put the pill a little right of its label, compounding
+        // per segment: Light looked fine, Auto slightly off, and Dark visibly
+        // adrift and hanging past the end of the track. The labels never had
+        // the bug, because Expanded divides the space that actually exists.
+        final segW = (cons.maxWidth - 8) / _options.length;
 
         return Container(
           height: 56,
@@ -375,7 +203,18 @@ class ThemeToggle extends StatelessWidget {
             borderRadius: BorderRadius.circular(28),
           ),
           padding: const EdgeInsets.all(4),
+          // Centre, because a Stack aligns its non-positioned children to the
+          // top-start corner by default. The pill is positioned and stretches
+          // to the full 48dp of inner height; the row of labels is not, so it
+          // took its natural ~20dp and sat pinned to the top, about 14dp above
+          // the pill's centre. The labels looked high in all three segments,
+          // but only the filled one gives the eye an edge to measure against,
+          // so it read as "the selected one is misaligned".
+          //
+          // Three horizontal fixes went past this because the test asserted
+          // centres on dx alone and kept passing.
           child: Stack(
+            alignment: Alignment.center,
             children: [
               // The moving selector. AnimatedPositioned rather than
               // AnimatedContainer so a rapid re-tap still animates from the
@@ -383,23 +222,19 @@ class ThemeToggle extends StatelessWidget {
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 260),
                 curve: Curves.easeOutCubic,
-                left: index * (segW - 8 / _options.length),
+                left: index * segW,
                 top: 0,
                 bottom: 0,
-                width: segW - 8,
+                width: segW,
                 child: Container(
                   decoration: BoxDecoration(
                     color: fill,
                     borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: fill.withValues(
-                          alpha: 0.24,
-                        ),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    // No glow. It was a soft indigo shadow, offset downward,
+                    // which read as depth; in amber on a near-black track it
+                    // is a bright halo that spills past the track's own edge,
+                    // and the selector looks like it has come loose from the
+                    // control rather than sitting in it.
                   ),
                 ),
               ),
@@ -473,11 +308,9 @@ class MaterialStylePage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         children: [
           Text(
-            'Two visual languages. Toggle to preview — the change is instant. '
-            'Glass affects the bottom nav, every modal sheet, and the three '
-            'summary panels: the Today header, the feasibility banner and a '
-            "subject's status. Lists and cards stay matte on purpose — the "
-            'contrast between materials is what carries the effect.',
+            'Glass frosts the bottom bar, the sheets that slide up, and the '
+            "summary panels on Today and a subject's page. Lists and cards "
+            'stay flat either way. Switching is instant.',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
@@ -553,9 +386,9 @@ class BackupPageState extends State<BackupPage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         children: [
           Text(
-            'A single JSON file with everything the app knows — subjects, '
-            'topics, availability, busy slots, settings. Local-first means '
-            'this is your only safety net.',
+            'One file with everything in it: subjects, topics, your hours, '
+            'busy slots, what you have finished, and your settings. Nothing '
+            'is kept anywhere but this phone, so this file is your only copy.',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
@@ -708,10 +541,9 @@ class CardStylePage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 8, 4, 18),
             child: Text(
-              'Every list in Prahar is made of cards, so this sets the texture '
-              'of the whole app. Each sample below is drawn in its own style. '
-              'Tap one to apply it everywhere — you can wander through the '
-              'other tabs and come back.',
+              'Every list in Prahar is made of cards, so this sets the look of '
+              'the whole app. Each sample below is drawn in its own style. Tap '
+              'one to apply it, then go and look at the other tabs.',
               style: theme.textTheme.bodySmall,
             ),
           ),
@@ -931,8 +763,7 @@ class RemindersPage extends StatelessWidget {
             secondary: const Icon(Icons.nightlight_outlined),
             title: const Text('Evening digest'),
             subtitle: const Text(
-              "One quiet notification with tomorrow's blocks, so the plan "
-              'reaches you without you having to open anything',
+              "A notification each evening with tomorrow's blocks",
             ),
               value: state.prefs.digestEnabled,
               onChanged: (on) => savePrefs(
@@ -947,7 +778,7 @@ class RemindersPage extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.schedule_outlined),
                 title: const Text('Digest time'),
-                subtitle: const Text('Late enough that the day is done'),
+                subtitle: const Text('Best set for after you stop studying'),
                 trailing: Text(
                   formatClock(state.prefs.digestMinute),
                   style: Theme.of(context).textTheme.titleMedium,
@@ -992,8 +823,8 @@ class RemindersPage extends StatelessWidget {
               leading: const Icon(Icons.notifications_none),
               title: const Text('Send a test reminder'),
               subtitle: const Text(
-                'Fires in 1 minute. The only way to check delivery actually '
-                'works without waiting for a real block',
+                'Arrives in a minute, so you can check reminders work without '
+                'waiting for a real block',
               ),
               onTap: () async {
                 final when = await state.notifier.scheduleTest();
@@ -1019,7 +850,7 @@ class RemindersPage extends StatelessWidget {
               subtitle: Text(
                 'One reminder per study block for the next '
                 '${Notifier.windowDays} days. '
-                '${state.exactAlarmsAllowed ? "Exact timing is allowed." : "Exact alarms are blocked — reminders may arrive late."}',
+                '${state.exactAlarmsAllowed ? "Exact timing is allowed." : "Exact alarms are blocked, so reminders may arrive late."}',
               ),
               onTap: () async {
                 await state.refreshAlarms();

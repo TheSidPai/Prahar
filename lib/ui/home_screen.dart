@@ -8,7 +8,6 @@ import 'glass.dart';
 import 'layout.dart';
 import 'look_screen.dart';
 import 'plan_screen.dart';
-import 'settings_screen.dart';
 import 'subjects_screen.dart';
 import 'today_editorial_screen.dart';
 
@@ -27,17 +26,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// and state belongs with the widget that owns the thing you touch.
   int _planView = 0;
 
-  // 'Look' is a sixth destination on purpose and temporarily: it is the
-  // redesigned Settings, sitting beside the original so the two can be
-  // compared on the device. One of them goes when that comparison is settled.
-  static const _titles = [
-    'Today',
-    'Plan',
-    'Progress',
-    'Subjects',
-    'Settings',
-    'Look',
-  ];
+  static const _titles = ['Today', 'Plan', 'Progress', 'Subjects', 'Settings'];
 
   @override
   void initState() {
@@ -88,7 +77,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         const ProgressScreen(),
         const SubjectsScreen(),
         const SettingsScreen(),
-        const LookScreen(),
       ],
     );
 
@@ -241,11 +229,6 @@ const _destinations = [
     icon: Icon(Icons.settings_outlined),
     selectedIcon: Icon(Icons.settings),
     label: 'Settings',
-  ),
-  NavigationDestination(
-    icon: Icon(Icons.palette_outlined),
-    selectedIcon: Icon(Icons.palette),
-    label: 'Look',
   ),
 ];
 

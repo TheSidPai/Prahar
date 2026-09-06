@@ -270,7 +270,7 @@ class Notifier {
         ? 'Review: ${s.topicTitle}'
         : '${s.subjectName} · ${formatMinutes(s.durationMinutes)}';
     final body = s.isReview
-        ? 'Quick recall pass — ${formatMinutes(s.durationMinutes)}'
+        ? 'Quick recall pass, ${formatMinutes(s.durationMinutes)}'
         : s.topicTitle;
 
     try {

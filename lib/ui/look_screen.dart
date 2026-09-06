@@ -12,8 +12,16 @@ import 'layout.dart';
 import 'settings_screen.dart';
 import 'theme.dart';
 
-/// Settings, redesigned — running alongside the original so the two can be
-/// compared on a real device rather than argued about.
+/// The Settings screen.
+///
+/// It shipped for a day as a sixth tab called "Look", beside the original, so
+/// the two could be compared on a real device rather than argued about. That
+/// comparison is over: this one won and the original is deleted. The filename
+/// is a leftover of the experiment and the class is not — renaming the file is
+/// a tidy-up for whenever something else touches it.
+///
+/// (The subpages it pushes to, the theme toggle and `savePrefs` all still live
+/// in settings_screen.dart, which is now that file's whole job.)
 ///
 /// What was wrong with the old one is not that it was ugly; it is that every
 /// row was the same row. Eight identical cards, eight grey icons, eight
@@ -38,8 +46,8 @@ import 'theme.dart';
 /// The theme toggle is deliberately unchanged apart from its colour: it moves
 /// to the amber the nav bar uses to mark the selected tab, so "this is the one
 /// you picked" is one colour everywhere in the app rather than two.
-class LookScreen extends StatelessWidget {
-  const LookScreen({super.key});
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -61,66 +69,11 @@ class LookScreen extends StatelessWidget {
         children: [
           const _Masthead(),
 
-          _GroupLabel('Appearance', colour: scheme.tertiary),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-            child: ThemeToggle(
-              selected: state.prefs.themeChoice,
-              // The amber the bottom bar marks its selection with. It was the
-              // indigo primary, which said "selected" in a second dialect.
-              accent: scheme.tertiary,
-              onAccent: scheme.onTertiary,
-              onChanged: (c) =>
-                  savePrefs(context, state, state.prefs.copyWith(themeChoice: c)),
-            ),
-          ),
-
-          _InlineChoice(
-            title: 'Cards',
-            subtitle: PraharTheme.describeCards(state.prefs.cardStyle).$2,
-            options: [
-              for (final c in CardStyle.values)
-                (PraharTheme.describeCards(c).$1, c == state.prefs.cardStyle, c),
-            ],
-            colour: scheme.tertiary,
-            onPick: (v) => savePrefs(
-              context,
-              state,
-              state.prefs.copyWith(cardStyle: v as CardStyle),
-            ),
-            onOpen: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(builder: (_) => const CardStylePage()),
-            ),
-          ),
-
-          _InlineChoice(
-            title: 'Materials',
-            subtitle: state.prefs.materialChoice == MaterialChoice.glass
-                ? 'Frosted glass on the bar, the nav and panels'
-                : 'Flat surfaces throughout',
-            options: [
-              ('Matte', state.prefs.materialChoice == MaterialChoice.matte,
-                  MaterialChoice.matte),
-              ('Glass', state.prefs.materialChoice == MaterialChoice.glass,
-                  MaterialChoice.glass),
-            ],
-            colour: scheme.tertiary,
-            onPick: (v) => savePrefs(
-              context,
-              state,
-              state.prefs.copyWith(materialChoice: v as MaterialChoice),
-            ),
-            onOpen: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => const MaterialStylePage(),
-              ),
-            ),
-          ),
-
-          _GroupLabel('Schedule', colour: scheme.primary),
+          // Schedule first: this is a study planner, and the hours you have
+          // are the setting the app is actually about. Appearance led the
+          // first draft because it was the part being redesigned, which is
+          // the designer's priority rather than the user's.
+          _GroupLabel('Schedule', colour: scheme.tertiary),
           _Tile(
             icon: Icons.schedule_rounded,
             colour: scheme.tertiary,
@@ -166,11 +119,38 @@ class LookScreen extends StatelessWidget {
             // will not fire is the failure this app cannot afford.
             value: state.exactAlarmsAllowed
                 ? 'Exact timing allowed'
-                : 'Exact alarms blocked — reminders may arrive late',
+                : 'Exact alarms blocked, reminders may be late',
             warn: !state.exactAlarmsAllowed,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute<void>(builder: (_) => const RemindersPage()),
+            ),
+          ),
+
+          // Appearance is a destination now, like everything else here. It was
+          // inline — a toggle and two rows of chips sitting open in the list —
+          // which put the least consequential settings in the most prominent
+          // place and made this screen a different shape from every other row
+          // on it.
+          _GroupLabel('Appearance', colour: scheme.tertiary),
+          _Tile(
+            icon: Icons.palette_outlined,
+            colour: scheme.tertiary,
+            title: 'Look',
+            value: [
+              switch (state.prefs.themeChoice) {
+                ThemeChoice.light => 'Light',
+                ThemeChoice.dark => 'Dark',
+                ThemeChoice.system => 'Auto',
+              },
+              PraharTheme.describeCards(state.prefs.cardStyle).$1,
+              state.prefs.materialChoice == MaterialChoice.glass
+                  ? 'Glass'
+                  : 'Matte',
+            ].join(' · '),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const AppearancePage()),
             ),
           ),
 
@@ -210,6 +190,105 @@ class LookScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Theme, cards and materials, on a page of their own.
+///
+/// These were inline on the Settings list, on the argument that their effect
+/// is visible on the screen you are standing on. True, and it still put the
+/// three least consequential settings above the hours the planner runs on,
+/// and gave that one screen a shape nothing else in the app has. They keep
+/// the apply-on-tap behaviour here, where a page of appearance controls is
+/// exactly what the reader came for.
+class AppearancePage extends StatelessWidget {
+  const AppearancePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    final scheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Look')),
+      body: ReadableColumn(
+        child: ListView(
+          padding: const EdgeInsets.only(top: 12, bottom: 40),
+          children: [
+            const _Masthead(),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: ThemeToggle(
+                selected: state.prefs.themeChoice,
+                // The amber the bottom bar marks its selection with. It was
+                // the indigo primary, which said "selected" in a second
+                // dialect.
+                accent: scheme.tertiary,
+                onAccent: scheme.onTertiary,
+                onChanged: (c) => savePrefs(
+                  context,
+                  state,
+                  state.prefs.copyWith(themeChoice: c),
+                ),
+              ),
+            ),
+            _InlineChoice(
+              title: 'Cards',
+              subtitle: PraharTheme.describeCards(state.prefs.cardStyle).$2,
+              options: [
+                for (final c in CardStyle.values)
+                  (
+                    PraharTheme.describeCards(c).$1,
+                    c == state.prefs.cardStyle,
+                    c,
+                  ),
+              ],
+              colour: scheme.tertiary,
+              onPick: (v) => savePrefs(
+                context,
+                state,
+                state.prefs.copyWith(cardStyle: v as CardStyle),
+              ),
+              onOpen: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(builder: (_) => const CardStylePage()),
+              ),
+            ),
+            _InlineChoice(
+              title: 'Materials',
+              subtitle: state.prefs.materialChoice == MaterialChoice.glass
+                  ? 'Frosted glass on the bar, the nav and panels'
+                  : 'Flat surfaces throughout',
+              options: [
+                (
+                  'Matte',
+                  state.prefs.materialChoice == MaterialChoice.matte,
+                  MaterialChoice.matte,
+                ),
+                (
+                  'Glass',
+                  state.prefs.materialChoice == MaterialChoice.glass,
+                  MaterialChoice.glass,
+                ),
+              ],
+              colour: scheme.tertiary,
+              onPick: (v) => savePrefs(
+                context,
+                state,
+                state.prefs.copyWith(materialChoice: v as MaterialChoice),
+              ),
+              onOpen: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const MaterialStylePage(),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

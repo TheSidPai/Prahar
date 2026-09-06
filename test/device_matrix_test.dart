@@ -129,7 +129,6 @@ void main() {
         'Progress',
         'Subjects',
         'Settings',
-        'Look',
       ][tab];
       final target = find.text(label);
       if (target.evaluate().isEmpty) {
@@ -153,7 +152,7 @@ void main() {
   const small = Size(320, 640);
   const normal = Size(411, 914);
 
-  const tabs = ['Today', 'Plan', 'Progress', 'Subjects', 'Settings', 'Look'];
+  const tabs = ['Today', 'Plan', 'Progress', 'Subjects', 'Settings'];
 
   group('a small phone', () {
     for (var i = 0; i < tabs.length; i++) {

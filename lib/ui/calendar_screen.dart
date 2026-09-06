@@ -409,7 +409,8 @@ class _ExamRow extends StatelessWidget {
                     if (gapAfterPrevious != null && gapAfterPrevious! <= 3) ...[
                       const SizedBox(height: 6),
                       Text(
-                        '$gapAfterPrevious day${gapAfterPrevious == 1 ? '' : 's'} after the previous — tight',
+                        'Only $gapAfterPrevious day'
+                        '${gapAfterPrevious == 1 ? '' : 's'} after the last one',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.tertiary,
                         ),

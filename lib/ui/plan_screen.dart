@@ -595,7 +595,7 @@ class _SubjectProgress extends StatelessWidget {
               if (remaining == 0 && total > 0) ...[
                 const SizedBox(height: 4),
                 Text(
-                  'Covered — reviews continue',
+                  'Covered. Reviews continue.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.primary,
                   ),
