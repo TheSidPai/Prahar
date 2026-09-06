@@ -67,12 +67,13 @@ class SettingsScreen extends StatelessWidget {
           bottom: navBottomInset(context),
         ),
         children: [
-          const _Masthead(),
-
-          // Schedule first: this is a study planner, and the hours you have
-          // are the setting the app is actually about. Appearance led the
-          // first draft because it was the part being redesigned, which is
-          // the designer's priority rather than the user's.
+          // No masthead here. It moved to the Appearance page with the
+          // controls it previews; leaving a copy at the top of Settings meant
+          // the screen opened on a preview of a thing three rows further
+          // down, and the same card appeared twice in one navigation.
+          //
+          // Schedule leads instead: this is a study planner, and the hours you
+          // have are the setting the app is actually about.
           _GroupLabel('Schedule', colour: scheme.tertiary),
           _Tile(
             icon: Icons.schedule_rounded,
@@ -176,7 +177,9 @@ class SettingsScreen extends StatelessWidget {
           ),
 
           const SizedBox(height: 34),
-          Center(child: PraharLogo(markSize: 36, filled: false)),
+          const Center(
+            child: PraharLogo(markSize: 36, filled: false, animated: true),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(28, 10, 28, 16),
             child: Text(
@@ -361,7 +364,7 @@ class _Masthead extends StatelessWidget {
                   ],
                 ),
               ),
-              child: const PraharMark(size: 34),
+              child: const AnimatedPraharMark(size: 34, playOnAppear: false),
             ),
             const SizedBox(width: 14),
             Expanded(

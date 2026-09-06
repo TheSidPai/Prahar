@@ -40,11 +40,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  /// Bumped to make the app bar's mark draw itself again.
+  int _markTake = 0;
+
+  /// When the app was last put away, so a return can be greeted.
+  DateTime? _leftAt;
+
+  /// Below this, coming back is not a return — it is a permission dialog, a
+  /// time picker, or a glance at a notification. Animating for those would
+  /// turn a greeting into a tic.
+  static const _awayBeforeGreeting = Duration(seconds: 30);
+
   /// The alarm window is only two weeks deep, and the OS can drop pending
   /// alarms after a reboot or a force-stop. Topping up whenever the app comes
   /// to the foreground is the cheapest way to keep it honest.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _leftAt = DateTime.now();
+      return;
+    }
+
     if (state == AppLifecycleState.resumed && mounted) {
       final app = context.read<AppState>();
       // Left open overnight, `today` moves on but the loaded log does not, so
@@ -52,6 +68,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // remaining capacity.
       app.refreshIfDayChanged();
       app.refreshAlarms();
+
+      // The mark draws itself on the way back in.
+      //
+      // Not on the way out, which is what was asked for and is not possible
+      // to see: Android takes the recents thumbnail as the app is leaving and
+      // the exit transition is a few hundred milliseconds, so a goodbye plays
+      // to a window that has already gone. Coming back is the same gesture's
+      // other half, it lasts as long as you look at it, and it lands on a
+      // screen you are about to read anyway.
+      final away = _leftAt;
+      if (away != null &&
+          DateTime.now().difference(away) >= _awayBeforeGreeting) {
+        setState(() => _markTake++);
+      }
+      _leftAt = null;
     }
   }
 
@@ -135,6 +166,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   : PraharLogo(
                       markSize: 24,
                       filled: false,
+                      // Tap it and it redraws; it also redraws itself when you
+                      // come back to the app after a while away.
+                      animated: true,
+                      replayKey: _markTake,
                       wordmarkStyle: Theme.of(
                         context,
                       ).appBarTheme.titleTextStyle,
@@ -210,19 +245,22 @@ const _destinations = [
     selectedIcon: Icon(Icons.calendar_month),
     label: 'Plan',
   ),
-  // Drawn, not borrowed — see PraharProgressGlyph. The stock ring was the
-  // right idea at the wrong weight: `donut_large` is a solid wedge cut out of
-  // a disc, which is heavier than anything else in this row and heavier than
-  // the app's own mark. A hairline track with an arc on it says the same
-  // thing at the weight the rest of the brand is drawn at.
+  // Chosen off the contact sheets, against the drawn glyph and eleven other
+  // candidates, at the 24dp it is actually seen at. A ring rather than a
+  // rising line was the deciding call: the app knows exactly how much work
+  // remains, so "how much of a finite amount is done" is a claim it can make,
+  // while a trend line implies a direction it does not measure.
   NavigationDestination(
-    icon: PraharProgressGlyph(),
-    selectedIcon: PraharProgressGlyph(selected: true),
+    icon: Icon(Icons.track_changes_outlined),
+    selectedIcon: Icon(Icons.track_changes),
     label: 'Progress',
   ),
+  // An open book rather than stacked pages: library_books keeps three sheets
+  // and their rules inside 24dp, which silts up at the size it is actually
+  // seen. menu_book resolves to one shape.
   NavigationDestination(
-    icon: Icon(Icons.library_books_outlined),
-    selectedIcon: Icon(Icons.library_books),
+    icon: Icon(Icons.menu_book_outlined),
+    selectedIcon: Icon(Icons.menu_book),
     label: 'Subjects',
   ),
   NavigationDestination(

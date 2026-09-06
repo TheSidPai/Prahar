@@ -10,23 +10,42 @@ whatever section your task touches. The whole file is here because every
 paragraph was learned the hard way, but the state + feedback + decisions
 are what let a new session act, not just understand.
 
-### One thing waiting for a human, as of 5 Sep
+### Where things stand, as of 6 Sep
 
-1. **The keystore has to be created by a human, and has not been.** All the
-   wiring landed on 5 Sep; what is missing is the key itself, because
-   `keytool` prompts for passwords and cannot be driven from a session here.
-   The user runs `tools\dev.ps1 keystore` in a terminal, copies the `.jks`
-   off the machine the same day, then copies
-   `android/key.properties.example` to `android/key.properties` and fills it
-   in. Until then every release build is signed with the machine's debug key
-   — check with `tools\dev.ps1 signer`, which prints `CN=Android Debug`.
+**13 commits are unpushed.** The user pushes, never Claude. Everything below
+is committed, built and installed on the phone; `.claude/settings.json` is
+dirty and should be reverted, not committed — see the note at the end of this
+section.
 
-   The urgency is not publishing. Android will not install an update signed
-   by a different key, so if the disposable debug keystore is ever lost, the
-   only way to install a new build over the app on the phone is an uninstall,
-   which destroys the entire local database. See **Version control**.
+**One decision is open, and it is the only thing blocking anything.** The user
+asked whether the launcher icon can animate on the home screen when the app is
+minimised, as a goodbye. **It cannot** — the icon is drawn by the launcher,
+adaptive icons are two static layers, and no Android API lets an app animate
+its own icon. What is real is the *opposite* moment: Android 12+ plays an
+`AnimatedVectorDrawable` as the splash when the app is opened
+(`windowSplashScreenAnimatedIcon`), which is what people usually remember as
+happening on exit. Three options were put to the user and none chosen yet:
 
-   The user pushes, never Claude.
+1. Do nothing; the tap easter egg and the return greeting already give the
+   mark two reliable moments.
+2. Build the splash AVD, accepting that the mark's six tuned numbers would
+   exist a **third** time in vector XML — generate it from a tool script so a
+   retune regenerates rather than requiring hand-editing.
+3. Free middle path: play Unfurl on Today's app bar on every cold start rather
+   than only after 30s away. Costs nothing, lands ~300ms after the launcher
+   icon disappears, close enough to read as continuous. **This was the
+   recommendation.**
+
+**Distribution is decided in principle: free, not Play.** Signed APKs on
+GitHub Releases, with Obtainium mentioned for auto-updates. The full process
+was written out and the user has not started it. `tools\dev.ps1 apk` then
+`signer`, rename to `prahar-<version>.apk`, tag, `gh release create`. Do not
+put the keystore in CI. The $25 Play fee buys discovery and nothing this app
+needs yet.
+
+**The keystore now exists.** `dev.ps1 signer` prints `CN=Siddhant, …, C=IN`.
+The debug-to-release switch is done and cost one uninstall; every future build
+installs over the top normally.
 
 ### Also settled on 5 Sep: landscape, and the formatting style
 
@@ -81,6 +100,13 @@ and so holds nothing machine-specific and no standing permission grants;
 `.claude/settings.local.json` is **gitignored** and holds both, including the
 `bypassPermissions` mode, so that a "never ask" grant cannot travel to a clone.
 
+**Claude Code writes new grants into the tracked file by itself** whenever the
+user picks "always allow", and it did so four times on 5–6 Sep. Move them to
+`settings.local.json` (and the global `~/.claude/settings.json`, which the
+user asked to keep in step) and `git checkout -- .claude/settings.json`.
+**Check `git status` before any push**; that file is the one that travels to a
+clone. It is dirty right now for exactly this reason.
+
 ## What this is
 
 Prahar is a local-first study planner for Android: the student enters subjects,
@@ -133,7 +159,15 @@ tools\make_logos.ps1       # render alternative logo concepts side by side
 tools\make_v2_thickness.ps1     # T2/T3 hand-thickness ladder
 tools\make_t3_tick_variants.ps1 # K1..K5 tick-thickness ladder
 tools\make_v2_launcher.ps1      # any icon variant at every launcher density
+tools\make_nav_options.ps1      # nav icon candidates, 7 per tab, at 96 and 24px
+tools\make_mark_anim.ps1        # the mark's animation as 10-frame filmstrips
 ```
+
+**`dev.ps1 adb` must never be passed `-t`.** PowerShell binds parameters by
+unambiguous prefix and `-t` is a prefix of this script's own `-Task`, so
+`dev.ps1 adb logcat -d -t 200` sets `Task='200'` and prints the help. It fails
+silently and looks exactly like adb returning nothing — an hour went into
+"the log buffer is empty" before that was spotted. Use `-v brief -s <tag>`.
 
 ### Use these exact command shapes, or the permission prompts come back
 
@@ -317,11 +351,15 @@ it. GitHub honours the file by name; locally it needs
 and so must be re-run after a fresh clone. Only ever add formatter output to
 that file — a commit that changed behaviour has to stay visible in blame.
 
-## Current state (verified, 5 Sep 2026)
+## Current state (verified, 6 Sep 2026)
 
-- 162/162 tests pass; `analyze` reports no issues. Both re-confirmed on 5 Sep
-  after the formatting change, which is the only thing that has touched
-  `lib/` or `test/` since.
+- **203/203 tests pass; `analyze` reports no issues.** Both re-run after every
+  change on 6 Sep, and the build on the phone matches the tree.
+- Release APK is **53.1 MB**, ~90–130 s warm. (An older line here said 52.3;
+  it was wrong, and 52.9–53.1 is what this project has actually built all
+  along.)
+- **Signed with the user's own key** since 6 Sep — `dev.ps1 signer` prints
+  `CN=Siddhant`. Not `CN=Android Debug`.
 - **Landscape and tablet**: a navigation rail sideways, two panes on Today,
   Plan and Subjects, capped column widths on Progress and Settings. **Seen on
   the device and confirmed good on 5 Sep** — no longer written blind.
@@ -335,6 +373,42 @@ that file — a commit that changed behaviour has to stay visible in blame.
   end verified. Battery exemption granted; `SCHEDULE_EXACT_ALARM` = allow.
 - Two home-screen widgets: `NextBlockWidget` (compact 2x1) and `TodayWidget`
   (wider 4x2 with two blocks + a text-based progress bar).
+
+### Shipped on 6 Sep, all on the device
+
+- **A week view**, third segment under Plan. Seven days *from today*, not
+  Monday to Sunday — a calendar week opened on a Saturday spends five columns
+  on days that cannot be filled. Upright it is a row per day with time running
+  across, because 52dp of column is a colour and not a word; tapping a day
+  opens it and names its blocks. Sideways it is the seven-column grid with a
+  clock down the side. Busy slots sit behind the blocks in both, and the
+  legend names them, which is the one thing the drawing cannot say itself.
+- **Settings, redesigned.** The screen is `SettingsScreen` in
+  `lib/ui/look_screen.dart` — it ran for a day as a sixth "Look" tab beside
+  the original, won, and the original was deleted. `settings_screen.dart` is
+  now only the subpages, `ThemeToggle` and `savePrefs`. **The filename is a
+  leftover; renaming it is a tidy-up for whenever something else touches it.**
+  Schedule leads, Appearance is its own page (`AppearancePage`), and every
+  group uses the one amber accent.
+- **The mark animates.** `AnimatedPraharMark` in `brand.dart`, 1100ms,
+  `MarkMotion.unfurl` chosen from three; `bloom` and `sweep` are **archived,
+  not dead** — they answer questions not yet asked. It plays on the first-run
+  screen, on a **tap anywhere the mark appears**, and when the app is resumed
+  after 30s or more away. `MarkMotionScreen` is unreachable and kept whole.
+- **Nav icons chosen from contact sheets** at the 24dp they are actually seen
+  at: Progress is `track_changes`, Subjects is `menu_book`. `tools\
+  make_nav_options.ps1` renders the candidates; `make_mark_anim.ps1` renders
+  animation filmstrips. Both exist because this kind of decision is made by
+  looking, not by reading names.
+- **Backups carry `session_log`.** Progress always survived on the topic, but
+  the streak and the calibration samples did not, and those are what a student
+  earns. Additive, so the format version did not move.
+- **Backup and restore go through the system picker** (SAF, over a
+  MethodChannel in `MainActivity.kt`). No storage permission: choosing a
+  document is the grant. The hardcoded `/sdcard/Download/Prahar` path remains
+  only as a desktop and test fallback.
+- **Timezone assumes `Asia/Kolkata`** rather than scanning for the first zone
+  with a matching offset, which was right in India by luck and a trap abroad.
 
 Features shipped and on the device:
 
@@ -537,6 +611,36 @@ undo without reason.
   Cards is set to. A hand-rolled `Container` with `surfaceContainer` and an
   `outlineVariant` border looks identical to the Hairline style and silently
   ignores the other four — if a new surface needs a card, use `Card`.
+- **Use `StyledPanel`, never a hand-rolled surface.** It is in `glass.dart`
+  and it is what answers to both Settings > Materials and Settings > Cards.
+  Today's hero uses it and so does the preview card on Appearance. The
+  preview was a `Container` with its own gradient and border for a day, which
+  meant the one surface whose job was to demonstrate the card style was the
+  only one ignoring it.
+- **A Card paints its outline *under* its child.** A filled child hides it,
+  which is why the hairline never appeared on the glass hero until the border
+  moved to a foreground `DecoratedBox`. Do not try to read the side back off
+  `theme.cardTheme.shape` — that introspection returned no side at runtime
+  even where the theme plainly had one. Take it from the `CardStyle`.
+- **A `Stack` top-aligns anything it is not positioning.** The theme toggle's
+  labels sat 14dp above the pill's centre for three rounds of "fixing" the
+  horizontal arithmetic, which had been right the whole time, because the test
+  asserted centres on `dx` alone and kept passing. **When a measurement and
+  the user disagree, the measurement is the thing that is incomplete.** Assert
+  both axes.
+- **Scroll views end with `navBottomInset(context)`, not 90.** 90 is the nav
+  bar's height under gesture navigation only.
+- **Copy rules, learned when the user said the text read as AI-written.** No
+  em-dashes — there were twenty-odd, and they are the loudest tell. Do not
+  explain the reasoning to the reader: "so the plan reaches you without you
+  having to open anything" and "the contrast between materials is what carries
+  the effect" are design rationale wearing the costume of product copy. A
+  person writing a label says what the thing does. Reasoning belongs in this
+  file, which is read every session; a UI string is read by a student.
+  Jargon has the same problem — a planner warning said "cycle", which is a
+  graph property and not a thing a student thinks about.
+- **Do not pin copy in tests.** One planner test matched the word "cycle" and
+  held the rewrite hostage. Match the concept.
 - **Calibration model**: uses only completed topics. In-progress work is
   tempting evidence but prorating by minutes cancels arithmetically and
   always recovers the prior rate. This bug hid in the first draft; the test
@@ -560,17 +664,48 @@ undo without reason.
 
 ## Open feedback — start here
 
-Items 1–4 of the 4 Sep list (colour harmonisation, persistent mark on Today,
-sun bigger + font picker removal, glass tuning) **shipped on 4 Sep**, as did
-the study timer and the evening digest. All are recorded under *Recent
-decisions* above. What remains, in order:
+Nothing from any earlier review list is outstanding. The week grid shipped on
+6 Sep; the Gantt-style subject timeline is the last unbuilt idea from that
+pair, and the argument against it still stands — it overlaps Progress and the
+exam calendar, its horizontal axis has no clean answer over a 60-day span, and
+it should only be built if the week view leaves something genuinely unanswered
+after a few weeks of use.
 
-Nothing from the review list is outstanding — the landscape and tablet
-layouts shipped on 5 Sep and were confirmed on the device the same day. What
-is left is the *extras* that were noted alongside them and never scoped: a
-week timetable grid, and a subject timeline laid out Gantt-style. Both want
-the horizontal room that now exists, and neither is needed for the app to be
-good sideways.
+What is actually open, in order:
+
+1. **The splash-animation decision** at the top of this file. Options 1, 2, 3;
+   3 was recommended and costs nothing.
+2. **Distribution.** Free route decided, not started.
+3. **The copy pass was a pass, not a sweep.** The subject and topic sheets and
+   some Progress strings were not gone through. See the copy rules under
+   *Recent decisions*.
+4. **`flutter_timezone`**, only if this app ever leaves India.
+5. **A test pinning the six brand numbers** shared between `_MarkPainter` and
+   `make_icon.ps1`. Still the only silent-drift hole in otherwise well-netted
+   code, and now more valuable: the animation reuses those same numbers.
+
+### The device question, answered on 6 Sep
+
+The user asked whether the app works on all phones. The audit is worth not
+repeating:
+
+- **There is no iOS build. No `ios/` directory exists.** Adding one is a
+  project, not a task: notifications differ, the battery-exemption channel has
+  no equivalent, the SAF picker would be rewritten, both widgets would become
+  WidgetKit extensions in Swift, **and it cannot be built on Windows at all** —
+  macOS and Xcode are required. Say this plainly if it comes up again.
+- Android 7+ (`minSdk` 24), targeting 36. Xiaomi, Pixel, Samsung, OnePlus,
+  Motorola and Vivo are all fine as far as the code goes.
+- **The real risk is OEM background killing**, not layout: Xiaomi, Vivo, Oppo
+  and Samsung gate autostart behind their own settings, which the battery
+  exemption does not cover. It is the most likely reason a real user would say
+  reminders stopped.
+- Two defects that only showed on other people's phones were found and fixed
+  by `test/device_matrix_test.dart`, which pumps every screen at 320dp and at
+  a 1.5x font: the theme toggle overflowed at large font sizes, and every list
+  reserved a hardcoded 90 for the nav bar without consulting the system inset,
+  so the last row sat under three-button navigation. **The three-button case is
+  reasoned, not seen — this phone uses gestures.**
 
 Otherwise the queue is the longer-term roadmap below.
 

@@ -106,7 +106,16 @@ void main() {
     // PraharMarkFilled is the icon on the home screen; showing it inside the
     // app shows the user the thing they just tapped, and it sits on the page
     // like a sticker rather than belonging to it.
-    expect(find.byType(PraharMark), findsWidgets);
+    //
+    // AnimatedPraharMark, because this is the one screen where the mark draws
+    // itself. It falls back to a plain PraharMark when the platform asks for
+    // no animations, so either counts as the flat mark being present.
+    expect(
+      find.byType(AnimatedPraharMark).evaluate().isNotEmpty ||
+          find.byType(PraharMark).evaluate().isNotEmpty,
+      isTrue,
+      reason: 'the first-run screen draws no mark at all',
+    );
     expect(find.byType(PraharMarkFilled), findsNothing);
   });
 

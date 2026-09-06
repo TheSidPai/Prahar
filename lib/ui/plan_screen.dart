@@ -187,7 +187,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     final state = context.watch<AppState>();
     if (state.subjects.isEmpty) {
       return const EmptyState(
-        icon: Icons.donut_large_outlined,
+        icon: Icons.track_changes_outlined,
         title: 'No progress yet',
         message: 'Add a subject to start tracking.',
       );

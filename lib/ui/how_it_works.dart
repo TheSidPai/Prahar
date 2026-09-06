@@ -30,7 +30,7 @@ class HowItWorks extends StatelessWidget {
         if (showAppBar)
           const Padding(
             padding: EdgeInsets.only(top: 8, bottom: 18),
-            child: PraharLogo(markSize: 40, filled: false),
+            child: PraharLogo(markSize: 40, filled: false, animated: true),
           ),
 
         const _Opening(),
@@ -505,16 +505,15 @@ class _TabGuide extends StatelessWidget {
       'Plan',
       'Two views: Days shows the next fortnight; Month shows the exam calendar.',
     ),
-    // Not `insights`: Progress is drawn with PraharProgressGlyph in the nav
-    // bar now, and a guide showing a different icon than the tab it names is
-    // worse than no icon.
+    // Kept in step with the nav bar: a guide showing a different icon from
+    // the tab it names is worse than showing none.
     (
-      Icons.donut_large_outlined,
+      Icons.track_changes_outlined,
       'Progress',
       'How far through each subject you are, and how many minutes a day it now needs.',
     ),
     (
-      Icons.library_books_outlined,
+      Icons.menu_book_outlined,
       'Subjects',
       'Your syllabus: subjects, their topics, and what is left.',
     ),

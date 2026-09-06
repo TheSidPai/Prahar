@@ -74,7 +74,17 @@ class PraharLogo extends StatelessWidget {
     this.markSize = 34,
     this.filled = true,
     this.wordmarkStyle,
+    this.animated = false,
+    this.replayKey,
   });
+
+  /// Draws the mark with [AnimatedPraharMark] instead of the static one, so a
+  /// tap on it replays the animation. Only meaningful when [filled] is false;
+  /// the gradient tile is the launcher icon and does not animate.
+  final bool animated;
+
+  /// Passed through: change it to make the mark play without a tap.
+  final Object? replayKey;
 
   final double markSize;
 
@@ -93,6 +103,12 @@ class PraharLogo extends StatelessWidget {
       children: [
         if (filled)
           PraharMarkFilled(size: markSize, borderRadius: markSize * 0.28)
+        else if (animated)
+          AnimatedPraharMark(
+            size: markSize,
+            playOnAppear: false,
+            replayKey: replayKey,
+          )
         else
           PraharMark(size: markSize),
         SizedBox(width: markSize * 0.35),
@@ -159,8 +175,152 @@ class MarkPalette {
   );
 }
 
+/// How the mark arrives.
+///
+/// Three orderings of the same drawing. What differs is which part shows up
+/// first and how much the parts overlap, which is the whole of the decision —
+/// the geometry never changes.
+enum MarkMotion {
+  /// **Chosen.** Core outward: the sun, then the ring written on clockwise,
+  /// then the hand. Reads as the mark being assembled.
+  unfurl,
+
+  /// Archived. Everything overlapping, landing together. Shorter and less of
+  /// a performance, which is what a thing playing on every launch would want.
+  /// Kept because that is a real future question, not because it is unused.
+  bloom,
+
+  /// Archived. The hand leads from the first frame and the ticks trail behind
+  /// it, as though the hand were drawing them. The most distinctive of the
+  /// three and the closest to what a *prahar* is; kept for the same reason.
+  sweep,
+}
+
+/// The mark, drawing itself.
+///
+/// Plays once when it appears. It exists because the mark is already a
+/// painter with every proportion parameterised, so animating it costs a
+/// progress value rather than a redraw — and because a Lottie or Rive file
+/// would be a *third* copy of six numbers that CLAUDE.md already warns must be
+/// kept in step between the painter and the icon script, one that could not
+/// follow the theme's colours either.
+///
+/// Honours the platform's "remove animations" accessibility setting by
+/// jumping straight to the finished mark: motion that cannot be turned off is
+/// motion inflicted on people who asked for none.
+class AnimatedPraharMark extends StatefulWidget {
+  const AnimatedPraharMark({
+    super.key,
+    this.size = 84,
+    this.motion = MarkMotion.unfurl,
+    this.duration = const Duration(milliseconds: 1100),
+    this.palette,
+    this.replayKey,
+    this.playOnAppear = true,
+  });
+
+  final double size;
+  final MarkMotion motion;
+  final Duration duration;
+  final MarkPalette? palette;
+
+  /// Change this to play it again. The app bar bumps it when the app has been
+  /// away long enough to be worth greeting.
+  final Object? replayKey;
+
+  /// Whether it draws itself the moment it appears.
+  ///
+  /// True on the first-run screen, which is a moment. False everywhere the
+  /// mark is furniture — there it sits still until someone taps it, which is
+  /// the whole of the easter egg: findable, never in the way.
+  final bool playOnAppear;
+
+  @override
+  State<AnimatedPraharMark> createState() => _AnimatedPraharMarkState();
+}
+
+class _AnimatedPraharMarkState extends State<AnimatedPraharMark>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.playOnAppear) {
+      _c.forward();
+    } else {
+      _c.value = 1;
+    }
+  }
+
+  @override
+  void didUpdateWidget(AnimatedPraharMark old) {
+    super.didUpdateWidget(old);
+    if (old.replayKey != widget.replayKey || old.motion != widget.motion) {
+      _c
+        ..duration = widget.duration
+        ..forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved =
+        widget.palette ??
+        (Theme.of(context).brightness == Brightness.dark
+            ? MarkPalette.onDark
+            : MarkPalette.onLight);
+
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return PraharMark(size: widget.size, palette: resolved);
+    }
+
+    return GestureDetector(
+      // Tap the mark, anywhere it appears, and it draws itself again. No
+      // affordance, no tooltip, no ripple: a thing you find rather than a
+      // thing you are offered. Replaying mid-flight would stutter, so a tap
+      // during the animation is ignored.
+      onTap: () {
+        if (!_c.isAnimating) _c.forward(from: 0);
+      },
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: AnimatedBuilder(
+          animation: _c,
+          builder: (context, _) => CustomPaint(
+            painter: _MarkPainter(resolved, motion: widget.motion, t: _c.value),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Maps a whole-timeline 0..1 onto one stage of it, which is what Flutter's
+/// Interval does inside a staggered animation.
+double _stage(double t, double from, double to) =>
+    to <= from ? 1.0 : ((t - from) / (to - from)).clamp(0.0, 1.0);
+
 class _MarkPainter extends CustomPainter {
-  _MarkPainter(this.palette);
+  _MarkPainter(this.palette, {this.motion, this.t = 1.0});
+
+  /// Null when the mark is static, which is every use but the animated one.
+  final MarkMotion? motion;
+
+  /// Position in the timeline. 1 is the finished mark, and is what every
+  /// static use draws.
+  final double t;
 
   final MarkPalette palette;
 
@@ -191,22 +351,60 @@ class _MarkPainter extends CustomPainter {
     final sunR = side * 0.26;
     final pivotR = side * 0.0236;
 
-    final tickPaint = Paint()
-      ..color = palette.tick.withValues(alpha: palette.tickAlpha)
-      ..strokeWidth = math.max(side * 0.0165, 1.0)
-      ..strokeCap = StrokeCap.round;
+    // The three stages, per motion. A static mark leaves them all at 1, so
+    // the finished drawing below is byte-for-byte what it always was.
+    final (sunSpan, tickSpan, handSpan, staggerTicks) = switch (motion) {
+      null => ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0), false),
+      MarkMotion.unfurl => ((0.0, 0.35), (0.20, 0.70), (0.35, 0.90), true),
+      MarkMotion.bloom => ((0.0, 0.45), (0.15, 0.65), (0.25, 0.80), false),
+      MarkMotion.sweep => ((0.0, 0.30), (0.10, 0.85), (0.0, 0.60), true),
+    };
+    final sunT = _stage(t, sunSpan.$1, sunSpan.$2);
+    final tickT = _stage(t, tickSpan.$1, tickSpan.$2);
+    final handT = _stage(t, handSpan.$1, handSpan.$2);
+
     for (var i = 0; i < 12; i++) {
+      // Clockwise from noon, each tick taking a fifth of the stage so they
+      // overlap rather than march.
+      final local = staggerTicks
+          ? _stage(tickT, i / 12.0 * 0.8, i / 12.0 * 0.8 + 0.2)
+          : tickT;
+      if (local <= 0) continue;
+      final eased = Curves.easeOutCubic.transform(local);
+
       final a = math.pi * 2 * (i / 12.0) - math.pi / 2;
+      // Grown outward from the inner radius: a tick is drawn, not switched on.
+      final end = rIn + (rOut - rIn) * eased;
       canvas.drawLine(
         Offset(cx + math.cos(a) * rIn, cy + math.sin(a) * rIn),
-        Offset(cx + math.cos(a) * rOut, cy + math.sin(a) * rOut),
-        tickPaint,
+        Offset(cx + math.cos(a) * end, cy + math.sin(a) * end),
+        Paint()
+          ..color = palette.tick.withValues(alpha: palette.tickAlpha * eased)
+          ..strokeWidth = math.max(side * 0.0165, 1.0)
+          ..strokeCap = StrokeCap.round,
       );
     }
 
-    canvas.drawCircle(Offset(cx, cy), sunR, Paint()..color = palette.sun);
+    // easeOutBack: the disc passes its final size and settles back. That
+    // overshoot is most of the difference between alive and mechanical, and
+    // it is the one thing a filmstrip cannot show.
+    final sunScale = Curves.easeOutBack.transform(sunT);
+    if (sunScale > 0) {
+      canvas.drawCircle(
+        Offset(cx, cy),
+        sunR * sunScale,
+        Paint()..color = palette.sun,
+      );
+    }
 
-    final handAngle = math.pi * 2 * (2 / 12.0) - math.pi / 2;
+    if (handT <= 0) return;
+
+    // Sweeping from noon round to two o'clock.
+    const handTarget = math.pi * 2 * (2 / 12.0) - math.pi / 2;
+    const handStart = -math.pi / 2;
+    final handAngle =
+        handStart +
+        (handTarget - handStart) * Curves.easeOutBack.transform(handT);
     final handPaint = Paint()
       ..color = palette.hand
       // Floored too, and higher than the ticks: without it the hand would end
@@ -226,7 +424,8 @@ class _MarkPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _MarkPainter old) => old.palette != palette;
+  bool shouldRepaint(covariant _MarkPainter old) =>
+      old.palette != palette || old.t != t || old.motion != motion;
 }
 
 /// The Progress destination's mark: a ring with the finished share on it.

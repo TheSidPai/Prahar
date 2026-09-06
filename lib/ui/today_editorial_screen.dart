@@ -778,10 +778,15 @@ class _FirstRun extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // The flat mark, not the filled tile. The gradient tile is
-                  // the launcher icon — showing it inside the app is showing
+                  // the launcher icon; showing it inside the app is showing
                   // the user the thing they just tapped, and it sits on the
                   // page like a sticker. The drawn mark belongs to the page.
-                  const PraharMark(size: 84),
+                  //
+                  // And it draws itself, once, here and nowhere else. This is
+                  // the only screen where the user has nothing to do but look
+                  // — everywhere else the mark is furniture, and furniture
+                  // that performs on every visit stops being furniture.
+                  const AnimatedPraharMark(size: 84),
                   const SizedBox(height: 22),
                   Text(
                     'Prahar',

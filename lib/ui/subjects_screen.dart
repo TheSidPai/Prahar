@@ -41,7 +41,7 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
 
     if (state.subjects.isEmpty) {
       return EmptyState(
-        icon: Icons.library_books_outlined,
+        icon: Icons.menu_book_outlined,
         title: 'No subjects',
         message: 'Start with one subject and its exam date.',
         action: FilledButton.icon(
@@ -150,7 +150,7 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
           flex: 6,
           child: shown == null
               ? const EmptyState(
-                  icon: Icons.library_books_outlined,
+                  icon: Icons.menu_book_outlined,
                   title: 'Pick a subject',
                   message: 'Its topics and standing appear here.',
                 )

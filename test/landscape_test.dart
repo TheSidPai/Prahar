@@ -9,7 +9,6 @@ import 'package:prahar/domain/schedule.dart';
 import 'package:prahar/notifications/notifier.dart';
 import 'package:prahar/planner/planner.dart';
 import 'package:prahar/state/app_state.dart';
-import 'package:prahar/ui/brand.dart';
 import 'package:prahar/ui/home_screen.dart';
 import 'package:prahar/ui/theme.dart';
 import 'package:provider/provider.dart';
@@ -126,14 +125,11 @@ void main() {
       const icons = [
         Icons.today_outlined,
         Icons.calendar_month_outlined,
-        null, // Progress is a drawn glyph, not an IconData — see below.
-        Icons.library_books_outlined,
+        Icons.track_changes_outlined,
+        Icons.menu_book_outlined,
         Icons.settings_outlined,
       ];
-      final destination = icons[tab] == null
-          ? find.byType(PraharProgressGlyph)
-          : find.byIcon(icons[tab]!);
-      await tester.tap(destination.last);
+      await tester.tap(find.byIcon(icons[tab]).last);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
