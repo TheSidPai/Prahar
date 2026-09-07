@@ -10,6 +10,7 @@ import '../domain/preferences.dart';
 import '../notifications/notifier.dart';
 import '../state/app_state.dart';
 import 'theme.dart';
+import 'widgets.dart';
 
 /// The pages Settings pushes to, and the pieces it shares.
 ///
@@ -325,7 +326,7 @@ class MaterialStylePage extends StatelessWidget {
               MaterialChoice.glass,
               'Glass',
               Icons.blur_on,
-              'Translucent surfaces with a backdrop blur. Frosted, layered.',
+              'Surfaces you can see through. Frosted, layered.',
             ),
           ])
             Padding(
@@ -753,6 +754,7 @@ class RemindersPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    final gate = state.backgroundGate;
     return Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
       body: ListView(
@@ -761,7 +763,7 @@ class RemindersPage extends StatelessWidget {
           _card(
             SwitchListTile(
               secondary: const Icon(Icons.nightlight_outlined),
-              title: const Text('Evening digest'),
+              title: const Text('Evening summary'),
               subtitle: const Text(
                 "A notification each evening with tomorrow's blocks",
               ),
@@ -777,7 +779,7 @@ class RemindersPage extends StatelessWidget {
             _card(
               ListTile(
                 leading: const Icon(Icons.schedule_outlined),
-                title: const Text('Digest time'),
+                title: const Text('Summary time'),
                 subtitle: const Text('Best set for after you stop studying'),
                 trailing: Text(
                   formatClock(state.prefs.digestMinute),
@@ -804,13 +806,15 @@ class RemindersPage extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 14),
+          // Named for the symptom, not the mechanism. Nobody goes looking for
+          // a permission; they go looking for why nothing showed up.
           _card(
             ListTile(
               leading: const Icon(Icons.notifications_active_outlined),
-              title: const Text('Re-request permissions'),
+              title: const Text("Reminders aren't arriving"),
               subtitle: const Text(
-                'Includes "Alarms & reminders", which Android hides in a '
-                'separate screen',
+                'Ask Android again for notifications, and for permission to '
+                'fire on the minute',
               ),
               onTap: () async {
                 await state.notifier.requestPermissions();
@@ -818,6 +822,26 @@ class RemindersPage extends StatelessWidget {
               },
             ),
           ),
+          // The permanent home for the deep link the Today card offers.
+          //
+          // That card retires itself, which leaves a student who dismissed it
+          // with no route back and no way to check whether they ever did it.
+          // Shown only where the gate exists, so nobody is sent looking for a
+          // setting their phone does not have.
+          if (gate != null)
+            _card(
+              ListTile(
+                leading: const Icon(Icons.restart_alt),
+                title: Text(gate.rowTitle),
+                subtitle: Text(gate.explanation),
+                onTap: () async {
+                  final outcome = await state.openAutostartSettings();
+                  if (context.mounted) {
+                    autostartFallbackHint(context, outcome, gate);
+                  }
+                },
+              ),
+            ),
           _card(
             ListTile(
               leading: const Icon(Icons.notifications_none),
@@ -846,11 +870,14 @@ class RemindersPage extends StatelessWidget {
           _card(
             ListTile(
               leading: const Icon(Icons.sync),
-              title: const Text('Reschedule all reminders'),
+              // "Reschedule" read as "rearrange my timetable", which this does
+              // not do — it only hands the OS a fresh set of alarms. A name
+              // that plants a fear costs more than the line spent undoing it.
+              title: const Text('Refresh reminders'),
               subtitle: Text(
-                'One reminder per study block for the next '
-                '${Notifier.windowDays} days. '
-                '${state.exactAlarmsAllowed ? "Exact timing is allowed." : "Exact alarms are blocked, so reminders may arrive late."}',
+                'Sets one for each study block in the next '
+                '${Notifier.windowDays} days. Your plan does not change.'
+                '${state.exactAlarmsAllowed ? "" : " Android is holding these back, so they may arrive late."}',
               ),
               onTap: () async {
                 await state.refreshAlarms();
@@ -859,7 +886,7 @@ class RemindersPage extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        '$pending reminders set — one for each study block in '
+                        '$pending reminders set, one for each study block in '
                         'the next ${Notifier.windowDays} days.',
                       ),
                       duration: const Duration(seconds: 5),

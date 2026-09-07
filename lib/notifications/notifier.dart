@@ -9,6 +9,23 @@ import 'package:timezone/timezone.dart' as tz;
 import '../domain/format.dart';
 import '../domain/schedule.dart';
 
+/// What came of trying to open the vendor's autostart screen.
+///
+/// Three outcomes rather than a boolean, because [appInfoOnly] used to be
+/// reported as success: the deep link did not resolve, the user landed on the
+/// generic App info page instead of the list the button promised, and was told
+/// nothing about it.
+enum AutostartOpen {
+  /// The real vendor list opened. Nothing more to say.
+  vendorScreen,
+
+  /// Only this app's App info page opened, which is not what was promised.
+  appInfoOnly,
+
+  /// Nothing opened.
+  none,
+}
+
 /// On-device scheduled notifications. No push service, no server, no cost.
 ///
 /// The whole plan is known ahead of time, so every reminder can be handed to
@@ -238,18 +255,44 @@ class Notifier {
     }
   }
 
-  /// Opens the vendor's autostart screen, or this app's settings page if the
-  /// device has no such screen. False means neither opened.
-  Future<bool> openAutostartSettings() async {
+  /// Whether this device actually has a vendor autostart screen.
+  ///
+  /// Real evidence, unlike [deviceVendor]: it means an autostart activity was
+  /// resolved on this device. False on a Pixel, and false on a phone whose
+  /// maker gates background starts under a package this app has never heard
+  /// of, which is the honest limit of what can be detected.
+  Future<bool> hasAutostartScreen() async {
     if (!Platform.isAndroid) return false;
     try {
-      final opened = await _batteryChannel.invokeMethod<bool>(
+      final v = await _batteryChannel.invokeMethod<bool>(
+        'hasAutoStartSettings',
+      );
+      return v ?? false;
+    } catch (e) {
+      debugPrint('Prahar: autostart screen lookup failed: $e');
+      return false;
+    }
+  }
+
+  /// Opens the vendor's autostart screen.
+  ///
+  /// Reports which of three things happened, because landing on the generic
+  /// App info page is not the same as opening the list the button promised,
+  /// and the user has to be told the difference.
+  Future<AutostartOpen> openAutostartSettings() async {
+    if (!Platform.isAndroid) return AutostartOpen.none;
+    try {
+      final r = await _batteryChannel.invokeMethod<String>(
         'openAutoStartSettings',
       );
-      return opened ?? false;
+      return switch (r) {
+        'vendor' => AutostartOpen.vendorScreen,
+        'fallback' => AutostartOpen.appInfoOnly,
+        _ => AutostartOpen.none,
+      };
     } catch (e) {
       debugPrint('Prahar: autostart screen request failed: $e');
-      return false;
+      return AutostartOpen.none;
     }
   }
 
@@ -357,8 +400,12 @@ class Notifier {
           const NotificationDetails(
             android: AndroidNotificationDetails(
               _digestChannelId,
-              'Daily digest',
-              channelDescription: 'An evening look at tomorrow',
+              // The channel name shows in Android's own notification
+              // settings, so it is user-facing copy. The id stays
+              // prahar_digest: changing that would orphan the channel and
+              // lose whatever the user had set on it.
+              'Evening summary',
+              channelDescription: "Tomorrow's blocks, the night before",
               importance: Importance.defaultImportance,
             ),
           ),

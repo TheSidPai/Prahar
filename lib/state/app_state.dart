@@ -93,8 +93,11 @@ class AppState extends ChangeNotifier {
     prefs = Prefs.fromMap(await db.settings());
     streak = await db.streakEndingAt(today);
     todayLog = await db.logEntriesOn(today);
-    backgroundGate = BackgroundGate.forManufacturer(
-      await notifier.deviceVendor(),
+    // hasAutostartScreen decides whether there is a gate; the manufacturer
+    // only picks the wording. See BackgroundGate.resolve.
+    backgroundGate = BackgroundGate.resolve(
+      manufacturer: await notifier.deviceVendor(),
+      hasScreen: await notifier.hasAutostartScreen(),
     );
 
     await _rebuild();
@@ -216,10 +219,10 @@ class AppState extends ChangeNotifier {
   /// was done there, because there is nothing to wait for: no API reports
   /// autostart state, so the app cannot tell success from a student who backed
   /// straight out. Showing it again on that guess would be nagging.
-  Future<bool> openAutostartSettings() async {
-    final opened = await notifier.openAutostartSettings();
+  Future<AutostartOpen> openAutostartSettings() async {
+    final outcome = await notifier.openAutostartSettings();
     await dismissAutostartNotice();
-    return opened;
+    return outcome;
   }
 
   /// Puts the notice away for a day or so, which is what "Not now" says.

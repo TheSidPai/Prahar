@@ -123,6 +123,8 @@
              instead of failing, so the button would quietly fall back to the
              generic settings page on every affected device. -->
         <package android:name="com.miui.securitycenter"/>
+        <package android:name="com.oplus.safecenter"/>
+        <package android:name="com.oneplus.security"/>
         <package android:name="com.coloros.safecenter"/>
         <package android:name="com.oppo.safe"/>
         <package android:name="com.vivo.permissionmanager"/>

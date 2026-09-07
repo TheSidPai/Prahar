@@ -551,7 +551,7 @@ class _TabGuide extends StatelessWidget {
                           style: theme.textTheme.bodySmall,
                           children: [
                             TextSpan(
-                              text: '$name — ',
+                              text: '$name · ',
                               style: theme.textTheme.labelLarge,
                             ),
                             TextSpan(

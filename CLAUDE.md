@@ -44,13 +44,17 @@ screen, and the user turned autostart on from it. The packaged manifest was
 also checked for all nine `<package>` entries, since that block is what lets
 the deep link resolve at all and it fails silently if merging drops it.
 
-**Consequence worth knowing: the dev phone has now dismissed the notice, and
-nothing in the app can bring it back.** The flag lives in the app's SQLite,
-which is unreachable over adb on a release build (`run-as` needs a debuggable
-one). So the snooze ladder below cannot be seen on this phone without clearing
-app data, which would destroy the database. It is covered by tests instead.
-This is the argument for giving the deep link a permanent home in Settings —
-see *Open feedback*.
+**Consequence worth knowing: the dev phone has dismissed the notice, and
+nothing can reset that flag.** It lives in the app's SQLite, which is
+unreachable over adb on a release build (`run-as` needs a debuggable one), so
+the snooze ladder cannot be seen on this phone without clearing app data, which
+would destroy the database. It is covered by tests instead.
+
+That gap is why **Settings > Notifications now carries a permanent row** for the
+same deep link, shown only where the gate exists. A one-time card is the right
+shape for a prompt and the wrong shape for the only route to a setting: anyone
+who dismisses it has no way back and no way to check whether they ever acted on
+it. Any future one-time card should come with the same permanent home.
 
 **One decision is open, and it is the only thing blocking anything.** The user
 asked whether the launcher icon can animate on the home screen when the app is
@@ -705,8 +709,8 @@ undo without reason.
   nothing wakes to post it — which is the most likely reason a real student
   would say reminders stopped.
   **There is no API to read any of those lists.** The app can know it is on a
-  phone that has the gate; it cannot know whether it is being blocked. That
-  asymmetry decides the whole design: `AutostartNotice` is advice offered once
+  phone whose vendor screen exists; it cannot know whether it is being
+  blocked. That asymmetry decides the design: `AutostartNotice` is advice
   and dismissible, not a warning that claims to have checked, and it is
   visually quieter than `BatteryWarning` for the same reason. It also waits
   until the battery exemption is granted, because two cards competing for the
@@ -719,11 +723,28 @@ undo without reason.
   app cannot check whether autostart was ever turned on, so it has no way to
   notice it is asking a question that has already been answered; a button that
   honestly means "later" has to come back, and something has to bound that.
-  `BackgroundGate.forManufacturer` is pure and lives in `domain/`, so the
-  mapping is testable without a device — which matters here more than usual,
-  since the only phone in the project is a Xiaomi and exercises exactly one
-  branch. An unrecognised maker maps to null and shows nothing: a notice
-  nobody can act on is noise.
+  **Resolution decides whether to show it; the maker only picks the wording.**
+  This was the other way round when it shipped, and it was wrong twice over:
+  a brand not in the table got no notice even on a phone that gates background
+  starts, and a brand in the table got a card promising a screen that might not
+  be installed. `BackgroundGate.resolve` now takes `hasScreen`, which is real
+  runtime evidence that an autostart activity was found on this device, and
+  falls back to `BackgroundGate.generic` when the maker is unrecognised. It is
+  pure and lives in `domain/`, so it is testable without a device — which
+  matters here more than usual, since the only phone in the project is a
+  Xiaomi and exercises one branch.
+  Concretely, that bug meant a **OnePlus 12R** got a card promising the
+  Auto-launch list and a button that silently opened App info instead: the
+  package was renamed `com.coloros.*` to `com.oplus.*` around ColorOS 12 and
+  OxygenOS 12, and neither `com.oplus.safecenter` nor the older
+  `com.oneplus.security` was listed. Both are in now.
+  **The fallback is not success.** `openAutoStartSettings` returns
+  `vendor` / `fallback` / `none` rather than a boolean, because landing on App
+  info is not what the button promised and the user has to be told so. It
+  returned `true` for the fallback, which is why the OnePlus case said nothing.
+  **Google, Motorola, Nothing and Sony ship stock Android with no autostart
+  list**, so nothing resolves on them and no card appears. That is correct, not
+  a gap: the battery exemption is the whole story on those phones.
   **The `<queries>` block in the manifest is load-bearing.** From Android 11 an
   app cannot resolve another package's activity without declaring it, and
   `resolveActivity` returns null rather than failing, so without those entries
@@ -731,13 +752,26 @@ undo without reason.
   the devices the feature exists for.
 - **A widget test cannot write to the database on fake time.** sqflite
   schedules a real timer to do the write, and inside `testWidgets`' fake-async
-  zone that timer never fires, so the write stays in flight and the binding
-  fails the test with "A Timer is still pending" — which names nothing to do
-  with the actual cause. Wrap the tap in `tester.runAsync` and give it a real
-  delay. Three other fixes were tried first and none of them worked: pumping
-  longer, disposing the tree, and adding a delay in `tearDown`.
+  zone that timer never fires. The failure never names the cause: it surfaces
+  as "A Timer is still pending", or — if the test `await`s the write — as a
+  "Guarded function conflict" blaming whichever `pumpWidget` came next, after
+  the whole suite has hung for ten minutes. Both happened here.
+  Two rules came out of it. **Never `await` an AppState method that writes,
+  inside `testWidgets`** — set `state.prefs` directly, which is synchronous.
+  **When the tap under test must write, wrap it in `tester.runAsync` and wait
+  for the write to be readable back**, not for a fixed delay: 50ms covered one
+  `putSetting` and silently stopped covering it when the method grew to two.
+  Three other fixes were tried and none worked: pumping longer, disposing the
+  tree, and delaying in `tearDown`.
   Related: **`pumpAndSettle` never settles on Today**, which runs a
   `Timer.periodic` to move its "now" marker. Use `pump`.
+  **And a `pump` that rebuilds Progress has the same problem**, because
+  `_CalibrationSection.build` starts a database query from inside `build()`.
+  Any `notifyListeners` reaches it, so a test that taps anything at all can
+  fail on a pending timer whose stack names sqflite and Progress and has
+  nothing to do with what was tapped. Put that `pump` inside `runAsync` too.
+  **Fixing the query-in-build properly is worth doing** — see the roadmap; it
+  also means the query re-runs on every rebuild in the real app.
 - **Widget layouts: only view classes marked `@RemoteView`, and only
   pre-API-26 attributes.** RemoteViews inflates through a filter that rejects
   any class without that annotation, and `android.view.View` does not have it
@@ -772,13 +806,22 @@ because the ordering is the argument:
    history cannot be retrofitted, so every week it is not logged is a week
    FSRS will never have. One question at the end of a timer session and one
    column. Cheap, and worthless later if not started now.
-2. **Give the autostart deep link a permanent home in Settings.** The card is
-   one-time by design, so once it is gone there is no way back to the vendor
-   screen from inside the app, and no way for a student who later wonders
-   whether they ever did it. A row under Settings > Notifications that opens
-   the same screen costs almost nothing and closes that gap. It is also the
-   only way to look at the snooze ladder on the dev phone, which has already
-   dismissed the card for good.
+2. **Move the calibration query out of `build()`.** `_CalibrationSection`
+   calls `AppState.calibrationSuggestions()` from inside build, so it hits the
+   database on every rebuild, and every `notifyListeners` triggers one. It
+   should be computed on replan and held on `AppState` like everything else.
+   It is also a recurring source of test failures that name the wrong thing.
+3. **Verify the OnePlus and Samsung deep links on real hardware.** The package
+   and activity names were reasoned, not observed. `dev.ps1 notif` plus the
+   Settings row is enough to check: if the row opens the real list, it works.
+   Getting this wrong is invisible from here, because on an unaffected device
+   the row simply does not appear.
+4. **Finish the copy sweep.** Settings > Notifications and the worst of the
+   jargon were done on 7 Sep. Still untouched: the subject and topic sheets,
+   the busy-slots screen and how_it_works. Two patterns to look for, both of
+   which turned up repeatedly: Android's own vocabulary leaking into copy
+   ("exact alarms", "JSON", "backdrop blur"), and names that describe the
+   implementation rather than the effect ("Reschedule", "Estimate learned").
 3. **Distribution.** Free route decided, not started. Until it is done the app
    has one user, and it is what starts producing the feedback items 4 and 5
    actually need.

@@ -120,7 +120,7 @@ class SettingsScreen extends StatelessWidget {
             // will not fire is the failure this app cannot afford.
             value: state.exactAlarmsAllowed
                 ? 'Exact timing allowed'
-                : 'Exact alarms blocked, reminders may be late',
+                : 'Android is holding reminders back, so they may be late',
             warn: !state.exactAlarmsAllowed,
             onTap: () => Navigator.push(
               context,
@@ -160,7 +160,7 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.save_alt_rounded,
             colour: scheme.tertiary,
             title: 'Backup & restore',
-            value: 'One JSON file, saved where you choose',
+            value: 'One file with everything in it, saved where you choose',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute<void>(builder: (_) => const BackupPage()),
@@ -263,7 +263,7 @@ class AppearancePage extends StatelessWidget {
             _InlineChoice(
               title: 'Materials',
               subtitle: state.prefs.materialChoice == MaterialChoice.glass
-                  ? 'Frosted glass on the bar, the nav and panels'
+                  ? 'Frosted glass on the top bar, the tab bar and panels'
                   : 'Flat surfaces throughout',
               options: [
                 (

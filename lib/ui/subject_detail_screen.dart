@@ -403,7 +403,7 @@ Future<void> _showTopicMenu(BuildContext context, Topic topic) async {
           ListTile(
             leading: const Icon(Icons.content_copy_outlined),
             title: const Text('Duplicate'),
-            subtitle: const Text('Same effort, "(copy)" appended'),
+            subtitle: const Text('Same effort, with (copy) on the end'),
             onTap: () async {
               Navigator.pop(context);
               await state.duplicateTopic(topic);
@@ -519,7 +519,7 @@ Future<void> showTopicSheet(
                     textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(
                       labelText: 'Topic',
-                      hintText: 'Ch. 4 — Aldehydes and Ketones',
+                      hintText: 'Ch. 4: Aldehydes and Ketones',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -659,7 +659,7 @@ Future<void> showTopicSheet(
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      '$title — $unitLabel'
+                                      '$title · $unitLabel'
                                       '${mode == EffortUnit.minutes ? '' : ' ≈ ${formatMinutes(minutes)}'}',
                                     ),
                                     duration: const Duration(seconds: 4),

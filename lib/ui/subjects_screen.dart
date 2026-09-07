@@ -462,7 +462,7 @@ Future<void> showSubjectSheet(BuildContext context, {Subject? existing}) async {
                         ? 'No exam date'
                         : 'Exam ${formatDateFull(examDate!)}',
                   ),
-                  subtitle: const Text('Drives how urgently this is scheduled'),
+                  subtitle: const Text('Sets how urgently this is scheduled'),
                   trailing: examDate == null
                       ? null
                       : IconButton(

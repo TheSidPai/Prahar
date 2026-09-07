@@ -11,6 +11,7 @@ import 'package:prahar/notifications/notifier.dart';
 import 'package:prahar/planner/planner.dart';
 import 'package:prahar/state/app_state.dart';
 import 'package:prahar/ui/home_screen.dart';
+import 'package:prahar/ui/settings_screen.dart';
 import 'package:prahar/ui/theme.dart';
 import 'package:prahar/ui/widgets.dart';
 import 'package:provider/provider.dart';
@@ -53,13 +54,63 @@ void main() {
     });
 
     test('a phone without the gate is not warned about one', () {
+      // Stock-Android makers. Motorola belongs here with Google: near-stock,
+      // no autostart list of its own, so the battery exemption is the whole
+      // story exactly as it is on a Pixel.
       for (final m in ['google', 'motorola', 'nothing', 'sony', '']) {
         expect(
-          BackgroundGate.forManufacturer(m),
+          BackgroundGate.resolve(manufacturer: m, hasScreen: false),
           isNull,
           reason: '$m has no autostart list, so the notice is only noise',
         );
       }
+    });
+
+    test('nothing resolving means no gate, whatever the badge says', () {
+      // The decisive rule. A Xiaomi with no security app installed must not
+      // be shown a card promising a screen that is not there.
+      expect(
+        BackgroundGate.resolve(manufacturer: 'xiaomi', hasScreen: false),
+        isNull,
+      );
+      expect(
+        BackgroundGate.resolve(manufacturer: 'oneplus', hasScreen: false),
+        isNull,
+      );
+    });
+
+    test('a screen on an unknown maker still gets a working notice', () {
+      // The other half of the rule, and the reason the old manufacturer-only
+      // version failed silently: a phone that gates background starts under a
+      // brand this app has never heard of used to get nothing at all.
+      final gate = BackgroundGate.resolve(
+        manufacturer: 'some-new-brand',
+        hasScreen: true,
+      );
+      expect(gate, isNotNull);
+      expect(gate!.isGeneric, isTrue);
+      expect(
+        gate.explanation,
+        isNot(contains('some-new-brand')),
+        reason: 'generic copy must not name a maker it cannot describe',
+      );
+    });
+
+    test('a known maker with a screen is named', () {
+      final gate = BackgroundGate.resolve(
+        manufacturer: 'oneplus',
+        hasScreen: true,
+      );
+      expect(gate!.isGeneric, isFalse);
+      expect(gate.vendor, 'OnePlus');
+      expect(gate.rowTitle, 'Auto-launch on OnePlus');
+    });
+
+    test('the generic gate reads as a sentence, not a fragment', () {
+      const g = BackgroundGate.generic;
+      expect(g.noticeTitle, 'One more setting on this phone');
+      expect(g.rowTitle, 'Background autostart');
+      expect(g.explanation, startsWith('This phone'));
     });
 
     test('an unknown maker is treated as clean, not warned', () {
@@ -110,7 +161,10 @@ void main() {
         ..loading = false
         ..prefs = const Prefs()
         ..batteryExempt = true
-        ..backgroundGate = BackgroundGate.forManufacturer('xiaomi');
+        ..backgroundGate = BackgroundGate.resolve(
+          manufacturer: 'xiaomi',
+          hasScreen: true,
+        );
     });
 
     tearDown(() async {
@@ -254,7 +308,10 @@ void main() {
         ..loading = false
         ..prefs = const Prefs()
         ..batteryExempt = true
-        ..backgroundGate = BackgroundGate.forManufacturer('xiaomi')
+        ..backgroundGate = BackgroundGate.resolve(
+          manufacturer: 'xiaomi',
+          hasScreen: true,
+        )
         ..subjects = [
           Subject(
             id: 's1',
@@ -349,7 +406,24 @@ void main() {
       // about the card. runAsync gives it real time to finish in.
       await tester.runAsync(() async {
         await tester.tap(find.text('Not now'));
-        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        // Wait for the writes to actually land rather than guessing at a
+        // delay. Snoozing writes two settings, and a fixed 50ms was enough
+        // for the one write dismissing used to do and is not enough for two,
+        // which fails as a pending timer rather than as anything readable.
+        for (var i = 0; i < 200; i++) {
+          final saved = await db.settings();
+          if (saved['autostart_snooze_count'] == '1') break;
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+
+        // The rebuild has to happen in here too. notifyListeners reaches
+        // Progress, whose calibration section starts a database query from
+        // inside build(), and that query schedules a timer fake-async never
+        // runs. pump, not pumpAndSettle: Today's Timer.periodic means settling
+        // never finishes.
+        await tester.pump();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
       });
 
       expect(
@@ -358,12 +432,112 @@ void main() {
         reason: '"Not now" must snooze, not retire the notice',
       );
 
-      // pump, not pumpAndSettle: Today keeps a Timer.periodic running to move
-      // its "now" marker, so settling never finishes. One frame is enough,
-      // because dismissing notifies before it writes.
-      await tester.pump();
-
       expect(find.byType(AutostartNotice), findsNothing);
+    });
+  });
+
+  /// The permanent row, in its own group.
+  ///
+  /// These pump Settings rather than Today, and they were originally in the
+  /// group above. That made "dismissing it takes it off the screen" fail on a
+  /// pending timer while passing on its own: Today keeps a Timer.periodic
+  /// alive, and running a second screen's tests in between left it pending at
+  /// a point the binding checked. Order-dependent failures name the wrong
+  /// test, so the two screens get separate fixtures.
+  group('the row in Settings', () {
+    late Directory dir;
+    late PraharDatabase db;
+    late AppState state;
+
+    setUpAll(() {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    });
+
+    setUp(() async {
+      dir = await Directory.systemTemp.createTemp('prahar_autostart_row');
+      db = PraharDatabase();
+      await db.open(path: dir.path);
+
+      state = AppState(db: db, notifier: Notifier())
+        ..loading = false
+        ..prefs = const Prefs()
+        ..batteryExempt = true
+        ..backgroundGate = BackgroundGate.resolve(
+          manufacturer: 'xiaomi',
+          hasScreen: true,
+        );
+    });
+
+    tearDown(() async {
+      await db.close();
+      if (dir.existsSync()) dir.deleteSync(recursive: true);
+    });
+
+    Widget page() => ChangeNotifierProvider<AppState>.value(
+      value: state,
+      child: MaterialApp(
+        theme: PraharTheme.of(Brightness.dark),
+        home: const RemindersPage(),
+      ),
+    );
+
+    Future<void> pump(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(411, 914);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(page());
+      await tester.pump();
+    }
+
+    testWidgets('survives the notice being dismissed for good', (tester) async {
+      // The whole point of the row: the card is one-time, so once it is gone
+      // there is otherwise no way back to the setting, and no way for someone
+      // to check whether they ever turned it on.
+      //
+      // Set directly rather than through dismissAutostartNotice, which writes
+      // to the database. sqflite schedules a real timer to do that, and inside
+      // a widget test's fake-async zone the await never returns: the run
+      // stalls until the suite times out and then blames pumpWidget.
+      state.prefs = state.prefs.copyWith(autostartDismissed: true);
+
+      await pump(tester);
+
+      expect(find.text('Autostart on Xiaomi'), findsOneWidget);
+    });
+
+    testWidgets('is absent on a phone with no such screen', (tester) async {
+      state.backgroundGate = null;
+
+      await pump(tester);
+
+      // Sending a Pixel or Motorola owner to look for Autostart is worse than
+      // saying nothing, because the setting does not exist to be found.
+      expect(find.textContaining('Autostart'), findsNothing);
+    });
+
+    testWidgets('names the setting generically when the maker is unknown', (
+      tester,
+    ) async {
+      state.backgroundGate = BackgroundGate.resolve(
+        manufacturer: 'some-new-brand',
+        hasScreen: true,
+      );
+
+      await pump(tester);
+
+      expect(find.text('Background autostart'), findsOneWidget);
+      expect(find.textContaining('some-new-brand'), findsNothing);
+    });
+
+    testWidgets('the reminder rows say what they do', (tester) async {
+      await pump(tester);
+
+      // "Reschedule all reminders" read as "rearrange my timetable", and
+      // "Re-request permissions" is a phrase nobody goes looking for. Match
+      // the concept, not the wording, per the rule about pinning copy.
+      expect(find.textContaining('Reschedule'), findsNothing);
+      expect(find.textContaining('Re-request'), findsNothing);
     });
   });
 }

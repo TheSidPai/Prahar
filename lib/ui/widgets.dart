@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../domain/background_limits.dart';
 import '../domain/format.dart';
 import '../domain/models.dart';
 import '../domain/preferences.dart';
 import '../domain/schedule.dart';
+import '../notifications/notifier.dart';
 import '../state/app_state.dart';
 import 'glass.dart';
 
@@ -42,7 +44,7 @@ Future<void> confirmSkip(
           ),
           const SizedBox(height: 10),
           Text(
-            'You can undo it from today’s list.',
+            "You can undo it from today's list.",
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -193,6 +195,33 @@ class BatteryWarning extends StatelessWidget {
   }
 }
 
+/// Says something only when the button did not do what it promised.
+///
+/// Landing on the generic App info page is the case that used to pass for
+/// success, leaving someone staring at a screen that is not the one the button
+/// named. Shared by the Today card and the Settings row so the two cannot
+/// drift.
+void autostartFallbackHint(
+  BuildContext context,
+  AutostartOpen outcome,
+  BackgroundGate gate,
+) {
+  final message = switch (outcome) {
+    AutostartOpen.vendorScreen => null,
+    AutostartOpen.appInfoOnly =>
+      'This is App info, not the ${gate.settingName} list. Look for Battery, '
+          'then allow Prahar to run in the background.',
+    AutostartOpen.none =>
+      'Could not open Settings. Find Prahar under Settings > Apps and allow '
+          'it to run in the background.',
+  };
+  if (message == null) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(message), duration: const Duration(seconds: 8)),
+  );
+}
+
 /// The second gate, on the phones that have one.
 ///
 /// The battery exemption covers stock Android. It does not cover the separate
@@ -232,19 +261,14 @@ class AutostartNotice extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'One more setting on ${gate.vendor}',
+                  gate.noticeTitle,
                   style: theme.textTheme.titleSmall,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            '${gate.vendor} keeps its own list of apps allowed to start on '
-            'their own. Turn on ${gate.settingName} for Prahar so reminders '
-            'keep arriving.',
-            style: theme.textTheme.bodySmall,
-          ),
+          Text(gate.explanation, style: theme.textTheme.bodySmall),
           const SizedBox(height: 10),
           // Wrap, not Row: at a large font scale two buttons and their labels
           // overflow a phone at 320dp, which is what device_matrix_test found
@@ -269,17 +293,9 @@ class AutostartNotice extends StatelessWidget {
               // anyway, by the rule that amber marks a CTA.
               FilledButton(
                 onPressed: () async {
-                  final opened = await state.openAutostartSettings();
-                  if (context.mounted && !opened) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Open Settings and turn on ${gate.settingName} for '
-                          'Prahar.',
-                        ),
-                        duration: const Duration(seconds: 8),
-                      ),
-                    );
+                  final outcome = await state.openAutostartSettings();
+                  if (context.mounted) {
+                    autostartFallbackHint(context, outcome, gate);
                   }
                 },
                 child: const Text('Show me'),
@@ -314,8 +330,8 @@ class ExactAlarmWarning extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Exact alarms are off, so reminders may arrive late. Enable '
-              '"Alarms & reminders" for Prahar in Android settings.',
+              'Android is holding reminders back, so they may arrive late. '
+              'Turn on "Alarms & reminders" for Prahar in Android settings.',
               style: theme.textTheme.bodySmall,
             ),
           ),

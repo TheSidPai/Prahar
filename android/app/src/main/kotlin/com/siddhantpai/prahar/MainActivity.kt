@@ -49,6 +49,12 @@ class MainActivity : FlutterActivity() {
                     "backgroundVendor" -> {
                         result.success(Build.MANUFACTURER.lowercase())
                     }
+                    // Whether this device actually has a vendor autostart
+                    // screen. This is the honest question, and the one the
+                    // manufacturer string only guesses at.
+                    "hasAutoStartSettings" -> {
+                        result.success(autoStartIntent() != null)
+                    }
                     "openAutoStartSettings" -> {
                         result.success(openAutoStartSettings())
                     }
@@ -273,8 +279,17 @@ class MainActivity : FlutterActivity() {
     private val autoStartTargets = listOf(
         // Xiaomi, and so also Redmi and Poco, which run the same firmware.
         "com.miui.securitycenter" to "com.miui.permcenter.autostart.AutoStartManagementActivity",
-        // Oppo and Realme. ColorOS has moved this twice, so all three spellings
-        // are tried; only one will resolve on any given build.
+        // Oppo, Realme and OnePlus, which all run ColorOS underneath now.
+        //
+        // The package was renamed coloros -> oplus around ColorOS 12 and
+        // OxygenOS 12, and OnePlus used its own before that. Missing the two
+        // newer spellings is not a cosmetic gap: on a OnePlus 12R nothing
+        // resolved, so the button silently fell through to the generic App
+        // info page while the card had just promised the Auto-launch list.
+        "com.oplus.safecenter" to "com.oplus.safecenter.permission.startup.StartupAppListActivity",
+        "com.oplus.safecenter" to "com.oplus.safecenter.permission.startup.StartupAppListActivity2",
+        "com.oplus.safecenter" to "com.oplus.safecenter.startupapp.StartupAppListActivity",
+        "com.oneplus.security" to "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity",
         "com.coloros.safecenter" to "com.coloros.safecenter.permission.startup.StartupAppListActivity",
         "com.coloros.safecenter" to "com.coloros.safecenter.startupapp.StartupAppListActivity",
         "com.coloros.safecenter" to "com.coloros.privacypermissionsentry.PermissionTopActivity",
@@ -286,10 +301,13 @@ class MainActivity : FlutterActivity() {
         // Huawei and Honor.
         "com.huawei.systemmanager" to "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
         "com.huawei.systemmanager" to "com.huawei.systemmanager.optimize.process.ProtectActivity",
-        // Samsung. The equivalent setting is "never sleeping apps", inside
-        // Device Care rather than a list of its own.
+        // Samsung. There is no autostart list; the equivalent is keeping the
+        // app out of the sleeping-apps list, inside Device Care. One UI has
+        // moved this activity across versions, so several spellings are tried
+        // rather than assuming the one that happened to be current.
         "com.samsung.android.lool" to "com.samsung.android.sm.battery.ui.BatteryActivity",
         "com.samsung.android.lool" to "com.samsung.android.sm.ui.battery.BatteryActivity",
+        "com.samsung.android.lool" to "com.samsung.android.sm.ui.cstyleboard.SmartManagerDashBoardActivity",
         "com.asus.mobilemanager" to "com.asus.mobilemanager.autostart.AutoStartActivity",
         "com.letv.android.letvsafe" to "com.letv.android.letvsafe.AutobootManageActivity",
     )
@@ -309,11 +327,22 @@ class MainActivity : FlutterActivity() {
     }
 
     /**
-     * Opens the vendor's autostart screen, falling back to this app's own
-     * settings page, which exists everywhere. False means neither opened and
-     * Dart should tell the user where to look instead.
+     * Opens the vendor's autostart screen.
+     *
+     * Returns what actually happened rather than a bare boolean, because the
+     * three outcomes need three different things said to the user:
+     *
+     *  - "vendor"   the real list opened; say nothing
+     *  - "fallback" only App info opened, which is not what the button
+     *               promised, so Dart has to explain where to go from there
+     *  - "none"     nothing opened at all
+     *
+     * The old version returned true for the fallback, so a OnePlus owner
+     * tapped a button promising the Auto-launch list, landed on App info, and
+     * got no explanation, because as far as the app was concerned it had
+     * succeeded.
      */
-    private fun openAutoStartSettings(): Boolean {
+    private fun openAutoStartSettings(): String {
         val intent = autoStartIntent()
         if (intent != null) {
             try {
@@ -321,7 +350,7 @@ class MainActivity : FlutterActivity() {
                 // reopen behind Prahar and look as though nothing happened.
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
-                return true
+                return "vendor"
             } catch (e: Exception) {
                 Log.w(TAG, "autostart screen resolved but would not open", e)
             }
@@ -332,9 +361,9 @@ class MainActivity : FlutterActivity() {
                     data = Uri.parse("package:$packageName")
                 }
             )
-            true
+            "fallback"
         } catch (e: Exception) {
-            false
+            "none"
         }
     }
 

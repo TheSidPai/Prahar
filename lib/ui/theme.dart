@@ -55,13 +55,10 @@ class PraharTheme {
   /// A one-line name and character for each card style, for the picker.
   static (String name, String flavour) describeCards(CardStyle c) =>
       switch (c) {
-        CardStyle.hairline => (
-          'Hairline',
-          'A thin outline. Precise, technical',
-        ),
-        CardStyle.plain => ('Plain', 'No border — separated by tone alone'),
+        CardStyle.hairline => ('Hairline', 'A thin outline around every card'),
+        CardStyle.plain => ('Plain', 'No border. Tone alone separates them'),
         CardStyle.shadow => ('Lifted', 'A soft shadow, no outline'),
-        CardStyle.tinted => ('Tinted', 'A warm wash through the fill'),
+        CardStyle.tinted => ('Tinted', 'A warm tint through every card'),
         CardStyle.open => ('Open', 'No card at all. Only space between things'),
       };
 

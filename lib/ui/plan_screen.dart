@@ -334,7 +334,7 @@ class _CalibrationCard extends StatelessWidget {
                     color: theme.colorScheme.primary,
                   ),
                   const SizedBox(width: 8),
-                  Text('Estimate learned', style: theme.textTheme.titleSmall),
+                  Text('Your actual pace', style: theme.textTheme.titleSmall),
                 ],
               ),
               const SizedBox(height: 8),
@@ -349,8 +349,8 @@ class _CalibrationCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 'Updates ${suggestion.affectedTopicIds.length} topic'
-                '${suggestion.affectedTopicIds.length == 1 ? '' : 's'} — '
-                'progress is preserved.',
+                '${suggestion.affectedTopicIds.length == 1 ? '' : 's'}. '
+                'Progress is kept.',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 12),
@@ -595,7 +595,7 @@ class _SubjectProgress extends StatelessWidget {
               if (remaining == 0 && total > 0) ...[
                 const SizedBox(height: 4),
                 Text(
-                  'Covered. Reviews continue.',
+                  'Finished. Reviews keep coming.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.primary,
                   ),
