@@ -425,8 +425,12 @@ that file — a commit that changed behaviour has to stay visible in blame.
 
 ## Current state (verified, 7 Sep 2026)
 
-- **218/218 tests pass; `analyze` reports no issues.** Both re-run after every
-  change on 7 Sep, and the build on the phone matches the tree.
+- **246/246 tests pass; `analyze` reports no issues.** Both re-run after every
+  change on 7 Sep, and the build on both devices matches the tree.
+- **Seen on a OnePlus Pad on 7 Sep**, which is the first tablet this has run
+  on: two panes with the bottom bar kept, the first-run screen, and alarm
+  delivery end to end. That branch had only ever been a widget test, because a
+  phone sideways is wide *and short* and takes the rail instead.
 - Release APK is **53.1 MB**, ~90–130 s warm. (An older line here said 52.3;
   it was wrong, and 52.9–53.1 is what this project has actually built all
   along.)
@@ -722,6 +726,34 @@ undo without reason.
   tempting evidence but prorating by minutes cancels arithmetically and
   always recovers the prior rate. This bug hid in the first draft; the test
   suite pins it now — don't "improve" it back into a broken model.
+- **The day is re-anchored to the clock, but only while nothing is running.**
+  A plan is generated from the moment it is made, so opening the app at 11:16
+  gives a block at 11:16 — and nothing replanned it afterwards, so by 11:46 the
+  same block still read 11:35 and the student was looking at a schedule that
+  had quietly expired. Seen on the Pad.
+  **The obvious fix is worse than the bug**, which is why the rule is narrow.
+  Re-anchoring on every tick drags the whole day forward a minute per minute:
+  the block restarts at "now" forever, never elapses, and its countdown never
+  moves. So `AppState.reanchorIfIdle` moves the day only when nothing has been
+  started and the drift is at least `reanchorAfterMinutes` (2). A block that
+  *has* been started keeps its original start, because that is what makes
+  "29m left" mean anything.
+  Knowing which block is running needed new state: `session_log` only learns
+  about a block once it is over, and sessions are regenerated on every replan
+  so they cannot hold it. `runningSessionId` lives on `AppState` and is
+  persisted in `settings` under `running_session` — one string about right now,
+  not history, so no schema bump — and it survives the process being killed
+  mid-block, which on these phones is routine. `beginSession` is called when
+  the focus timer starts; `markDone` and `markSkipped` clear it.
+  Driven by Today's existing minute timer, and again on resume, since the timer
+  is not running while the app is paused.
+- **`Notifier` fails soft, everywhere.** `canScheduleExact` and the alarm
+  resync inside `_rebuild` are both wrapped now. There is no plugin behind the
+  channel in a test, so anything that replanned threw a LateInitializationError
+  from deep inside `flutter_local_notifications`, naming nothing to do with the
+  caller. It is also right in the app: a schedule that cannot write its alarms
+  is still a correct schedule to show, and taking the edit down with it helps
+  nobody.
 - **Never start a query from `build()`.** `_CalibrationSection` handed a
   `FutureBuilder` `state.calibrationSuggestions()` straight from build, so
   Progress read the database on every rebuild — and every `notifyListeners`
@@ -845,10 +877,10 @@ because the ordering is the argument:
      It is *not* in `com.oplus.safecenter`, which is installed but has no such
      activity — the package being present is what made the first guess look
      plausible.
-   - **Xiaomi: verified before the resolution logic changed, so recheck.** The
-     switch from `MATCH_DEFAULT_ONLY` to `resolveActivityInfo` plus an
-     `exported` requirement happened after that test. It should still pass,
-     since the deep link demonstrably opened, but it is unverified as written.
+   - **Xiaomi: confirmed** on 7 Sep, after the resolution logic changed.
+     `vendorpkgs` reports `RESOLVES` for
+     `com.miui.securitycenter/com.miui.permcenter.autostart.AutoStartManagementActivity`,
+     so the `exported` requirement did not break it.
    - **Pixel and Motorola: correct by construction.** Neither ships any package
      in the list, so nothing resolves and no card appears, which is the
      intended behaviour. No test needed and none possible without the hardware.

@@ -89,6 +89,11 @@ class _TimerScreenState extends State<TimerScreen> {
 
     final state = context.read<AppState>();
     state.updatePrefs(state.prefs.copyWith(timerMode: _mode.name));
+
+    // Pins the day. Until this, Today is free to slide the block forward so it
+    // never starts in the past; from here it stays where it is, because the
+    // countdown has to mean something.
+    unawaited(state.beginSession(widget.session));
   }
 
   void _tick() {

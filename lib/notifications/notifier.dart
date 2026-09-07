@@ -296,13 +296,25 @@ class Notifier {
     }
   }
 
+  /// Whether Android will honour a minute-accurate alarm.
+  ///
+  /// Fails soft, the same way [isBatteryExempt] does and for the same reason:
+  /// never raise a warning on the strength of a check that did not complete.
+  /// It also means there is no plugin to resolve in a test, which is otherwise
+  /// a LateInitializationError from deep inside the package, thrown by
+  /// anything that replans.
   Future<bool> canScheduleExact() async {
-    final android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    if (android == null) return true;
-    return await android.canScheduleExactNotifications() ?? true;
+    try {
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      if (android == null) return true;
+      return await android.canScheduleExactNotifications() ?? true;
+    } catch (e) {
+      debugPrint('Prahar: exact-alarm check failed: $e');
+      return true;
+    }
   }
 
   // ---------------------------------------------------------- scheduling

@@ -58,7 +58,12 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
     // repaints it. One rebuild a minute is cheap; the old screen computed
     // "now" once per build and could sit stale for an hour.
     _minute = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      setState(() {});
+      // Pull the day forward if it has fallen behind the clock. Does nothing
+      // while a block is running, and nothing until the drift is worth acting
+      // on. See AppState.reanchorIfIdle.
+      unawaited(context.read<AppState>().reanchorIfIdle());
     });
   }
 

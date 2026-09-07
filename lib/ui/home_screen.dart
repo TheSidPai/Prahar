@@ -68,6 +68,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // remaining capacity.
       app.refreshIfDayChanged();
       app.refreshAlarms();
+      // Coming back after a while away is the commonest way to find a plan
+      // that has fallen behind the clock, and the minute timer was not
+      // running while the app was paused.
+      app.reanchorIfIdle();
 
       // The mark draws itself on the way back in.
       //

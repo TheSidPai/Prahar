@@ -62,6 +62,27 @@ class AppState extends ChangeNotifier {
   /// no way to ask. See [BackgroundGate].
   BackgroundGate? backgroundGate;
 
+  /// The block the student actually started, if any.
+  ///
+  /// This is what separates a block in progress from a block that has merely
+  /// been sitting there. Nothing else in the app records it: `session_log`
+  /// only learns about a block once it is finished or skipped, and sessions
+  /// themselves are regenerated on every replan and cannot hold state.
+  ///
+  /// Persisted in `settings` rather than as a column, because it is one
+  /// string about right now, not history, and it must survive the process
+  /// being killed mid-block — which on these phones is routine.
+  String? runningSessionId;
+
+  /// How far a block may start in the past before the day is re-anchored.
+  ///
+  /// Not zero. Re-anchoring on every tick would drag the whole day forward a
+  /// minute per minute: the block would restart at "now" forever, never
+  /// elapse, and its countdown would never move. A couple of minutes of slack
+  /// is invisible to read and keeps the replan, and the alarm resync behind
+  /// it, down to something occasional.
+  static const reanchorAfterMinutes = 2;
+
   /// Whether to show the autostart notice.
   ///
   /// Deliberately behind the battery warning: while that one is up it is the
@@ -95,6 +116,10 @@ class AppState extends ChangeNotifier {
     todayLog = await db.logEntriesOn(today);
     // hasAutostartScreen decides whether there is a gate; the manufacturer
     // only picks the wording. See BackgroundGate.resolve.
+    // Empty string means nothing running; the settings table has no nulls.
+    final running = (await db.settings())['running_session'] ?? '';
+    runningSessionId = running.isEmpty ? null : running;
+
     backgroundGate = BackgroundGate.resolve(
       manufacturer: await notifier.deviceVendor(),
       hasScreen: await notifier.hasAutostartScreen(),
@@ -177,8 +202,16 @@ class AppState extends ChangeNotifier {
     if (resyncAlarms && plan != null) {
       exactAlarmsAllowed = await notifier.canScheduleExact();
       batteryExempt = await notifier.isBatteryExempt();
-      await notifier.syncFromPlan(plan!);
-      await _syncDigests();
+      // A replan is worth doing even if the alarms cannot be written: the
+      // schedule on screen is still correct, and throwing here would take the
+      // whole edit down with it. There is no plugin behind the channel in a
+      // test, which is exactly what this used to trip over.
+      try {
+        await notifier.syncFromPlan(plan!);
+        await _syncDigests();
+      } catch (e) {
+        debugPrint('Prahar: could not resync alarms: $e');
+      }
     }
 
     // Keep the home-screen widgets in step. Cheap; runs on every replan.
@@ -228,6 +261,60 @@ class AppState extends ChangeNotifier {
     }
 
     await notifier.syncDigests(entries);
+  }
+
+  // ------------------------------------------------- keeping today honest
+
+  /// Records that the student has actually begun a block.
+  ///
+  /// Called when the focus timer starts, which is the only moment the app
+  /// knows the difference between "this is the block you are on" and "this is
+  /// the block you were offered and ignored".
+  Future<void> beginSession(StudySession s) async {
+    if (runningSessionId == s.id) return;
+    runningSessionId = s.id;
+    notifyListeners();
+    await db.putSetting('running_session', s.id);
+  }
+
+  /// Forgets the running block, so the day is free to move again.
+  Future<void> endSession() async {
+    if (runningSessionId == null) return;
+    runningSessionId = null;
+    notifyListeners();
+    await db.putSetting('running_session', '');
+  }
+
+  /// Pulls the day forward so nothing is offered from the past.
+  ///
+  /// A plan is generated from the moment it is made, so opening the app at
+  /// 11:16 gives a block at 11:16. Nothing replanned it after that, so by
+  /// 11:46 the same block still read 11:35, and the student was looking at a
+  /// schedule that had quietly expired.
+  ///
+  /// Only when nothing is running. A block that has been started keeps its
+  /// original start time, because that is what makes "29m left" mean anything
+  /// and what stops the countdown resetting every time the clock ticks.
+  /// Driven by Today's existing one-minute timer.
+  Future<void> reanchorIfIdle() async {
+    if (loading || plan == null) return;
+    if (runningSessionId != null) return;
+
+    final now = DateTime.now();
+    final nowMinute = now.hour * 60 + now.minute;
+    final logged = todayLog.map((e) => e.id).toSet();
+
+    final stale = plan!
+        .onDate(today)
+        .where((s) => !logged.contains(s.id))
+        .any((s) => nowMinute - s.startMinuteOfDay >= reanchorAfterMinutes);
+    if (!stale) return;
+
+    // With the alarm resync: today's blocks have just moved, so the reminders
+    // pointing at their old times are now wrong. The threshold above is what
+    // keeps this from running every minute.
+    await _rebuild();
+    notifyListeners();
   }
 
   /// Opens the vendor's autostart screen and retires the notice.
@@ -445,6 +532,9 @@ class AppState extends ChangeNotifier {
   /// figure when the student supplies it — that difference is what later
   /// calibrates effort estimates.
   Future<void> markDone(StudySession session, {int? actualMinutes}) async {
+    // Whatever was running is over. Without this the day stays pinned to a
+    // block that has already been logged and never re-anchors again.
+    if (runningSessionId == session.id) await endSession();
     final minutes = actualMinutes ?? session.durationMinutes;
     final topic = topics.where((t) => t.id == session.topicId).firstOrNull;
 
@@ -474,6 +564,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> markSkipped(StudySession session) async {
+    if (runningSessionId == session.id) await endSession();
     await db.logSession(
       session.copyWith(status: SessionStatus.skipped),
       actualMinutes: 0,
