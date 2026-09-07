@@ -111,9 +111,21 @@ class AppState extends ChangeNotifier {
   int get consumedToday => todayLog.fold(0, (a, e) => a + e.consumedMinutes);
 
   /// Recommendations the app can currently offer, e.g. "your Chemistry pages
-  /// actually take 4.5 min each". Recomputed on demand; cheap enough not to
-  /// cache.
-  Future<List<CalibrationSuggestion>> calibrationSuggestions() async {
+  /// actually take 4.5 min each".
+  ///
+  /// Held here rather than computed where it is drawn. Progress used to call
+  /// the query version straight from `build`, which meant a database read on
+  /// every rebuild — and since every `notifyListeners` rebuilds Progress, that
+  /// was a read per edit, per tap, per minute tick. It also handed
+  /// `FutureBuilder` a new future each time, so the card blinked out and back
+  /// on unrelated changes, and it left a pending query behind in widget tests
+  /// that failed something else with a stack naming sqflite.
+  ///
+  /// Recomputed in [_rebuild], which already runs on every change, so this is
+  /// as fresh as the plan is.
+  List<CalibrationSuggestion> calibration = const [];
+
+  Future<List<CalibrationSuggestion>> _computeCalibration() async {
     final ids = topics.map((t) => t.id);
     final completed = await db.completedFor(ids);
     return const Calibrator().analyse(topics: topics, completed: completed);
@@ -156,6 +168,11 @@ class AppState extends ChangeNotifier {
       today: today,
       todayStartMinute: now.hour * 60 + now.minute,
     );
+
+    // One query per replan, not one per rebuild. It reads the same completed
+    // topics the planner just used, so this is the moment it is cheapest and
+    // the moment it is guaranteed to be in step with the plan.
+    calibration = await _computeCalibration();
 
     if (resyncAlarms && plan != null) {
       exactAlarmsAllowed = await notifier.canScheduleExact();

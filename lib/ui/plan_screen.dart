@@ -273,27 +273,26 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
 /// Shows any calibration recommendations the log currently supports.
 ///
-/// A separate widget so the FutureBuilder for the log query doesn't rebuild
-/// the whole Progress screen when the state changes. Silent when there is
-/// nothing to suggest — no evidence, no card.
+/// Silent when there is nothing to suggest: no evidence, no card.
+///
+/// Reads `state.calibration`, which AppState recomputes on every replan. This
+/// used to hand a FutureBuilder `state.calibrationSuggestions()` straight from
+/// build, which ran a database query on every rebuild and gave the builder a
+/// new future each time, so the card blinked out and back whenever anything
+/// unrelated changed.
 class _CalibrationSection extends StatelessWidget {
   const _CalibrationSection();
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    return FutureBuilder<List<CalibrationSuggestion>>(
-      future: state.calibrationSuggestions(),
-      builder: (context, snap) {
-        final suggestions = snap.data ?? const [];
-        if (suggestions.isEmpty) return const SizedBox.shrink();
-        return Column(
-          children: [
-            for (final s in suggestions)
-              _CalibrationCard(suggestion: s, state: state),
-          ],
-        );
-      },
+    final suggestions = state.calibration;
+    if (suggestions.isEmpty) return const SizedBox.shrink();
+    return Column(
+      children: [
+        for (final s in suggestions)
+          _CalibrationCard(suggestion: s, state: state),
+      ],
     );
   }
 }

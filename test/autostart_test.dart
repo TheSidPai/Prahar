@@ -416,15 +416,14 @@ void main() {
           if (saved['autostart_snooze_count'] == '1') break;
           await Future<void>.delayed(const Duration(milliseconds: 10));
         }
-
-        // The rebuild has to happen in here too. notifyListeners reaches
-        // Progress, whose calibration section starts a database query from
-        // inside build(), and that query schedules a timer fake-async never
-        // runs. pump, not pumpAndSettle: Today's Timer.periodic means settling
-        // never finishes.
-        await tester.pump();
-        await Future<void>.delayed(const Duration(milliseconds: 100));
       });
+
+      // Outside runAsync again. This used to have to happen inside it, because
+      // notifyListeners reaches Progress and its calibration section started a
+      // database query from inside build(). That query now runs once per
+      // replan on AppState, so a rebuild starts nothing. pump, not
+      // pumpAndSettle: Today's Timer.periodic means settling never finishes.
+      await tester.pump();
 
       expect(
         state.prefs.autostartDismissed,

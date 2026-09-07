@@ -416,6 +416,11 @@ that file — a commit that changed behaviour has to stay visible in blame.
   along.)
 - **Signed with the user's own key** since 6 Sep — `dev.ps1 signer` prints
   `CN=Siddhant`. Not `CN=Android Debug`.
+- **Version is `0.2.0+2`**, bumped on 7 Sep from `0.1.0+1`, which every build
+  since the start had carried. The `+N` is Android's versionCode and is what
+  decides whether an APK counts as an update: two builds sharing it are
+  indistinguishable to the installer, which matters now that releases go out
+  as files rather than through a store. Bump it on every release build.
 - **Landscape and tablet**: a navigation rail sideways, two panes on Today,
   Plan and Subjects, capped column widths on Progress and Settings. **Seen on
   the device and confirmed good on 5 Sep** — no longer written blind.
@@ -701,6 +706,22 @@ undo without reason.
   tempting evidence but prorating by minutes cancels arithmetically and
   always recovers the prior rate. This bug hid in the first draft; the test
   suite pins it now — don't "improve" it back into a broken model.
+- **Never start a query from `build()`.** `_CalibrationSection` handed a
+  `FutureBuilder` `state.calibrationSuggestions()` straight from build, so
+  Progress read the database on every rebuild — and every `notifyListeners`
+  rebuilds Progress, so that was a read per edit, per tap and per minute tick.
+  It also handed the builder a *new future each time*, so the card blinked out
+  and back on changes that had nothing to do with it. The suggestions now live
+  on `AppState.calibration`, recomputed in `_rebuild` alongside the plan, which
+  is where every other derived value already lives.
+  **The test written for this first was useless and was thrown away.**
+  Asserting "no pending timer after pumping Progress" passed against the broken
+  code, because in isolation the query happens to finish. What catches it is
+  seeding `state.calibration` and writing nothing to the database, so the card
+  can only appear if Progress read the state; `test/progress_query_test.dart`
+  was confirmed to fail against the `FutureBuilder` version before being kept.
+  The general lesson is the CLAUDE.md rule about `database_test.dart` again: a
+  new test is not finished until it has been seen to fail.
 - **Autostart is a second gate, and the app cannot see through it.** The
   battery exemption tells stock Android not to freeze the process. It says
   nothing to MIUI, ColorOS, Funtouch or One UI, each of which keeps its own
@@ -765,13 +786,8 @@ undo without reason.
   tree, and delaying in `tearDown`.
   Related: **`pumpAndSettle` never settles on Today**, which runs a
   `Timer.periodic` to move its "now" marker. Use `pump`.
-  **And a `pump` that rebuilds Progress has the same problem**, because
-  `_CalibrationSection.build` starts a database query from inside `build()`.
-  Any `notifyListeners` reaches it, so a test that taps anything at all can
-  fail on a pending timer whose stack names sqflite and Progress and has
-  nothing to do with what was tapped. Put that `pump` inside `runAsync` too.
-  **Fixing the query-in-build properly is worth doing** — see the roadmap; it
-  also means the query re-runs on every rebuild in the real app.
+  This is also how the query-in-build below was found: the symptom was a
+  pending timer in a test about something else entirely.
 - **Widget layouts: only view classes marked `@RemoteView`, and only
   pre-API-26 attributes.** RemoteViews inflates through a filter that rejects
   any class without that annotation, and `android.view.View` does not have it
@@ -806,35 +822,30 @@ because the ordering is the argument:
    history cannot be retrofitted, so every week it is not logged is a week
    FSRS will never have. One question at the end of a timer session and one
    column. Cheap, and worthless later if not started now.
-2. **Move the calibration query out of `build()`.** `_CalibrationSection`
-   calls `AppState.calibrationSuggestions()` from inside build, so it hits the
-   database on every rebuild, and every `notifyListeners` triggers one. It
-   should be computed on replan and held on `AppState` like everything else.
-   It is also a recurring source of test failures that name the wrong thing.
-3. **Verify the OnePlus and Samsung deep links on real hardware.** The package
-   and activity names were reasoned, not observed. `dev.ps1 notif` plus the
-   Settings row is enough to check: if the row opens the real list, it works.
-   Getting this wrong is invisible from here, because on an unaffected device
-   the row simply does not appear.
+2. **Verify the OnePlus and Samsung deep links on real hardware.** Their
+   package and activity names were reasoned, not observed. The Xiaomi path is
+   confirmed on 7 Sep, end to end: the card appeared, "Show me" opened the real
+   MIUI Background autostart screen, and the permanent Settings row is present
+   after dismissal. The other vendors cannot be checked from here. Opening the
+   Settings row on one of those phones is the whole test: if it lands on the
+   real list it works, and if it lands on App info the app now says so.
+3. **Distribution.** Free route decided, not started. Until it is done the app
+   has one user, and it is what starts producing the feedback the copy sweep
+   below actually needs.
 4. **Finish the copy sweep.** Settings > Notifications and the worst of the
    jargon were done on 7 Sep. Still untouched: the subject and topic sheets,
    the busy-slots screen and how_it_works. Two patterns to look for, both of
    which turned up repeatedly: Android's own vocabulary leaking into copy
    ("exact alarms", "JSON", "backdrop blur"), and names that describe the
    implementation rather than the effect ("Reschedule", "Estimate learned").
-3. **Distribution.** Free route decided, not started. Until it is done the app
-   has one user, and it is what starts producing the feedback items 4 and 5
-   actually need.
-4. **The splash-animation decision** at the top of this file. Options 1, 2, 3.
-   The recommendation changed on 7 Sep from 3 to **2**, sequenced behind
-   item 6; the reasoning is at the top.
-5. **The copy pass was a pass, not a sweep.** The subject and topic sheets and
-   some Progress strings were not gone through. Pairs with item 3, since
-   distribution is when a stranger first reads any of it.
-6. **A test pinning the six brand numbers** shared between `_MarkPainter` and
+   Pairs with distribution, since that is when a stranger first reads any of it.
+5. **A test pinning the six brand numbers** shared between `_MarkPainter` and
    `make_icon.ps1`. Still the only silent-drift hole in otherwise well-netted
    code, and the precondition for the splash: it is what makes a third copy of
    those numbers safe to generate.
+6. **The splash-animation decision** at the top of this file. Options 1, 2, 3.
+   The recommendation changed on 7 Sep from 3 to **2**, sequenced behind item 5;
+   the reasoning is at the top.
 7. **`flutter_timezone`**, only if this app ever leaves India.
 8. **Is the keystore backed up off this machine?** Not a build task, but the
    smallest high-value item on any list: it exists in one place, and the local

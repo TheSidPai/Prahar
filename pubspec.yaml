@@ -5,7 +5,7 @@ publish_to: 'none'
 # a higher one than the last, and a number can never be reused — not even for
 # a build that was rejected. Bump it on every release build; the 0.1.0 part is
 # only what humans read.
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ^3.13.0

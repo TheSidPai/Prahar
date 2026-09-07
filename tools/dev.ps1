@@ -341,16 +341,22 @@ switch ($Task.ToLower()) {
     # Note `>` and not `*>&1`: merging a native command's stderr wraps every
     # line in an ErrorRecord in PowerShell 5.1, which buries the output these
     # tasks exist to show. Stdout to the file, stderr straight to the console.
+    # --timeout caps a single test rather than the run. The default is 30s of
+    # *inactivity*, which a widget test that awaits a database write inside the
+    # fake-async zone never trips: the await simply never returns, the suite
+    # sits there, and a run that normally takes about a minute took ten before
+    # anything failed. A hard 60s per test turns that into a fast, named
+    # failure. No honest test here is close to it; the slowest is under 3s.
     'test' {
-        if ($Rest) { & $Flutter test --plain-name ($Rest -join ' ') | Tee-Object $LogFile }
-        else       { & $Flutter test | Tee-Object $LogFile }
+        if ($Rest) { & $Flutter test --timeout 60s --plain-name ($Rest -join ' ') | Tee-Object $LogFile }
+        else       { & $Flutter test --timeout 60s | Tee-Object $LogFile }
         exit $LASTEXITCODE
     }
 
     'testq' {
         # Quiet: the summary only. The whole run is still in build\dev.log.
-        if ($Rest) { & $Flutter test --plain-name ($Rest -join ' ') > $LogFile }
-        else       { & $Flutter test > $LogFile }
+        if ($Rest) { & $Flutter test --timeout 60s --plain-name ($Rest -join ' ') > $LogFile }
+        else       { & $Flutter test --timeout 60s > $LogFile }
         $code = $LASTEXITCODE
         Get-Content $LogFile -Tail 12
         Write-Output "--- full log: $LogFile"
