@@ -132,6 +132,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('the legend clears the navigation bar in the grid', (
+    tester,
+  ) async {
+    // Seen on a tablet: the legend is pinned under the grid rather than
+    // scrolling with it, so nothing inset it and it sat behind the bottom
+    // bar. The upright layout was fine because its ListView ends with
+    // navBottomInset; the grid is a Column and had to ask for it.
+    //
+    // The inset is supplied here rather than assumed, because this phone uses
+    // gesture navigation and reports nothing. Three-button navigation is what
+    // makes the gap real, and it is the case nobody here can see.
+    const bar = 48.0;
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.viewPadding = const FakeViewPadding(bottom: bar);
+    tester.view.padding = const FakeViewPadding(bottom: bar);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(app());
+    await tester.pump();
+
+    // No Week tap here: at this width Plan is two panes and draws the grid
+    // beside the month calendar, so there is no Days/Week/Month toggle to
+    // press. That is also why this bug only ever showed on a tablet.
+    await tester.tap(find.byIcon(Icons.calendar_month_outlined).last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // "Busy" is the legend's own word for the shaded bands, and the one thing
+    // the drawing cannot say about itself.
+    final legend = find.text('Busy');
+    expect(legend, findsOneWidget);
+
+    final screen = tester.getRect(find.byType(MaterialApp));
+    expect(
+      tester.getRect(legend).bottom,
+      lessThanOrEqualTo(screen.bottom - bar),
+      reason: 'the legend is underneath the navigation bar',
+    );
+  });
+
   testWidgets('draws the study window down the side', (tester) async {
     await openWeek(tester, phonePortrait);
 

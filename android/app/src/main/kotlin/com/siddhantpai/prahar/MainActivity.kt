@@ -3,7 +3,6 @@ package com.siddhantpai.prahar
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
@@ -281,13 +280,15 @@ class MainActivity : FlutterActivity() {
         "com.miui.securitycenter" to "com.miui.permcenter.autostart.AutoStartManagementActivity",
         // Oppo, Realme and OnePlus, which all run ColorOS underneath now.
         //
-        // The package was renamed coloros -> oplus around ColorOS 12 and
-        // OxygenOS 12, and OnePlus used its own before that. Missing the two
-        // newer spellings is not a cosmetic gap: on a OnePlus 12R nothing
-        // resolved, so the button silently fell through to the generic App
-        // info page while the card had just promised the Auto-launch list.
+        // com.oplus.battery first, and this one is not a guess: it was read
+        // off a OnePlus Pad on OxygenOS 16 with `dev.ps1 vendorpkgs`. The
+        // autostart list moved out of the security app and into the battery
+        // app, which is why an earlier build found com.oplus.safecenter
+        // installed, resolved none of its activities, and showed no card at
+        // all on a phone that very much has the gate.
+        "com.oplus.battery" to "com.oplus.startupapp.view.StartupAppListActivity",
+        "com.oplus.battery" to "com.oplus.startupapp.view.OptimizationAutoStartActivity",
         "com.oplus.safecenter" to "com.oplus.safecenter.permission.startup.StartupAppListActivity",
-        "com.oplus.safecenter" to "com.oplus.safecenter.permission.startup.StartupAppListActivity2",
         "com.oplus.safecenter" to "com.oplus.safecenter.startupapp.StartupAppListActivity",
         "com.oneplus.security" to "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity",
         "com.coloros.safecenter" to "com.coloros.safecenter.permission.startup.StartupAppListActivity",
@@ -317,7 +318,17 @@ class MainActivity : FlutterActivity() {
         for ((pkg, cls) in autoStartTargets) {
             val intent = Intent().setComponent(ComponentName(pkg, cls))
             val found = try {
-                packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY) != null
+                // resolveActivityInfo with no flags, not MATCH_DEFAULT_ONLY.
+                // These are explicit components, and MATCH_DEFAULT_ONLY drops
+                // any activity whose filter lacks CATEGORY_DEFAULT — which a
+                // vendor's internal settings screen has no reason to declare.
+                //
+                // The exported check matters just as much: an activity that
+                // resolves but is not exported throws SecurityException on
+                // startActivity, which would put us back to promising a screen
+                // and delivering App info.
+                val info = intent.resolveActivityInfo(packageManager, 0)
+                info != null && info.exported
             } catch (e: Exception) {
                 false
             }

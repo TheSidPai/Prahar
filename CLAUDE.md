@@ -219,6 +219,22 @@ tools\make_nav_options.ps1      # nav icon candidates, 7 per tab, at 96 and 24px
 tools\make_mark_anim.ps1        # the mark's animation as 10-frame filmstrips
 ```
 
+**`dev.ps1 vendorpkgs` answers the autostart question for a connected
+device**, and it exists because guessing was wrong twice. It prints the
+manufacturer, which of the known vendor packages are installed, anything else
+on the device whose name suggests it manages startup or battery, and finally
+whether each deep-link target actually resolves. Run it on any new phone
+before adding a target by hand.
+
+That last section had a bug worth remembering: the first version grepped
+`dumpsys package` for `exported=` near the class name. That flag is not
+printed there, so every target came back "absent" — including one the section
+directly above had just listed. It now asks
+`cmd package resolve-activity --brief -n <component>`, which is the same
+question the app asks. **A probe that reports false negatives is worse than no
+probe**, because it sends the next session hunting for something that was
+never missing.
+
 **`dev.ps1 adb` must never be passed `-t`.** PowerShell binds parameters by
 unambiguous prefix and `-t` is a prefix of this script's own `-Task`, so
 `dev.ps1 adb logcat -d -t 200` sets `Task='200'` and prints the help. It fails
@@ -822,13 +838,25 @@ because the ordering is the argument:
    history cannot be retrofitted, so every week it is not logged is a week
    FSRS will never have. One question at the end of a timer session and one
    column. Cheap, and worthless later if not started now.
-2. **Verify the OnePlus and Samsung deep links on real hardware.** Their
-   package and activity names were reasoned, not observed. The Xiaomi path is
-   confirmed on 7 Sep, end to end: the card appeared, "Show me" opened the real
-   MIUI Background autostart screen, and the permanent Settings row is present
-   after dismissal. The other vendors cannot be checked from here. Opening the
-   Settings row on one of those phones is the whole test: if it lands on the
-   real list it works, and if it lands on App info the app now says so.
+2. **Re-verify Xiaomi, and check the vendors nobody here owns.** State as of
+   7 Sep:
+   - **OnePlus: confirmed** on a Pad running OxygenOS 16, by `vendorpkgs`. The
+     list lives at `com.oplus.battery/com.oplus.startupapp.view.StartupAppListActivity`.
+     It is *not* in `com.oplus.safecenter`, which is installed but has no such
+     activity — the package being present is what made the first guess look
+     plausible.
+   - **Xiaomi: verified before the resolution logic changed, so recheck.** The
+     switch from `MATCH_DEFAULT_ONLY` to `resolveActivityInfo` plus an
+     `exported` requirement happened after that test. It should still pass,
+     since the deep link demonstrably opened, but it is unverified as written.
+   - **Pixel and Motorola: correct by construction.** Neither ships any package
+     in the list, so nothing resolves and no card appears, which is the
+     intended behaviour. No test needed and none possible without the hardware.
+   - **Realme: probably fixed by the OnePlus change**, being the same ColorOS
+     base, but inferred rather than seen.
+   - **Samsung: still a guess.** `com.samsung.android.lool` is likely right;
+     all three activity spellings are unverified. Ten seconds with `vendorpkgs`
+     on any Galaxy would settle it.
 3. **Distribution.** Free route decided, not started. Until it is done the app
    has one user, and it is what starts producing the feedback the copy sweep
    below actually needs.

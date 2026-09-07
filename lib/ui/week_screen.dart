@@ -742,9 +742,16 @@ class _WeekColumns extends StatelessWidget {
             ),
           ),
         ),
+        // The legend is pinned under the grid rather than scrolling with it,
+        // so nothing insets it and it sat behind the navigation bar. The
+        // upright layout gets this right because its ListView ends with the
+        // same inset; this path is a Column and had to ask for it.
         DecoratedBox(
           decoration: BoxDecoration(color: theme.colorScheme.surface),
-          child: _Legend(state: state),
+          child: Padding(
+            padding: EdgeInsets.only(bottom: navBottomInset(context)),
+            child: _Legend(state: state),
+          ),
         ),
       ],
     );
@@ -953,37 +960,58 @@ class _ColumnBlock extends StatelessWidget {
       child: Material(
         color: colour.withValues(alpha: done ? 0.16 : 0.34),
         borderRadius: BorderRadius.circular(6),
+        // A block's height comes from its duration, so a short one is shorter
+        // than its own text. Nothing clipped it, so the text painted outside
+        // the block and over its neighbours: a morning of 25-minute blocks
+        // read as one smeared column rather than as separate blocks.
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(6),
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
               border: Border(left: BorderSide(color: colour, width: 2.5)),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             child: showText
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        session.subjectName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          decoration: done ? TextDecoration.lineThrough : null,
-                        ),
-                      ),
-                      Text(
-                        formatClock(session.startMinuteOfDay),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                ? LayoutBuilder(
+                    builder: (context, box) {
+                      // Draw only what fits. Clipping alone would slice a line
+                      // of text in half, which looks like a rendering fault
+                      // rather than a deliberately small block.
+                      final lines = box.maxHeight >= _twoLines
+                          ? 2
+                          : box.maxHeight >= _oneLine
+                          ? 1
+                          : 0;
+                      if (lines == 0) return const SizedBox.expand();
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            session.subjectName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              decoration: done
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                          if (lines == 2)
+                            Text(
+                              formatClock(session.startMinuteOfDay),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   )
                 : const SizedBox.expand(),
           ),
@@ -991,4 +1019,12 @@ class _ColumnBlock extends StatelessWidget {
       ),
     );
   }
+
+  /// Room for the subject and the start time, and for the subject alone.
+  ///
+  /// Deliberately generous: measured against labelSmall at a 1.0 text scale,
+  /// and a block that guesses wrong here goes back to painting over its
+  /// neighbour. Under-drawing is the safe direction.
+  static const _twoLines = 34.0;
+  static const _oneLine = 19.0;
 }

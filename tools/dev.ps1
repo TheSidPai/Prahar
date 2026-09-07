@@ -472,6 +472,101 @@ switch ($Task.ToLower()) {
         exit 0
     }
 
+    'vendorpkgs' {
+        # Which vendor background-restriction app this device actually has.
+        #
+        # The autostart deep link targets activities inside each OEM's own
+        # security app, and those package names move: coloros -> oplus around
+        # ColorOS 12, oneplus.security before that. Guessing them from a
+        # distance is how a OnePlus Pad ended up with no autostart row at all,
+        # so this asks the device instead of the internet.
+        #
+        # Exists as a task rather than an ad-hoc `adb shell pm list` so it is
+        # one stable, allow-listed command shape.
+        $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+
+        Write-Output '=== manufacturer ==='
+        & $adb shell getprop ro.product.manufacturer
+        & $adb shell getprop ro.build.version.release
+
+        Write-Output ''
+        Write-Output '=== packages this app already knows ==='
+        foreach ($p in @(
+            'com.miui.securitycenter',
+            'com.oplus.safecenter',
+            'com.oneplus.security',
+            'com.coloros.safecenter',
+            'com.oppo.safe',
+            'com.vivo.permissionmanager',
+            'com.iqoo.secure',
+            'com.huawei.systemmanager',
+            'com.samsung.android.lool',
+            'com.asus.mobilemanager',
+            'com.letv.android.letvsafe'
+        )) {
+            $found = & $adb shell "pm list packages $p" 2>$null
+            if ($found) { Write-Output "  PRESENT  $p" }
+            else        { Write-Output "  absent   $p" }
+        }
+
+        Write-Output ''
+        Write-Output '=== other candidates on this device ==='
+        # Anything whose name suggests it manages battery, startup or security.
+        & $adb shell "pm list packages | grep -Ei 'safe|secur|guard|power|battery|startup|launch|optimi' | sed 's/^package://'" 2>$null
+
+        Write-Output ''
+        Write-Output '=== activities that look like an autostart list ==='
+        # Knowing the package is only half of it: the deep link needs the
+        # activity, and those are renamed at least as often. A package can be
+        # PRESENT above and still resolve nothing, which is exactly what a
+        # OnePlus Pad did with com.oplus.safecenter.
+        foreach ($p in @(
+            'com.miui.securitycenter',
+            'com.oplus.safecenter',
+            'com.oplus.battery',
+            'com.oneplus.security',
+            'com.coloros.safecenter',
+            'com.vivo.permissionmanager',
+            'com.iqoo.secure',
+            'com.huawei.systemmanager',
+            'com.samsung.android.lool'
+        )) {
+            $hits = & $adb shell "dumpsys package $p | grep -Eio '$p/[A-Za-z0-9_.]*(startup|autostart|auto_start|selfstart|chainlaunch|autolaunch|bgstart|BatteryActivity)[A-Za-z0-9_.]*' | sort -u" 2>$null
+            if ($hits) {
+                Write-Output "  $p"
+                foreach ($h in $hits) { Write-Output "    $h" }
+            }
+        }
+
+        Write-Output ''
+        Write-Output '=== can the app actually reach its targets? ==='
+        # `cmd package resolve-activity` asks the package manager the same
+        # question MainActivity.autoStartIntent asks, so a target that resolves
+        # here is one the card can open.
+        #
+        # An earlier version of this grepped dumpsys for `exported=` near the
+        # class name. That flag is not printed there, so every target came back
+        # "absent" including one the section above had just listed. A probe
+        # that reports false negatives is worse than no probe: it would have
+        # sent the next session hunting for a package that was never missing.
+        foreach ($t in @(
+            'com.miui.securitycenter/com.miui.permcenter.autostart.AutoStartManagementActivity',
+            'com.oplus.battery/com.oplus.startupapp.view.StartupAppListActivity',
+            'com.oplus.battery/com.oplus.startupapp.view.OptimizationAutoStartActivity',
+            'com.oplus.safecenter/com.oplus.safecenter.permission.startup.StartupAppListActivity',
+            'com.vivo.permissionmanager/com.vivo.permissionmanager.activity.BgStartUpManagerActivity',
+            'com.iqoo.secure/com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity',
+            'com.huawei.systemmanager/com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity',
+            'com.samsung.android.lool/com.samsung.android.sm.battery.ui.BatteryActivity',
+            'com.samsung.android.lool/com.samsung.android.sm.ui.battery.BatteryActivity'
+        )) {
+            $out = & $adb shell "cmd package resolve-activity --brief -n $t 2>&1 | tail -1" 2>$null
+            if ($out -match [regex]::Escape($t)) { Write-Output "  RESOLVES  $t" }
+            else { Write-Output "  no        $t" }
+        }
+        exit 0
+    }
+
     'check' {
         # Non-blocking runtime health check: is it alive, did it crash, what do
         # its logs say. `logs` tails forever; this returns.
