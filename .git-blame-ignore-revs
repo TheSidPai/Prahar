@@ -9,9 +9,13 @@
 #
 # Only ever add a commit here that a formatter produced. A commit that changed
 # behaviour must stay visible in blame.
+#
+# Re-check the SHAs after any history rewrite. Squashing a run of commits
+# gives every one of them a new SHA, including a formatting-only commit kept
+# deliberately separate, and a stale entry here silently does nothing.
 
 # Adopt the tall dart format style (5 Sep 2026)
 653b0bb6964f84f562b7b5d03d2fd28e6349aefe
 
 # Settle whitespace the formatter now writes differently (7 Sep 2026)
-8a78d0067a50079323fcb554813087e618b9aee8
+a51bd1eac89601b7b9480ef594de791a70dc7bae
