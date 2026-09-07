@@ -193,6 +193,102 @@ class BatteryWarning extends StatelessWidget {
   }
 }
 
+/// The second gate, on the phones that have one.
+///
+/// The battery exemption covers stock Android. It does not cover the separate
+/// autostart list that Xiaomi, Oppo, Realme, Vivo, Huawei, Samsung and the
+/// Transsion brands each keep, which defaults a newly installed app to
+/// blocked. That is the most likely reason a real student would say reminders
+/// stopped working.
+///
+/// Quieter than [BatteryWarning] on purpose. That one reports a state the app
+/// has checked and knows to be wrong. This one cannot check anything — Android
+/// exposes no way to read autostart — so it is advice, shown once, and it says
+/// what it is offering rather than claiming a fault.
+class AutostartNotice extends StatelessWidget {
+  const AutostartNotice({super.key, required this.state});
+
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final gate = state.backgroundGate;
+    if (gate == null) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.restart_alt, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'One more setting on ${gate.vendor}',
+                  style: theme.textTheme.titleSmall,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${gate.vendor} keeps its own list of apps allowed to start on '
+            'their own. Turn on ${gate.settingName} for Prahar so reminders '
+            'keep arriving.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          // Wrap, not Row: at a large font scale two buttons and their labels
+          // overflow a phone at 320dp, which is what device_matrix_test found
+          // the last time a row of controls went in without one.
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              TextButton(
+                onPressed: () => state.dismissAutostartNotice(),
+                child: const Text('Not now'),
+              ),
+              // FilledButton, not FilledButton.tonal. Tonal takes its fill from
+              // secondaryContainer, which is this card's own background, so it
+              // would vanish into it; and a third tonal call site is the trap
+              // CLAUDE.md names, since one FilledButtonThemeData serves both.
+              // The amber a plain FilledButton carries is the right colour
+              // anyway, by the rule that amber marks a CTA.
+              FilledButton(
+                onPressed: () async {
+                  final opened = await state.openAutostartSettings();
+                  if (context.mounted && !opened) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Open Settings and turn on ${gate.settingName} for '
+                          'Prahar.',
+                        ),
+                        duration: const Duration(seconds: 8),
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Show me'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Android 12+ silently downgrades alarms to inexact ones unless the user
 /// grants this. A 6pm reminder arriving at 7:20pm is how a study app loses a
 /// student's trust, so it gets called out rather than failing quietly.

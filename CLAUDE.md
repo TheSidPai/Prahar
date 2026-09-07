@@ -10,12 +10,25 @@ whatever section your task touches. The whole file is here because every
 paragraph was learned the hard way, but the state + feedback + decisions
 are what let a new session act, not just understand.
 
-### Where things stand, as of 6 Sep
+### Where things stand, as of 7 Sep
 
-**13 commits are unpushed.** The user pushes, never Claude. Everything below
-is committed, built and installed on the phone; `.claude/settings.json` is
-dirty and should be reverted, not committed — see the note at the end of this
-section.
+**5 commits are unpushed.** The user pushes, never Claude. There were 14 on
+7 Sep; they were squashed into 4 by piece of work, and the autostart notice is
+the fifth. The old history is on the local branch `presquash-6sep` and can be
+deleted once the squashed line is pushed. The rewrite was verified by
+`git diff presquash-6sep HEAD` coming back empty, which is the only check that
+matters when rewriting history: same tree, fewer commits.
+
+`.claude/settings.json` drifts every session and must be reverted, not
+committed — see the note at the end of this section.
+
+**The vendor autostart gate is handled, as of 7 Sep.** This was the largest
+real-world gap in the app and was on no list. Details under *Recent decisions*;
+the short version is that the battery exemption covers stock Android and
+nothing else, and Xiaomi, Oppo, Realme, OnePlus, Vivo, Huawei, Honor, Samsung
+and the Transsion brands each keep a separate list that defaults a new install
+to blocked. **Not yet seen on a phone** — it is written, tested and analysed,
+but nobody has watched the card appear. That is the next thing to look at.
 
 **One decision is open, and it is the only thing blocking anything.** The user
 asked whether the launcher icon can animate on the home screen when the app is
@@ -101,11 +114,28 @@ and so holds nothing machine-specific and no standing permission grants;
 `bypassPermissions` mode, so that a "never ask" grant cannot travel to a clone.
 
 **Claude Code writes new grants into the tracked file by itself** whenever the
-user picks "always allow", and it did so four times on 5–6 Sep. Move them to
-`settings.local.json` (and the global `~/.claude/settings.json`, which the
-user asked to keep in step) and `git checkout -- .claude/settings.json`.
-**Check `git status` before any push**; that file is the one that travels to a
-clone. It is dirty right now for exactly this reason.
+user picks "always allow", and it did so four times on 5–6 Sep and again on
+7 Sep. Move them to `settings.local.json` (and the global
+`~/.claude/settings.json`, which the user asked to keep in step) and
+`git checkout -- .claude/settings.json`. **Check `git status` before any
+push**; that file is the one that travels to a clone.
+
+**One real cause of the git prompting was found on 7 Sep, and it is not the
+falsified `dev.ps1` theory.** Every git rule in both settings files was written
+under `Bash(git -C ...)`, but git is called through the **PowerShell** tool,
+and a rule in one tool's namespace cannot match a call made with the other.
+Worse, the Bash tool on this machine has no git on PATH at all — a call there
+returns `git: command not found` — so those rules could never have fired under
+any spelling. `PowerShell(git -C c:/Users/TheSidPai/Prahar ...)` rules are now
+in both files and git stopped prompting immediately.
+
+This says nothing about the `dev.ps1` mystery, which is a PowerShell rule for a
+PowerShell call and remains unexplained. Do not treat this as a reason to
+reopen it.
+
+**Push is now denied in both settings files**, so "never push" is enforced by
+the harness rather than only by behaviour. That matters because the new git
+rule is a catch-all that would otherwise have covered `push`.
 
 ## What this is
 
@@ -351,10 +381,11 @@ it. GitHub honours the file by name; locally it needs
 and so must be re-run after a fresh clone. Only ever add formatter output to
 that file — a commit that changed behaviour has to stay visible in blame.
 
-## Current state (verified, 6 Sep 2026)
+## Current state (verified, 7 Sep 2026)
 
-- **203/203 tests pass; `analyze` reports no issues.** Both re-run after every
-  change on 6 Sep, and the build on the phone matches the tree.
+- **218/218 tests pass; `analyze` reports no issues.** Both re-run after every
+  change on 7 Sep. **The build on the phone is now behind the tree** — the
+  autostart notice has not been installed.
 - Release APK is **53.1 MB**, ~90–130 s warm. (An older line here said 52.3;
   it was wrong, and 52.9–53.1 is what this project has actually built all
   along.)
@@ -645,6 +676,39 @@ undo without reason.
   tempting evidence but prorating by minutes cancels arithmetically and
   always recovers the prior rate. This bug hid in the first draft; the test
   suite pins it now — don't "improve" it back into a broken model.
+- **Autostart is a second gate, and the app cannot see through it.** The
+  battery exemption tells stock Android not to freeze the process. It says
+  nothing to MIUI, ColorOS, Funtouch or One UI, each of which keeps its own
+  list of apps allowed to start on their own and defaults a new install to
+  blocked. The alarm stays registered, `dumpsys alarm` still lists it, and
+  nothing wakes to post it — which is the most likely reason a real student
+  would say reminders stopped.
+  **There is no API to read any of those lists.** The app can know it is on a
+  phone that has the gate; it cannot know whether it is being blocked. That
+  asymmetry decides the whole design: `AutostartNotice` is advice offered once
+  and dismissible, not a warning that claims to have checked, and it is
+  visually quieter than `BatteryWarning` for the same reason. It also waits
+  until the battery exemption is granted, because two cards competing for the
+  same attention means the more important one loses.
+  `BackgroundGate.forManufacturer` is pure and lives in `domain/`, so the
+  mapping is testable without a device — which matters here more than usual,
+  since the only phone in the project is a Xiaomi and exercises exactly one
+  branch. An unrecognised maker maps to null and shows nothing: a notice
+  nobody can act on is noise.
+  **The `<queries>` block in the manifest is load-bearing.** From Android 11 an
+  app cannot resolve another package's activity without declaring it, and
+  `resolveActivity` returns null rather than failing, so without those entries
+  every deep link silently degrades to the generic settings page on exactly
+  the devices the feature exists for.
+- **A widget test cannot write to the database on fake time.** sqflite
+  schedules a real timer to do the write, and inside `testWidgets`' fake-async
+  zone that timer never fires, so the write stays in flight and the binding
+  fails the test with "A Timer is still pending" — which names nothing to do
+  with the actual cause. Wrap the tap in `tester.runAsync` and give it a real
+  delay. Three other fixes were tried first and none of them worked: pumping
+  longer, disposing the tree, and adding a delay in `tearDown`.
+  Related: **`pumpAndSettle` never settles on Today**, which runs a
+  `Timer.periodic` to move its "now" marker. Use `pump`.
 - **Widget layouts: only view classes marked `@RemoteView`, and only
   pre-API-26 attributes.** RemoteViews inflates through a filter that rejects
   any class without that annotation, and `android.view.View` does not have it
@@ -671,18 +735,33 @@ exam calendar, its horizontal axis has no clean answer over a 60-day span, and
 it should only be built if the week view leaves something genuinely unanswered
 after a few weeks of use.
 
-What is actually open, in order:
+What is actually open, in order. Reordered on 7 Sep, with the reasoning kept
+because the ordering is the argument:
 
-1. **The splash-animation decision** at the top of this file. Options 1, 2, 3;
-   3 was recommended and costs nothing.
-2. **Distribution.** Free route decided, not started.
-3. **The copy pass was a pass, not a sweep.** The subject and topic sheets and
-   some Progress strings were not gone through. See the copy rules under
-   *Recent decisions*.
-4. **`flutter_timezone`**, only if this app ever leaves India.
-5. **A test pinning the six brand numbers** shared between `_MarkPainter` and
+1. **Recall-grade logging, on its own.** Split out of FSRS below, and moved to
+   the top, because it is the only item on any list that is *time-sensitive*:
+   history cannot be retrofitted, so every week it is not logged is a week
+   FSRS will never have. One question at the end of a timer session and one
+   column. Cheap, and worthless later if not started now.
+2. **See the autostart notice on a phone.** Written 7 Sep, tested, never
+   looked at. The dev phone is a Xiaomi, so the card should appear on it.
+3. **Distribution.** Free route decided, not started. Until it is done the app
+   has one user, and it is what starts producing the feedback items 4 and 5
+   actually need.
+4. **The splash-animation decision** at the top of this file. Options 1, 2, 3.
+   The recommendation changed on 7 Sep from 3 to **2**, sequenced behind
+   item 6; the reasoning is at the top.
+5. **The copy pass was a pass, not a sweep.** The subject and topic sheets and
+   some Progress strings were not gone through. Pairs with item 3, since
+   distribution is when a stranger first reads any of it.
+6. **A test pinning the six brand numbers** shared between `_MarkPainter` and
    `make_icon.ps1`. Still the only silent-drift hole in otherwise well-netted
-   code, and now more valuable: the animation reuses those same numbers.
+   code, and the precondition for the splash: it is what makes a third copy of
+   those numbers safe to generate.
+7. **`flutter_timezone`**, only if this app ever leaves India.
+8. **Is the keystore backed up off this machine?** Not a build task, but the
+   smallest high-value item on any list: it exists in one place, and the local
+   database is the only copy of the student's data.
 
 ### The device question, answered on 6 Sep
 
@@ -699,7 +778,8 @@ repeating:
 - **The real risk is OEM background killing**, not layout: Xiaomi, Vivo, Oppo
   and Samsung gate autostart behind their own settings, which the battery
   exemption does not cover. It is the most likely reason a real user would say
-  reminders stopped.
+  reminders stopped. **Addressed on 7 Sep** by `AutostartNotice`; see the entry
+  under *Recent decisions*. Still unseen on a device.
 - Two defects that only showed on other people's phones were found and fixed
   by `test/device_matrix_test.dart`, which pumps every screen at 320dp and at
   a 1.5x font: the theme toggle overflowed at large font sizes, and every list
@@ -1003,9 +1083,11 @@ boundary is ever needed.
 
 Ranked, still valuable but behind the *Open feedback* list above:
 
-1. **FSRS** instead of the fixed `[1, 3, 7, 21]` review ladder, once recall
-   quality is logged. The timer is the natural place to ask "how did that
-   go?" now that one exists.
+1. **FSRS** instead of the fixed `[1, 3, 7, 21]` review ladder. **The logging
+   half of this was split out and promoted to the top of *Open feedback*** on
+   7 Sep; what remains here is the model itself, which should wait until the
+   log has months behind it. Fitting a scheduler to three cards is fitting it
+   to nothing.
 2. **Full resources per topic** — the schema has a full resources table
    supporting multiple entries (book/video/pdf/url/problem-set) with
    progress; we currently expose one `link` string. Building the resource

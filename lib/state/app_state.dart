@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 
 import '../data/database.dart';
+import '../domain/background_limits.dart';
 import '../domain/models.dart';
 import '../domain/preferences.dart';
 import '../domain/schedule.dart';
@@ -51,6 +52,24 @@ class AppState extends ChangeNotifier {
   /// without it.
   bool batteryExempt = true;
 
+  /// The vendor autostart gate this phone has, if any.
+  ///
+  /// Null on a Pixel and on anything unrecognised. Read once at load rather
+  /// than on every replan: the manufacturer does not change under a running
+  /// app, and this is a platform channel call.
+  ///
+  /// Note this says nothing about whether autostart is *on*. Android exposes
+  /// no way to ask. See [BackgroundGate].
+  BackgroundGate? backgroundGate;
+
+  /// Whether to show the autostart notice.
+  ///
+  /// Deliberately behind the battery warning: while that one is up it is the
+  /// more important of the two and stacking a second card underneath it splits
+  /// the attention it needs. This one waits its turn.
+  bool get showAutostartNotice =>
+      backgroundGate != null && batteryExempt && !prefs.autostartDismissed;
+
   DateTime get today => dateOnly(DateTime.now());
 
   Future<void> load() async {
@@ -63,6 +82,9 @@ class AppState extends ChangeNotifier {
     prefs = Prefs.fromMap(await db.settings());
     streak = await db.streakEndingAt(today);
     todayLog = await db.logEntriesOn(today);
+    backgroundGate = BackgroundGate.forManufacturer(
+      await notifier.deviceVendor(),
+    );
 
     await _rebuild();
 
@@ -175,6 +197,32 @@ class AppState extends ChangeNotifier {
     }
 
     await notifier.syncDigests(entries);
+  }
+
+  /// Opens the vendor's autostart screen and retires the notice.
+  ///
+  /// Retired whether or not the screen opened, and without waiting to see what
+  /// was done there, because there is nothing to wait for: no API reports
+  /// autostart state, so the app cannot tell success from a student who backed
+  /// straight out. Showing it again on that guess would be nagging.
+  Future<bool> openAutostartSettings() async {
+    final opened = await notifier.openAutostartSettings();
+    await dismissAutostartNotice();
+    return opened;
+  }
+
+  /// Retires the notice now and records it afterwards.
+  ///
+  /// The order matters: notifying first takes the card off the screen on the
+  /// tap, rather than after a disk round trip. Dismissing a card and watching
+  /// it sit there is the kind of lag that reads as a broken button, and there
+  /// is nothing here worth waiting on — the write cannot fail in a way the
+  /// student could act on.
+  Future<void> dismissAutostartNotice() async {
+    if (prefs.autostartDismissed) return;
+    prefs = prefs.copyWith(autostartDismissed: true);
+    notifyListeners();
+    await db.putSetting('autostart_dismissed', '1');
   }
 
   /// Prompts for the battery exemption and re-checks afterwards.

@@ -1,8 +1,11 @@
 package com.siddhantpai.prahar
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.PowerManager
 import android.provider.OpenableColumns
 import android.util.Log
@@ -42,6 +45,12 @@ class MainActivity : FlutterActivity() {
                         // activity, so the answer is not available here. Dart
                         // re-checks on resume instead.
                         result.success(requestExemption())
+                    }
+                    "backgroundVendor" -> {
+                        result.success(Build.MANUFACTURER.lowercase())
+                    }
+                    "openAutoStartSettings" -> {
+                        result.success(openAutoStartSettings())
                     }
                     else -> result.notImplemented()
                 }
@@ -241,6 +250,92 @@ class MainActivity : FlutterActivity() {
         const val REQ_SAVE = 4201
         const val REQ_OPEN = 4202
         const val TAG = "PraharFiles"
+    }
+
+    // ---------------------------------------------------------------------
+    // Autostart, which is a separate gate from battery optimisation.
+    //
+    // The exemption tells stock Android not to freeze the process. It says
+    // nothing to MIUI, ColorOS, Funtouch or One UI, each of which keeps its
+    // own list of apps allowed to start on their own, and each of which
+    // defaults a sideloaded app to "not allowed". A blocked app's alarms stay
+    // registered and visible in dumpsys, and simply never wake anything.
+    //
+    // There is no API to read the state of any of these lists, so the app
+    // cannot know whether it is blocked. It can only know it is on a phone
+    // that has the gate, which is why the card this drives is advisory and
+    // dismissible rather than a warning that claims to have checked.
+    //
+    // Components rather than actions because none of these are public
+    // intents; they are activities inside each vendor's own security app.
+    // ---------------------------------------------------------------------
+
+    private val autoStartTargets = listOf(
+        // Xiaomi, and so also Redmi and Poco, which run the same firmware.
+        "com.miui.securitycenter" to "com.miui.permcenter.autostart.AutoStartManagementActivity",
+        // Oppo and Realme. ColorOS has moved this twice, so all three spellings
+        // are tried; only one will resolve on any given build.
+        "com.coloros.safecenter" to "com.coloros.safecenter.permission.startup.StartupAppListActivity",
+        "com.coloros.safecenter" to "com.coloros.safecenter.startupapp.StartupAppListActivity",
+        "com.coloros.safecenter" to "com.coloros.privacypermissionsentry.PermissionTopActivity",
+        "com.oppo.safe" to "com.oppo.safe.permission.startup.StartupAppListActivity",
+        // Vivo and iQOO.
+        "com.vivo.permissionmanager" to "com.vivo.permissionmanager.activity.BgStartUpManagerActivity",
+        "com.iqoo.secure" to "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity",
+        "com.iqoo.secure" to "com.iqoo.secure.safeguard.PurviewTabActivity",
+        // Huawei and Honor.
+        "com.huawei.systemmanager" to "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+        "com.huawei.systemmanager" to "com.huawei.systemmanager.optimize.process.ProtectActivity",
+        // Samsung. The equivalent setting is "never sleeping apps", inside
+        // Device Care rather than a list of its own.
+        "com.samsung.android.lool" to "com.samsung.android.sm.battery.ui.BatteryActivity",
+        "com.samsung.android.lool" to "com.samsung.android.sm.ui.battery.BatteryActivity",
+        "com.asus.mobilemanager" to "com.asus.mobilemanager.autostart.AutoStartActivity",
+        "com.letv.android.letvsafe" to "com.letv.android.letvsafe.AutobootManageActivity",
+    )
+
+    /** The first vendor screen that exists on this device, or null. */
+    private fun autoStartIntent(): Intent? {
+        for ((pkg, cls) in autoStartTargets) {
+            val intent = Intent().setComponent(ComponentName(pkg, cls))
+            val found = try {
+                packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY) != null
+            } catch (e: Exception) {
+                false
+            }
+            if (found) return intent
+        }
+        return null
+    }
+
+    /**
+     * Opens the vendor's autostart screen, falling back to this app's own
+     * settings page, which exists everywhere. False means neither opened and
+     * Dart should tell the user where to look instead.
+     */
+    private fun openAutoStartSettings(): Boolean {
+        val intent = autoStartIntent()
+        if (intent != null) {
+            try {
+                // The vendor activity is in another task; without this it can
+                // reopen behind Prahar and look as though nothing happened.
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+                return true
+            } catch (e: Exception) {
+                Log.w(TAG, "autostart screen resolved but would not open", e)
+            }
+        }
+        return try {
+            startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+            )
+            true
+        } catch (e: Exception) {
+            false
+        }
     }
 
     private fun isIgnoringBatteryOptimizations(): Boolean {

@@ -221,6 +221,38 @@ class Notifier {
     }
   }
 
+  /// The phone's manufacturer, lowercased, or an empty string off Android.
+  ///
+  /// Used only to decide whether this device has a vendor autostart gate. It
+  /// is the manufacturer and not the state of the setting, because no API
+  /// reports the latter: the app can know it is on a Xiaomi, never that Xiaomi
+  /// is blocking it.
+  Future<String> deviceVendor() async {
+    if (!Platform.isAndroid) return '';
+    try {
+      final v = await _batteryChannel.invokeMethod<String>('backgroundVendor');
+      return (v ?? '').toLowerCase();
+    } catch (e) {
+      debugPrint('Prahar: vendor lookup failed: $e');
+      return '';
+    }
+  }
+
+  /// Opens the vendor's autostart screen, or this app's settings page if the
+  /// device has no such screen. False means neither opened.
+  Future<bool> openAutostartSettings() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final opened = await _batteryChannel.invokeMethod<bool>(
+        'openAutoStartSettings',
+      );
+      return opened ?? false;
+    } catch (e) {
+      debugPrint('Prahar: autostart screen request failed: $e');
+      return false;
+    }
+  }
+
   Future<bool> canScheduleExact() async {
     final android = _plugin
         .resolvePlatformSpecificImplementation<

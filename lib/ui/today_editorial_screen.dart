@@ -105,6 +105,7 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
     final lead = <Widget>[
       _DayHeader(state: state),
       if (!state.batteryExempt) BatteryWarning(state: state),
+      if (state.showAutostartNotice) AutostartNotice(state: state),
       if (!state.exactAlarmsAllowed) const ExactAlarmWarning(),
       // Condensed while the plan fits, full-throated when it does not.
       if (state.feasibility != null)
