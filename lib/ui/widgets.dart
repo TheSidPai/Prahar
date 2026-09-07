@@ -255,7 +255,10 @@ class AutostartNotice extends StatelessWidget {
             runSpacing: 4,
             children: [
               TextButton(
-                onPressed: () => state.dismissAutostartNotice(),
+                // Snooze, not dismiss. "Not now" that never comes back is the
+                // same defect as the skip dialog's warning about an undo that
+                // existed: copy describing behaviour the app does not have.
+                onPressed: () => state.snoozeAutostartNotice(),
                 child: const Text('Not now'),
               ),
               // FilledButton, not FilledButton.tonal. Tonal takes its fill from

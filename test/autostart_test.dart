@@ -140,6 +140,79 @@ void main() {
       expect(state.showAutostartNotice, isFalse);
     });
 
+    test('"Not now" means later, not never', () async {
+      await state.snoozeAutostartNotice();
+      expect(state.showAutostartNotice, isFalse);
+      expect(
+        state.prefs.autostartDismissed,
+        isFalse,
+        reason: 'snoozing is not dismissing; the label promises a later',
+      );
+      expect(state.prefs.autostartSnoozedUntil, isNotNull);
+    });
+
+    test('it comes back on the day it said it would, not the day after', () {
+      final t = state.today;
+
+      // Due tomorrow: still away.
+      state.prefs = state.prefs.copyWith(
+        autostartSnoozedUntil: DateTime(t.year, t.month, t.day + 1),
+      );
+      expect(state.showAutostartNotice, isFalse);
+
+      // Due today: back. Waiting for the day to pass would quietly turn a
+      // one-day snooze into a two-day one.
+      state.prefs = state.prefs.copyWith(
+        autostartSnoozedUntil: DateTime(t.year, t.month, t.day),
+      );
+      expect(state.showAutostartNotice, isTrue);
+    });
+
+    test('the first wait is a day, which is what the button implies', () async {
+      await state.snoozeAutostartNotice();
+      expect(
+        state.prefs.autostartSnoozedUntil!.difference(state.today).inDays,
+        1,
+      );
+    });
+
+    test('the wait grows, so it cannot ask forever', () async {
+      final waits = <int>[];
+      for (var i = 0; i < Prefs.autostartSnoozeLadder.length; i++) {
+        await state.snoozeAutostartNotice();
+        waits.add(
+          state.prefs.autostartSnoozedUntil!.difference(state.today).inDays,
+        );
+      }
+      expect(waits, Prefs.autostartSnoozeLadder);
+    });
+
+    test('it retires itself once the ladder runs out', () async {
+      for (var i = 0; i < Prefs.autostartSnoozeLadder.length; i++) {
+        await state.snoozeAutostartNotice();
+      }
+      expect(state.prefs.autostartDismissed, isFalse);
+
+      // One more "Not now" than there are rungs, and it gives up for good
+      // rather than starting the ladder again.
+      await state.snoozeAutostartNotice();
+      expect(state.prefs.autostartDismissed, isTrue);
+      expect(state.showAutostartNotice, isFalse);
+    });
+
+    test('a snooze survives a restart', () async {
+      await state.snoozeAutostartNotice();
+
+      final reread = Prefs.fromMap(await db.settings());
+      expect(reread.autostartSnoozeCount, 1);
+      expect(reread.autostartSnoozedUntil, state.prefs.autostartSnoozedUntil);
+    });
+
+    test('a corrupt snooze date does not stop the app starting', () {
+      final p = Prefs.fromMap(const {'autostart_snoozed_until': 'not a date'});
+      expect(p.autostartSnoozedUntil, isNull);
+    });
+
     test('the dismissal survives a restart', () async {
       await state.dismissAutostartNotice();
 
@@ -278,6 +351,12 @@ void main() {
         await tester.tap(find.text('Not now'));
         await Future<void>.delayed(const Duration(milliseconds: 50));
       });
+
+      expect(
+        state.prefs.autostartDismissed,
+        isFalse,
+        reason: '"Not now" must snooze, not retire the notice',
+      );
 
       // pump, not pumpAndSettle: Today keeps a Timer.periodic running to move
       // its "now" marker, so settling never finishes. One frame is enough,

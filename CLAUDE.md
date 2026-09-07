@@ -12,12 +12,21 @@ are what let a new session act, not just understand.
 
 ### Where things stand, as of 7 Sep
 
-**5 commits are unpushed.** The user pushes, never Claude. There were 14 on
-7 Sep; they were squashed into 4 by piece of work, and the autostart notice is
-the fifth. The old history is on the local branch `presquash-6sep` and can be
-deleted once the squashed line is pushed. The rewrite was verified by
-`git diff presquash-6sep HEAD` coming back empty, which is the only check that
-matters when rewriting history: same tree, fewer commits.
+**3 commits are unpushed.** The user pushes, never Claude.
+
+There were 14 unpushed on 7 Sep; they were squashed into 4 by piece of work,
+and **the user pushed those 4 during the session**, so `origin/main` is now
+`afe78e7`. The rewrite was safe precisely because it happened before the push:
+nothing was forced, and the remote only ever saw the squashed line. The old
+14-commit history is still on the local branch `presquash-6sep` and can be
+deleted whenever.
+
+The rewrite was verified by `git diff presquash-6sep HEAD` coming back empty,
+which is the only check that matters when rewriting history: same tree, fewer
+commits. Note that `git merge --squash` is the wrong tool for this — a squashed
+commit has no ancestry link to the range it replaced, so the second merge takes
+its base from origin and conflicts. `git read-tree -u --reset <sha>` followed by
+`git commit` sets the tree directly and cannot conflict.
 
 `.claude/settings.json` drifts every session and must be reverted, not
 committed — see the note at the end of this section.
@@ -27,8 +36,21 @@ real-world gap in the app and was on no list. Details under *Recent decisions*;
 the short version is that the battery exemption covers stock Android and
 nothing else, and Xiaomi, Oppo, Realme, OnePlus, Vivo, Huawei, Honor, Samsung
 and the Transsion brands each keep a separate list that defaults a new install
-to blocked. **Not yet seen on a phone** — it is written, tested and analysed,
-but nobody has watched the card appear. That is the next thing to look at.
+to blocked.
+
+**Verified end to end on the device on 7 Sep.** The card appeared on Today,
+"Show me" resolved the MIUI component and opened the real Background autostart
+screen, and the user turned autostart on from it. The packaged manifest was
+also checked for all nine `<package>` entries, since that block is what lets
+the deep link resolve at all and it fails silently if merging drops it.
+
+**Consequence worth knowing: the dev phone has now dismissed the notice, and
+nothing in the app can bring it back.** The flag lives in the app's SQLite,
+which is unreachable over adb on a release build (`run-as` needs a debuggable
+one). So the snooze ladder below cannot be seen on this phone without clearing
+app data, which would destroy the database. It is covered by tests instead.
+This is the argument for giving the deep link a permanent home in Settings —
+see *Open feedback*.
 
 **One decision is open, and it is the only thing blocking anything.** The user
 asked whether the launcher icon can animate on the home screen when the app is
@@ -384,8 +406,7 @@ that file — a commit that changed behaviour has to stay visible in blame.
 ## Current state (verified, 7 Sep 2026)
 
 - **218/218 tests pass; `analyze` reports no issues.** Both re-run after every
-  change on 7 Sep. **The build on the phone is now behind the tree** — the
-  autostart notice has not been installed.
+  change on 7 Sep, and the build on the phone matches the tree.
 - Release APK is **53.1 MB**, ~90–130 s warm. (An older line here said 52.3;
   it was wrong, and 52.9–53.1 is what this project has actually built all
   along.)
@@ -690,6 +711,14 @@ undo without reason.
   visually quieter than `BatteryWarning` for the same reason. It also waits
   until the battery exemption is granted, because two cards competing for the
   same attention means the more important one loses.
+  **"Not now" snoozes, it does not dismiss.** The first version retired the
+  card permanently on either button, which made the label a lie in the same
+  way the old skip dialog's undo warning was: copy describing behaviour the app
+  does not have. It now waits 1 day, then 3, then 7, and retires after the last
+  rung — at most four showings over eleven days. The ladder exists because the
+  app cannot check whether autostart was ever turned on, so it has no way to
+  notice it is asking a question that has already been answered; a button that
+  honestly means "later" has to come back, and something has to bound that.
   `BackgroundGate.forManufacturer` is pure and lives in `domain/`, so the
   mapping is testable without a device — which matters here more than usual,
   since the only phone in the project is a Xiaomi and exercises exactly one
@@ -743,8 +772,13 @@ because the ordering is the argument:
    history cannot be retrofitted, so every week it is not logged is a week
    FSRS will never have. One question at the end of a timer session and one
    column. Cheap, and worthless later if not started now.
-2. **See the autostart notice on a phone.** Written 7 Sep, tested, never
-   looked at. The dev phone is a Xiaomi, so the card should appear on it.
+2. **Give the autostart deep link a permanent home in Settings.** The card is
+   one-time by design, so once it is gone there is no way back to the vendor
+   screen from inside the app, and no way for a student who later wonders
+   whether they ever did it. A row under Settings > Notifications that opens
+   the same screen costs almost nothing and closes that gap. It is also the
+   only way to look at the snooze ladder on the dev phone, which has already
+   dismissed the card for good.
 3. **Distribution.** Free route decided, not started. Until it is done the app
    has one user, and it is what starts producing the feedback items 4 and 5
    actually need.

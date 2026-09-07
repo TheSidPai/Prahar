@@ -67,8 +67,19 @@ class AppState extends ChangeNotifier {
   /// Deliberately behind the battery warning: while that one is up it is the
   /// more important of the two and stacking a second card underneath it splits
   /// the attention it needs. This one waits its turn.
-  bool get showAutostartNotice =>
-      backgroundGate != null && batteryExempt && !prefs.autostartDismissed;
+  bool get showAutostartNotice {
+    if (backgroundGate == null) return false;
+    if (!batteryExempt) return false;
+    if (prefs.autostartDismissed) return false;
+
+    final until = prefs.autostartSnoozedUntil;
+    // "Not now" means not now, so the card stays away until the day it said
+    // it would come back. Showing on that day, not after it, or a one-day
+    // snooze would be a two-day one.
+    if (until != null && today.isBefore(until)) return false;
+
+    return true;
+  }
 
   DateTime get today => dateOnly(DateTime.now());
 
@@ -209,6 +220,36 @@ class AppState extends ChangeNotifier {
     final opened = await notifier.openAutostartSettings();
     await dismissAutostartNotice();
     return opened;
+  }
+
+  /// Puts the notice away for a day or so, which is what "Not now" says.
+  ///
+  /// The wait grows each time — 1 day, then 3, then 7 — and after the last
+  /// rung the notice retires itself. A button that honestly means "later" has
+  /// to come back or the label is a lie, but the app cannot check whether
+  /// autostart was ever turned on, so it has no way to notice it is asking a
+  /// question that has already been answered. The ladder is what bounds that:
+  /// four showings over eleven days, then silence.
+  Future<void> snoozeAutostartNotice() async {
+    const ladder = Prefs.autostartSnoozeLadder;
+    final n = prefs.autostartSnoozeCount;
+    if (n >= ladder.length) {
+      await dismissAutostartNotice();
+      return;
+    }
+
+    // Constructor arithmetic, not Duration: adding 24 hours lands an hour
+    // early across a DST boundary and the notice returns a day late.
+    final until = DateTime(today.year, today.month, today.day + ladder[n]);
+
+    prefs = prefs.copyWith(
+      autostartSnoozeCount: n + 1,
+      autostartSnoozedUntil: until,
+    );
+    notifyListeners();
+
+    await db.putSetting('autostart_snooze_count', '${n + 1}');
+    await db.putSetting('autostart_snoozed_until', Prefs.isoDate(until));
   }
 
   /// Retires the notice now and records it afterwards.

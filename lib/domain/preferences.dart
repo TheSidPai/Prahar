@@ -88,13 +88,29 @@ class Prefs {
   /// enough to still act on what it says.
   final int digestMinute;
 
-  /// Whether the vendor autostart notice has been dealt with.
+  /// Whether the vendor autostart notice is retired for good.
   ///
-  /// Set when the student opens the settings screen or dismisses the card,
-  /// because the app has no way to check whether autostart was actually turned
-  /// on. A notice that cannot verify itself must not be able to nag: it gets
-  /// one showing, and after that it is the student's business.
+  /// Set when the student opens the settings screen, and when the snooze
+  /// ladder below runs out. Not set by "Not now", which means what it says.
   final bool autostartDismissed;
+
+  /// The first date the notice may appear again after a "Not now".
+  ///
+  /// Null means it was never snoozed. A date in the future means the student
+  /// asked to be left alone until then.
+  final DateTime? autostartSnoozedUntil;
+
+  /// How many times "Not now" has been used.
+  ///
+  /// Indexes [autostartSnoozeLadder]. The ladder is what stops a button that
+  /// honestly means "later" from becoming a button that asks forever: the app
+  /// cannot check whether autostart was turned on, so repeated asking is the
+  /// one failure mode it has no way to notice it is causing.
+  final int autostartSnoozeCount;
+
+  /// Days to wait after each successive "Not now". After the last rung the
+  /// notice retires itself, so it can show at most four times ever.
+  static const autostartSnoozeLadder = [1, 3, 7];
 
   const Prefs({
     this.dayStartMinute = 6 * 60,
@@ -108,6 +124,8 @@ class Prefs {
     this.digestEnabled = true,
     this.digestMinute = 21 * 60,
     this.autostartDismissed = false,
+    this.autostartSnoozedUntil,
+    this.autostartSnoozeCount = 0,
   });
 
   /// The window must be wide enough for at least one block plus a break,
@@ -138,6 +156,9 @@ class Prefs {
     bool? digestEnabled,
     int? digestMinute,
     bool? autostartDismissed,
+    // Nullable and never cleared, so the usual ?? pattern is safe here.
+    DateTime? autostartSnoozedUntil,
+    int? autostartSnoozeCount,
   }) => Prefs(
     dayStartMinute: dayStartMinute ?? this.dayStartMinute,
     dayEndMinute: dayEndMinute ?? this.dayEndMinute,
@@ -150,6 +171,8 @@ class Prefs {
     digestEnabled: digestEnabled ?? this.digestEnabled,
     digestMinute: digestMinute ?? this.digestMinute,
     autostartDismissed: autostartDismissed ?? this.autostartDismissed,
+    autostartSnoozedUntil: autostartSnoozedUntil ?? this.autostartSnoozedUntil,
+    autostartSnoozeCount: autostartSnoozeCount ?? this.autostartSnoozeCount,
   );
 
   Map<String, String> toMap() => {
@@ -164,7 +187,18 @@ class Prefs {
     'digest': digestEnabled ? '1' : '0',
     'digest_minute': '$digestMinute',
     'autostart_dismissed': autostartDismissed ? '1' : '0',
+    'autostart_snoozed_until': autostartSnoozedUntil == null
+        ? ''
+        : isoDate(autostartSnoozedUntil!),
+    'autostart_snooze_count': '$autostartSnoozeCount',
   };
+
+  /// A plain yyyy-mm-dd, so the settings table stays readable and a stored
+  /// date carries no time of day to drift against.
+  static String isoDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 
   /// Tolerant of missing or malformed values: a corrupt preference should fall
   /// back to a working default, never prevent the app starting.
@@ -208,8 +242,19 @@ class Prefs {
       // Absent means "never set", which for a feature that ships on is on.
       digestEnabled: (m['digest'] ?? '1') != '0',
       digestMinute: read('digest_minute', 21 * 60, 0, 24 * 60 - 1),
-      // Absent means never seen, so the notice still has its one showing.
+      // Absent means never seen, so the notice still has its showings.
       autostartDismissed: (m['autostart_dismissed'] ?? '0') == '1',
+      // tryParse, not parse: a corrupt date must fall back to "not snoozed"
+      // rather than stop the app starting.
+      autostartSnoozedUntil: DateTime.tryParse(
+        m['autostart_snoozed_until'] ?? '',
+      ),
+      autostartSnoozeCount: read(
+        'autostart_snooze_count',
+        0,
+        0,
+        autostartSnoozeLadder.length,
+      ),
     );
   }
 }

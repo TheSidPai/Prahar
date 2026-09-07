@@ -12,3 +12,6 @@
 
 # Adopt the tall dart format style (5 Sep 2026)
 653b0bb6964f84f562b7b5d03d2fd28e6349aefe
+
+# Settle whitespace the formatter now writes differently (7 Sep 2026)
+8a78d0067a50079323fcb554813087e618b9aee8
