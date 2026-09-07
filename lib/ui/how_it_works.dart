@@ -376,8 +376,10 @@ class _DayTrack extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    Widget band(int flex, Color colour) =>
-        Expanded(flex: flex, child: ColoredBox(color: colour));
+    Widget band(int flex, Color colour) => Expanded(
+      flex: flex,
+      child: ColoredBox(color: colour),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

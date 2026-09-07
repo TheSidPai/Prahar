@@ -268,7 +268,12 @@ class BackupIO {
       await db.restoreLogEntry(e);
     }
 
-    return ImportReport(subjects.length, topics.length, busy.length, log.length);
+    return ImportReport(
+      subjects.length,
+      topics.length,
+      busy.length,
+      log.length,
+    );
   }
 }
 

@@ -75,11 +75,7 @@ class _WeekScreenState extends State<WeekScreen> {
     // something can still be done about. Calendar arithmetic throughout —
     // adding Duration(days:) lands an hour early across a DST boundary.
     final today = state.today;
-    final first = DateTime(
-      today.year,
-      today.month,
-      today.day + _offset * 7,
-    );
+    final first = DateTime(today.year, today.month, today.day + _offset * 7);
     final days = [
       for (var i = 0; i < 7; i++)
         DateTime(first.year, first.month, first.day + i),

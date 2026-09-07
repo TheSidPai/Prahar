@@ -170,9 +170,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       // come back to the app after a while away.
                       animated: true,
                       replayKey: _markTake,
-                      wordmarkStyle: Theme.of(
-                        context,
-                      ).appBarTheme.titleTextStyle,
+                      wordmarkStyle: Theme.of(context)
+                          .appBarTheme
+                          .titleTextStyle,
                     ))
             : Text(_titles[_index]),
         // Sized rather than left to its intrinsic height so the glass pane

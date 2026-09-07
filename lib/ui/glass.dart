@@ -144,7 +144,9 @@ class StyledPanel extends StatelessWidget {
     final style = prefs.cardStyle;
 
     if (!glass) {
-      return Card(child: Padding(padding: padding, child: child));
+      return Card(
+        child: Padding(padding: padding, child: child),
+      );
     }
     if (style == CardStyle.open) {
       return Padding(padding: padding, child: child);
@@ -206,9 +208,7 @@ class StyledPanel extends StatelessWidget {
 /// and the 90 is already generous.
 double navBottomInset(BuildContext context) {
   final glass =
-      context.select<AppState, MaterialChoice>(
-        (s) => s.prefs.materialChoice,
-      ) ==
+      context.select<AppState, MaterialChoice>((s) => s.prefs.materialChoice) ==
       MaterialChoice.glass;
   return glass ? 90 + MediaQuery.viewPaddingOf(context).bottom : 90;
 }
@@ -227,9 +227,7 @@ double navBottomInset(BuildContext context) {
 /// one: the inset is a property of the screen's relationship to the bar.
 double glassTopInset(BuildContext context) {
   final glass =
-      context.select<AppState, MaterialChoice>(
-        (s) => s.prefs.materialChoice,
-      ) ==
+      context.select<AppState, MaterialChoice>((s) => s.prefs.materialChoice) ==
       MaterialChoice.glass;
   if (!glass) return 0;
 

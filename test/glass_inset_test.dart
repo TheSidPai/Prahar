@@ -110,11 +110,7 @@ void main() {
   );
 
   /// Pumps upright, moves to [tab], and returns the top edge of [target].
-  Future<double> topOf(
-    WidgetTester tester,
-    int tab,
-    Finder target,
-  ) async {
+  Future<double> topOf(WidgetTester tester, int tab, Finder target) async {
     tester.view.physicalSize = const Size(411, 914);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);

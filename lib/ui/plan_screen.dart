@@ -218,9 +218,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return ReadableColumn(
       child: ListView(
         padding: EdgeInsets.only(
-        top: 8 + glassTopInset(context),
-        bottom: navBottomInset(context),
-      ),
+          top: 8 + glassTopInset(context),
+          bottom: navBottomInset(context),
+        ),
         children: [
           _OverallCard(done: done, total: total, streak: state.streak),
           const _CalibrationSection(),

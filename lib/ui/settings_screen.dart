@@ -760,11 +760,11 @@ class RemindersPage extends StatelessWidget {
         children: [
           _card(
             SwitchListTile(
-            secondary: const Icon(Icons.nightlight_outlined),
-            title: const Text('Evening digest'),
-            subtitle: const Text(
-              "A notification each evening with tomorrow's blocks",
-            ),
+              secondary: const Icon(Icons.nightlight_outlined),
+              title: const Text('Evening digest'),
+              subtitle: const Text(
+                "A notification each evening with tomorrow's blocks",
+              ),
               value: state.prefs.digestEnabled,
               onChanged: (on) => savePrefs(
                 context,
@@ -878,11 +878,7 @@ class RemindersPage extends StatelessWidget {
 // ------------------------------------------------------------ shared
 
 /// Saves a preference, refusing a window too narrow to hold a single block.
-Future<void> savePrefs(
-  BuildContext context,
-  AppState state,
-  Prefs next,
-) async {
+Future<void> savePrefs(BuildContext context, AppState state, Prefs next) async {
   final ok = await state.updatePrefs(next);
   if (!ok && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
