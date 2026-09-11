@@ -88,6 +88,14 @@ class Prefs {
   /// enough to still act on what it says.
   final int digestMinute;
 
+  /// Whether each study block gets a notification as it starts.
+  ///
+  /// On by default, and absent means on: every student before this switch
+  /// existed was getting reminders. Off silences the block alarms only. The
+  /// evening summary has its own switch, and the focus timer and a test
+  /// reminder are things the student asks for in the moment.
+  final bool remindersEnabled;
+
   /// Whether the vendor autostart notice is retired for good.
   ///
   /// Set when the student opens the settings screen, and when the snooze
@@ -123,6 +131,7 @@ class Prefs {
     this.timerMode = 'pomodoro',
     this.digestEnabled = true,
     this.digestMinute = 21 * 60,
+    this.remindersEnabled = true,
     this.autostartDismissed = false,
     this.autostartSnoozedUntil,
     this.autostartSnoozeCount = 0,
@@ -155,6 +164,7 @@ class Prefs {
     String? timerMode,
     bool? digestEnabled,
     int? digestMinute,
+    bool? remindersEnabled,
     bool? autostartDismissed,
     // Nullable and never cleared, so the usual ?? pattern is safe here.
     DateTime? autostartSnoozedUntil,
@@ -170,6 +180,7 @@ class Prefs {
     timerMode: timerMode ?? this.timerMode,
     digestEnabled: digestEnabled ?? this.digestEnabled,
     digestMinute: digestMinute ?? this.digestMinute,
+    remindersEnabled: remindersEnabled ?? this.remindersEnabled,
     autostartDismissed: autostartDismissed ?? this.autostartDismissed,
     autostartSnoozedUntil: autostartSnoozedUntil ?? this.autostartSnoozedUntil,
     autostartSnoozeCount: autostartSnoozeCount ?? this.autostartSnoozeCount,
@@ -186,6 +197,7 @@ class Prefs {
     'timer_mode': timerMode,
     'digest': digestEnabled ? '1' : '0',
     'digest_minute': '$digestMinute',
+    'reminders': remindersEnabled ? '1' : '0',
     'autostart_dismissed': autostartDismissed ? '1' : '0',
     'autostart_snoozed_until': autostartSnoozedUntil == null
         ? ''
@@ -242,6 +254,9 @@ class Prefs {
       // Absent means "never set", which for a feature that ships on is on.
       digestEnabled: (m['digest'] ?? '1') != '0',
       digestMinute: read('digest_minute', 21 * 60, 0, 24 * 60 - 1),
+      // Absent means on, for the same reason as the digest: older settings
+      // files predate the switch, and those students had reminders.
+      remindersEnabled: (m['reminders'] ?? '1') != '0',
       // Absent means never seen, so the notice still has its showings.
       autostartDismissed: (m['autostart_dismissed'] ?? '0') == '1',
       // tryParse, not parse: a corrupt date must fall back to "not snoozed"

@@ -319,6 +319,19 @@ class Notifier {
 
   // ---------------------------------------------------------- scheduling
 
+  /// Takes back every pending study-block reminder, and nothing else.
+  ///
+  /// Used on its own when the student switches reminders off, and as the first
+  /// step of [syncFromPlan]. Only ids at or above [_sessionIdBase] go: the
+  /// evening summary, the focus timer and a test reminder live below it, and
+  /// silencing them is not this switch's job.
+  Future<void> cancelSessionReminders() async {
+    await init();
+    for (final p in await _plugin.pendingNotificationRequests()) {
+      if (p.id >= _sessionIdBase) await _plugin.cancel(p.id);
+    }
+  }
+
   /// Replaces every pending session alarm with the current plan.
   ///
   /// Cancel-then-reschedule rather than diffing: the window is at most a few
@@ -333,9 +346,7 @@ class Notifier {
     await init();
     final from = now ?? DateTime.now();
 
-    for (final p in await _plugin.pendingNotificationRequests()) {
-      if (p.id >= _sessionIdBase) await _plugin.cancel(p.id);
-    }
+    await cancelSessionReminders();
 
     final horizon = from.add(const Duration(days: windowDays));
     final upcoming =

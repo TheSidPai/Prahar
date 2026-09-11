@@ -760,6 +760,26 @@ class RemindersPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 12),
         children: [
+          // First, because it is the switch the rest of this page serves. Off
+          // cancels the block alarms only; the summary below, the focus timer
+          // and a test reminder are asked for separately and keep working.
+          _card(
+            SwitchListTile(
+              secondary: const Icon(Icons.alarm_outlined),
+              title: const Text('Study reminders'),
+              subtitle: Text(
+                state.prefs.remindersEnabled
+                    ? 'A notification as each study block starts'
+                    : 'Off. Your blocks still show in Today',
+              ),
+              value: state.prefs.remindersEnabled,
+              onChanged: (on) => savePrefs(
+                context,
+                state,
+                state.prefs.copyWith(remindersEnabled: on),
+              ),
+            ),
+          ),
           _card(
             SwitchListTile(
               secondary: const Icon(Icons.nightlight_outlined),
@@ -867,35 +887,38 @@ class RemindersPage extends StatelessWidget {
               },
             ),
           ),
-          _card(
-            ListTile(
-              leading: const Icon(Icons.sync),
-              // "Reschedule" read as "rearrange my timetable", which this does
-              // not do — it only hands the OS a fresh set of alarms. A name
-              // that plants a fear costs more than the line spent undoing it.
-              title: const Text('Refresh reminders'),
-              subtitle: Text(
-                'Sets one for each study block in the next '
-                '${Notifier.windowDays} days. Your plan does not change.'
-                '${state.exactAlarmsAllowed ? "" : " Android is holding these back, so they may arrive late."}',
-              ),
-              onTap: () async {
-                await state.refreshAlarms();
-                final pending = await state.notifier.pendingCount();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '$pending reminders set, one for each study block in '
-                        'the next ${Notifier.windowDays} days.',
+          // Only while reminders are on. With them off it would set nothing and
+          // then report "0 reminders set", which reads as a fault.
+          if (state.prefs.remindersEnabled)
+            _card(
+              ListTile(
+                leading: const Icon(Icons.sync),
+                // "Reschedule" read as "rearrange my timetable", which this does
+                // not do — it only hands the OS a fresh set of alarms. A name
+                // that plants a fear costs more than the line spent undoing it.
+                title: const Text('Refresh reminders'),
+                subtitle: Text(
+                  'Sets one for each study block in the next '
+                  '${Notifier.windowDays} days. Your plan does not change.'
+                  '${state.exactAlarmsAllowed ? "" : " Android is holding these back, so they may arrive late."}',
+                ),
+                onTap: () async {
+                  await state.refreshAlarms();
+                  final pending = await state.notifier.pendingCount();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '$pending reminders set, one for each study block in '
+                          'the next ${Notifier.windowDays} days.',
+                        ),
+                        duration: const Duration(seconds: 5),
                       ),
-                      duration: const Duration(seconds: 5),
-                    ),
-                  );
-                }
-              },
+                    );
+                  }
+                },
+              ),
             ),
-          ),
         ],
       ),
     );

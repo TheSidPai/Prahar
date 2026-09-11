@@ -80,6 +80,20 @@ void main() {
     });
   });
 
+  group('study reminders', () {
+    test('are on unless someone switched them off', () {
+      expect(const Prefs().remindersEnabled, isTrue);
+      // A settings file from before the switch existed has no key at all, and
+      // those students were getting reminders.
+      expect(Prefs.fromMap({}).remindersEnabled, isTrue);
+    });
+
+    test('off survives a round trip through the map', () {
+      const p = Prefs(remindersEnabled: false);
+      expect(Prefs.fromMap(p.toMap()).remindersEnabled, isFalse);
+    });
+  });
+
   group('the planner config it produces', () {
     test('carries the window through', () {
       const p = Prefs(dayStartMinute: 18 * 60, dayEndMinute: 23 * 60);

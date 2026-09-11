@@ -90,7 +90,7 @@ Dependencies point inward only. `domain/` depends on nothing in the app.
 | `lib/ui/` | Screens and the design system | see [section 10](#10-ui-architecture) |
 | `android/app/src/main/kotlin/` | Platform code | `MainActivity.kt`, `WidgetBridge.kt`, `NextBlockWidget.kt`, `TodayWidget.kt` |
 | `tools/` | Build, device diagnostics, icon generation | `dev.ps1`, `make_icon.ps1` |
-| `test/` | 246 tests across 20 files | see [section 11](#11-testing) |
+| `test/` | 261 tests across 21 files | see [section 11](#11-testing) |
 
 ### Startup
 
@@ -126,7 +126,8 @@ write to SQLite  ->  _rebuild()  ->  notifyListeners()
 3. **Calibration suggestions**, recomputed from finished topics
    ([section 6](#6-effort-estimation-and-calibration)).
 4. **Alarms and digests**, unless the caller opted out: check exact-alarm and
-   battery state, then `syncFromPlan` and `_syncDigests`. Wrapped so a failure
+   battery state, then `_syncReminders` (the block alarms, or cancelling them
+   if reminders are switched off) and `_syncDigests`. Wrapped so a failure
    to write alarms still leaves a correct plan on screen.
 5. **Home-screen widgets**, updated with the next blocks and today's progress.
 
@@ -226,7 +227,7 @@ SQLite through `sqflite`, with `PRAGMA foreign_keys = ON`. Schema version **5**.
 
 **`settings`** holds preferences (`day_start`, `day_end`, `block_minutes`,
 `break_minutes`, `theme`, `material`, `card_style`, `timer_mode`, `digest`,
-`digest_minute`), the autostart notice state (`autostart_dismissed`,
+`digest_minute`, `reminders`), the autostart notice state (`autostart_dismissed`,
 `autostart_snoozed_until`, `autostart_snooze_count`) and `running_session`.
 `Prefs.fromMap` is tolerant: a missing or corrupt value falls back to a working
 default and never stops the app starting.
@@ -641,6 +642,20 @@ finite. It cancels and reschedules rather than diffing: a reminder for a block
 that no longer exists costs more trust than the milliseconds saved. It runs on
 every replan and on resume.
 
+**Reminders can be switched off.** Settings > Notifications leads with a Study
+reminders switch (`Prefs.remindersEnabled`, stored as `reminders`, on by default
+and on when absent). Off cancels the session range and schedules nothing new.
+`AppState._syncReminders` is the only place that decides, so a replan, a resume
+and the Settings page can't disagree; a second, unguarded call to `syncFromPlan`
+anywhere would be how "off" quietly turns back on after the next edit, and
+`test/reminders_toggle_test.dart` watches for exactly that. The evening summary,
+the focus timer's alarm and a test reminder are separate and keep working.
+
+A switch flipped "for now" and forgotten looks exactly like the app being
+broken, so Today shows `RemindersOffNotice`, a quiet line with a one-tap
+**Turn on**, for as long as reminders are off. "Refresh reminders" is hidden
+meanwhile, since it would set nothing and report zero.
+
 ### The evening summary
 
 A **rolling window, not a repeating alarm.** A repeat carries the same text
@@ -942,7 +957,7 @@ Rules for writing UI copy are in CLAUDE.md.
 
 ## 11. Testing
 
-246 tests in 20 files. `flutter analyze` is required alongside them, because a
+261 tests in 21 files. `flutter analyze` is required alongside them, because a
 test run only compiles what the tests import and leaves the rest of `lib/ui`
 unchecked.
 
@@ -950,8 +965,8 @@ unchecked.
 |---|---|
 | Pure logic | `planner_test`, `estimator_test`, `calibration_test`, `subject_test`, `study_timer_test`, `today_focus_test`, `preferences_test`, `digest_test`, `layout_test` |
 | Storage | `database_test`, `backup_roundtrip_test` |
-| State | `reanchor_test`, and the logic groups in `autostart_test` |
-| Screens and layout | `device_matrix_test`, `landscape_test`, `glass_inset_test`, `first_run_test`, `week_grid_test`, `theme_toggle_test`, `progress_query_test`, and the UI groups in `autostart_test` |
+| State | `reanchor_test`, and the logic groups in `autostart_test` and `reminders_toggle_test` |
+| Screens and layout | `device_matrix_test`, `landscape_test`, `glass_inset_test`, `first_run_test`, `week_grid_test`, `theme_toggle_test`, `progress_query_test`, and the UI groups in `autostart_test` and `reminders_toggle_test` |
 
 ### Principles
 

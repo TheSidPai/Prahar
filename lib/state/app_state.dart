@@ -207,7 +207,7 @@ class AppState extends ChangeNotifier {
       // whole edit down with it. There is no plugin behind the channel in a
       // test, which is exactly what this used to trip over.
       try {
-        await notifier.syncFromPlan(plan!);
+        await _syncReminders();
         await _syncDigests();
       } catch (e) {
         debugPrint('Prahar: could not resync alarms: $e');
@@ -228,9 +228,30 @@ class AppState extends ChangeNotifier {
   Future<void> refreshAlarms() async {
     exactAlarmsAllowed = await notifier.canScheduleExact();
     batteryExempt = await notifier.isBatteryExempt();
-    if (plan != null) await notifier.syncFromPlan(plan!);
+    await _syncReminders();
     await _syncDigests();
     notifyListeners();
+  }
+
+  /// Hands the study-block alarms to the OS, or takes them all back.
+  ///
+  /// The one place that decides, so a replan, a resume and the Settings page
+  /// cannot disagree about whether reminders are on. A second copy of this
+  /// check somewhere would be exactly how "off" quietly turns back on after
+  /// the next edit.
+  ///
+  /// Off cancels even with no plan loaded yet: alarms written before the
+  /// switch was flipped are still sitting with the OS.
+  Future<void> _syncReminders() async {
+    try {
+      if (!prefs.remindersEnabled) {
+        await notifier.cancelSessionReminders();
+      } else if (plan != null) {
+        await notifier.syncFromPlan(plan!);
+      }
+    } catch (e) {
+      debugPrint('Prahar: could not sync reminders: $e');
+    }
   }
 
   /// Queues one evening summary per night, each describing the day after it.

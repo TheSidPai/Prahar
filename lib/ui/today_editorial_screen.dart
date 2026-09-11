@@ -109,6 +109,8 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
     // cleanly when there is room for two columns.
     final lead = <Widget>[
       _DayHeader(state: state),
+      // First, because when it applies it explains everything below it.
+      if (!state.prefs.remindersEnabled) RemindersOffNotice(state: state),
       if (!state.batteryExempt) BatteryWarning(state: state),
       if (state.showAutostartNotice) AutostartNotice(state: state),
       if (!state.exactAlarmsAllowed) const ExactAlarmWarning(),

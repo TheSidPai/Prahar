@@ -100,7 +100,7 @@ Version 0.2.0, the first public release.
 
 Tested on real hardware: a Xiaomi phone on Android 16 and a OnePlus Pad on
 OxygenOS 16, covering reminders on the lock screen, the autostart link, the
-tablet layout and landscape. 246 automated tests, including every screen at
+tablet layout and landscape. 261 automated tests, including every screen at
 320dp wide with large text.
 
 Known limitations:

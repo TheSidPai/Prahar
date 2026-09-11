@@ -29,7 +29,7 @@ and every paragraph in it was learned the hard way.
 `v0.2.0`, at commit `4477223`. `main` is level with `origin/main`. The user
 pushes, never Claude.
 
-- 246/246 tests pass and `analyze` is clean.
+- 261/261 tests pass and `analyze` is clean.
 - **Verified on hardware**: a Xiaomi 23127PN0CG (HyperOS, Android 16) and a
   OnePlus Pad (OxygenOS 16). Reminders reaching the lock screen with sound, the
   autostart deep link on both, the tablet two-pane layout, landscape, and the

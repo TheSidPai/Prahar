@@ -341,6 +341,57 @@ class ExactAlarmWarning extends StatelessWidget {
   }
 }
 
+/// Shown on Today for as long as study reminders are switched off.
+///
+/// A switch that silences the app is exactly the setting a student flips "for
+/// now" and forgets, and the result looks identical to the app being broken:
+/// blocks on screen, nothing arriving. So the off state stays visible where the
+/// day is, with the way back one tap away.
+///
+/// Quiet on purpose. The warnings above it report faults the app has found;
+/// this reports a choice the student made.
+class RemindersOffNotice extends StatelessWidget {
+  const RemindersOffNotice({super.key, required this.state});
+
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.notifications_off_outlined,
+            size: 20,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 10),
+          // Expanded, so at a large font the label wraps instead of pushing
+          // the button off the edge.
+          Expanded(
+            child: Text(
+              'Study reminders are off',
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+          TextButton(
+            onPressed: () =>
+                state.updatePrefs(state.prefs.copyWith(remindersEnabled: true)),
+            child: const Text('Turn on'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// The deadline in the fewest words that are still true.
 ///
 /// Null when the subject has no exam date. Once a time is known it is worth
