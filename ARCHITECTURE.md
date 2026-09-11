@@ -90,7 +90,7 @@ Dependencies point inward only. `domain/` depends on nothing in the app.
 | `lib/ui/` | Screens and the design system | see [section 10](#10-ui-architecture) |
 | `android/app/src/main/kotlin/` | Platform code | `MainActivity.kt`, `WidgetBridge.kt`, `NextBlockWidget.kt`, `TodayWidget.kt` |
 | `tools/` | Build, device diagnostics, icon generation | `dev.ps1`, `make_icon.ps1` |
-| `test/` | 269 tests across 22 files | see [section 11](#11-testing) |
+| `test/` | 280 tests across 23 files | see [section 11](#11-testing) |
 
 ### Startup
 
@@ -869,6 +869,29 @@ call to action. The icon, `help_outline_rounded`, was chosen from a contact shee
 (`tools/make_help_options.ps1`). The first-run tour's replay will live in this
 sheet.
 
+**The spotlight engine** (`spotlight.dart`) is the drawing half of the first-run
+tour, and knows nothing about Prahar. `SpotlightOverlay` sits as the top child of
+a Stack over the app: a dim scrim with a rounded window cut round one widget,
+found by `GlobalKey`, a thin ring in the primary indigo, and a bubble. Which step
+is showing, and when it is finished, belongs to whatever places it.
+
+- **Two kinds of step.** A `next` step has a Next button and the target can be
+  seen but not touched. An `action` step has no Next, and the window is the only
+  touchable part of the screen. It works by a render box that reports no hit
+  inside the window, which hands the tap to the app underneath; everywhere else
+  an empty gesture detector catches it.
+- **The bubble never covers its target.** It takes whichever side of the window
+  has more room, clamps to the screen, and scrolls inside that space when a large
+  font makes it too tall. A step with no target, or a target not on screen,
+  gets a centred card instead of an error.
+- **It follows the target without a loop of its own.** It re-measures after
+  every frame that happens anyway, through a chain of post-frame callbacks, which
+  never schedule a frame. So it tracks a rotation or a sheet sliding away, and
+  costs nothing on a still screen, where a Ticker would repaint forever.
+- **The bubble is its own surface, not `StyledPanel`.** Under the Open card style
+  in Glass, StyledPanel draws nothing, which is right for a list row and wrong
+  for words floating over a dimmed screen.
+
 The week view shows seven days **from today**, not Monday to Sunday: a calendar
 week opened on Saturday wastes five columns on days that can't be filled.
 Upright it's a row per day with time running across, because a 52dp column is a
@@ -971,7 +994,7 @@ Rules for writing UI copy are in CLAUDE.md.
 
 ## 11. Testing
 
-269 tests in 22 files. `flutter analyze` is required alongside them, because a
+280 tests in 23 files. `flutter analyze` is required alongside them, because a
 test run only compiles what the tests import and leaves the rest of `lib/ui`
 unchecked.
 
@@ -980,7 +1003,7 @@ unchecked.
 | Pure logic | `planner_test`, `estimator_test`, `calibration_test`, `subject_test`, `study_timer_test`, `today_focus_test`, `preferences_test`, `digest_test`, `layout_test` |
 | Storage | `database_test`, `backup_roundtrip_test` |
 | State | `reanchor_test`, and the logic groups in `autostart_test` and `reminders_toggle_test` |
-| Screens and layout | `device_matrix_test`, `landscape_test`, `glass_inset_test`, `first_run_test`, `week_grid_test`, `theme_toggle_test`, `progress_query_test`, `help_sheet_test`, and the UI groups in `autostart_test` and `reminders_toggle_test` |
+| Screens and layout | `device_matrix_test`, `landscape_test`, `glass_inset_test`, `first_run_test`, `week_grid_test`, `theme_toggle_test`, `progress_query_test`, `help_sheet_test`, `spotlight_test`, and the UI groups in `autostart_test` and `reminders_toggle_test` |
 
 ### Principles
 

@@ -29,7 +29,7 @@ and every paragraph in it was learned the hard way.
 `v0.2.0`, at commit `4477223`. `main` is level with `origin/main`. The user
 pushes, never Claude.
 
-- 269/269 tests pass and `analyze` is clean.
+- 280/280 tests pass and `analyze` is clean.
 - **Verified on hardware**: a Xiaomi 23127PN0CG (HyperOS, Android 16) and a
   OnePlus Pad (OxygenOS 16). Reminders reaching the lock screen with sound, the
   autostart deep link on both, the tablet two-pane layout, landscape, and the
@@ -101,8 +101,18 @@ an `AnimatedVectorDrawable` as the launch splash
 Prompted by a first-time user (the user's parent) who opened the app with no
 context and couldn't tell what to do. The first-run screen's "How Prahar works"
 link was right there and wasn't noticed, and reading an explanation wasn't what
-was needed anyway. Designed with the user on 11 Sep; **not built yet**. The ?
-help sheet on Today came first and is where the tour's replay will go.
+was needed anyway. Designed with the user on 11 Sep. The ? help sheet on Today came first and is
+where the tour's replay will go.
+
+**Being built in four phases, each committed when verified:**
+
+1. **The spotlight engine. Done.** `lib/ui/spotlight.dart`, tested alone in
+   `test/spotlight_test.dart`. Nothing uses it yet.
+2. The main tour: welcome, nav, the Subjects do-steps, resume from data.
+3. The reminders step (moving the launch permission request out of `main.dart`;
+   a skip requests them at that moment, so a skipper still gets reminders),
+   the Today stops, and "Show me around again" in the ? sheet.
+4. The Plan mini-tour.
 
 Decisions the user made:
 
