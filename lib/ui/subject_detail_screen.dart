@@ -11,6 +11,7 @@ import '../domain/preferences.dart';
 import '../planner/estimator.dart';
 import '../state/app_state.dart';
 import 'subjects_screen.dart';
+import 'tour.dart';
 import 'widgets.dart';
 
 /// A subject on its own page, reached by tapping one in a narrow layout.
@@ -71,10 +72,13 @@ class SubjectDetailBody extends StatelessWidget {
         message:
             'Break the syllabus into topics. Chapters work well, being small '
             'enough to finish in a session or two.',
-        action: FilledButton.icon(
-          onPressed: () => showTopicSheet(context, subjectId: subjectId),
-          icon: const Icon(Icons.add),
-          label: const Text('Add a topic'),
+        action: TourTarget(
+          id: TourTargetId.addTopic,
+          child: FilledButton.icon(
+            onPressed: () => showTopicSheet(context, subjectId: subjectId),
+            icon: const Icon(Icons.add),
+            label: const Text('Add a topic'),
+          ),
         ),
       );
     }

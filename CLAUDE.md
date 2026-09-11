@@ -29,7 +29,7 @@ and every paragraph in it was learned the hard way.
 `v0.2.0`, at commit `4477223`. `main` is level with `origin/main`. The user
 pushes, never Claude.
 
-- 280/280 tests pass and `analyze` is clean.
+- 297/297 tests pass and `analyze` is clean.
 - **Verified on hardware**: a Xiaomi 23127PN0CG (HyperOS, Android 16) and a
   OnePlus Pad (OxygenOS 16). Reminders reaching the lock screen with sound, the
   autostart deep link on both, the tablet two-pane layout, landscape, and the
@@ -107,8 +107,13 @@ where the tour's replay will go.
 **Being built in four phases, each committed when verified:**
 
 1. **The spotlight engine. Done.** `lib/ui/spotlight.dart`, tested alone in
-   `test/spotlight_test.dart`. Nothing uses it yet.
-2. The main tour: welcome, nav, the Subjects do-steps, resume from data.
+   `test/spotlight_test.dart`.
+2. **The setup stops. Done.** Welcome, the tabs, Subjects, a subject, what its
+   date does, a topic, resumed from the data. `lib/ui/tour.dart`,
+   `lib/domain/tour.dart`, `test/tour_test.dart`. **Until phase 3 lands, two
+   rough edges are known:** the tour ends silently on the first topic, and the
+   launch permission prompts still appear over the welcome card. Neither build
+   should be released.
 3. The reminders step (moving the launch permission request out of `main.dart`;
    a skip requests them at that moment, so a skipper still gets reminders),
    the Today stops, and "Show me around again" in the ? sheet.
@@ -396,6 +401,11 @@ Command hygiene that applies either way:
 - **Prefer a new `dev.ps1` task over a novel ad-hoc command** for anything that
   will be run more than once. Every novel command string is a prompt for the
   user; a task is one stable, allow-listed shape.
+- **`test` and `testq` take one word at most, or nothing.** `testq spotlight`
+  ran without a prompt; `testq fits a small phone at a large font` prompted on
+  11 Sep, and the user had to reject it. Otherwise run bare `testq`: the whole
+  suite takes under a minute. To make one word select a file's tests, give its
+  groups a shared prefix, as `spotlight_test` does.
 - **Use the file tools, not shell `cat`, `sed` or `echo`**, for reading and
   editing files.
 - **Commit messages:** write the message to `build\commit-msg.txt` with the file

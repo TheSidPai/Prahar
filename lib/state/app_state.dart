@@ -8,6 +8,7 @@ import '../domain/background_limits.dart';
 import '../domain/models.dart';
 import '../domain/preferences.dart';
 import '../domain/schedule.dart';
+import '../domain/tour.dart';
 import '../planner/calibration.dart';
 import '../notifications/notifier.dart';
 import '../notifications/widget_bridge.dart';
@@ -83,6 +84,53 @@ class AppState extends ChangeNotifier {
   /// it, down to something occasional.
   static const reanchorAfterMinutes = 2;
 
+  /// Whether the first-run tour is running.
+  ///
+  /// It starts on a fresh install and carries on after a restart until it is
+  /// finished or skipped. Which stop it is at is never stored; see [tourStep].
+  bool tourActive = false;
+
+  /// Whether the Subjects tab is the one showing. Reported by HomeScreen and
+  /// read only by the tour, whose early stops wait for the student to go there.
+  bool showingSubjects = false;
+
+  final Set<TourStep> _tourSeen = {};
+
+  /// The tour's current stop, or null when it isn't running.
+  TourStep? get tourStep {
+    if (!tourActive) return null;
+    return tourStepFor(
+      hasSubject: subjects.isNotEmpty,
+      hasTopic: topics.isNotEmpty,
+      showingSubjects: showingSubjects,
+      seen: _tourSeen,
+    );
+  }
+
+  void noteShowingSubjects(bool showing) {
+    if (showing == showingSubjects) return;
+    showingSubjects = showing;
+    if (tourActive) notifyListeners();
+  }
+
+  /// Moves past a stop that only needed reading.
+  void tourNext(TourStep step) {
+    _tourSeen.add(step);
+    notifyListeners();
+  }
+
+  /// Ends the tour for good, from its Skip button.
+  Future<void> skipTour() => _endTour();
+
+  /// The state changes before the write, so the tour is gone on the next
+  /// frame whether or not the database is quick about it.
+  Future<void> _endTour() async {
+    if (!tourActive) return;
+    tourActive = false;
+    notifyListeners();
+    await db.putSetting('tour_done', '1');
+  }
+
   /// Whether to show the autostart notice.
   ///
   /// Deliberately behind the battery warning: while that one is up it is the
@@ -111,14 +159,27 @@ class AppState extends ChangeNotifier {
     subjects = await db.subjects();
     topics = await db.topics();
     availability = await db.availability();
-    prefs = Prefs.fromMap(await db.settings());
+    final settings = await db.settings();
+    prefs = Prefs.fromMap(settings);
     streak = await db.streakEndingAt(today);
     todayLog = await db.logEntriesOn(today);
     // hasAutostartScreen decides whether there is a gate; the manufacturer
     // only picks the wording. See BackgroundGate.resolve.
     // Empty string means nothing running; the settings table has no nulls.
-    final running = (await db.settings())['running_session'] ?? '';
+    final running = settings['running_session'] ?? '';
     runningSessionId = running.isEmpty ? null : running;
+
+    // The tour runs on a fresh install, and after a restart partway through
+    // it picks up wherever the data says it is. An install that already had
+    // subjects before the tour existed never sees it.
+    tourActive =
+        settings['tour_done'] != '1' &&
+        (subjects.isEmpty || settings['tour_started'] == '1');
+    if (tourActive && topics.isNotEmpty) {
+      await _endTour();
+    } else if (tourActive && settings['tour_started'] != '1') {
+      await db.putSetting('tour_started', '1');
+    }
 
     backgroundGate = BackgroundGate.resolve(
       manufacturer: await notifier.deviceVendor(),
@@ -504,6 +565,7 @@ class AppState extends ChangeNotifier {
     await db.upsertTopic(t, sortOrder: topics.length);
     topics = [...topics, t];
     await _rebuild();
+    if (tourActive && tourStep == null) await _endTour();
     notifyListeners();
   }
 

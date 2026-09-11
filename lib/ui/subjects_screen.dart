@@ -7,6 +7,7 @@ import '../state/app_state.dart';
 import 'glass.dart';
 import 'layout.dart';
 import 'subject_detail_screen.dart';
+import 'tour.dart';
 import 'widgets.dart';
 
 const subjectPalette = [
@@ -89,12 +90,13 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
             onChanged: (v) => setState(() => _query = v),
           ),
         ),
-        for (final subject in active)
+        for (final (i, subject) in active.indexed)
           _SubjectRow(
             subject: subject,
             topics: state.topicsFor(subject.id),
             selected: wide && subject.id == shown,
             onTap: wide ? () => setState(() => _selected = subject.id) : null,
+            tourId: i == 0 ? TourTargetId.firstSubject : null,
           ),
 
         if (q.isNotEmpty && matchedTopics.isNotEmpty) ...[
@@ -295,6 +297,7 @@ class _SubjectRow extends StatelessWidget {
     required this.topics,
     this.selected = false,
     this.onTap,
+    this.tourId,
   });
 
   final Subject subject;
@@ -308,6 +311,10 @@ class _SubjectRow extends StatelessWidget {
   /// Overrides the default "push the detail page" tap, which is what the
   /// two-pane layout does instead of navigating.
   final VoidCallback? onTap;
+
+  /// Set on the first row only, which the first-run tour points at. Marked on
+  /// the card rather than the padded row, so the ring hugs the card.
+  final TourTargetId? tourId;
 
   @override
   Widget build(BuildContext context) {
@@ -323,88 +330,95 @@ class _SubjectRow extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      child: Card(
-        // The selected row borrows the accent for its edge rather than a fill:
-        // a filled row in a list of cards reads as a different kind of thing,
-        // and it is the same subject either way.
-        shape: selected
-            ? RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: theme.colorScheme.tertiary, width: 1.5),
-              )
-            : null,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap:
-              onTap ??
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SubjectDetailScreen(subjectId: subject.id),
-                ),
-              ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 12, 16),
-            child: Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: Color(subject.colorValue),
-                    shape: BoxShape.circle,
+      child: TourTarget(
+        id: tourId,
+        child: Card(
+          // The selected row borrows the accent for its edge rather than a fill:
+          // a filled row in a list of cards reads as a different kind of thing,
+          // and it is the same subject either way.
+          shape: selected
+              ? RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: theme.colorScheme.tertiary,
+                    width: 1.5,
+                  ),
+                )
+              : null,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap:
+                onTap ??
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SubjectDetailScreen(subjectId: subject.id),
                   ),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(subject.name, style: theme.textTheme.titleSmall),
-                      const SizedBox(height: 3),
-                      Text(
-                        [
-                          if (!needsTopics) '${topics.length} topics',
-                          if (!needsTopics) '${formatMinutes(remaining)} left',
-                          if (subject.examDate != null)
-                            'exam ${formatDate(subject.examDate!)}'
-                                '${subject.examMinuteOfDay == null ? '' : ' '
-                                          '${formatClock(subject.examMinuteOfDay!)}'}',
-                        ].join('  ·  '),
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      if (needsTopics || needsDate) ...[
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 14,
-                              color: theme.colorScheme.tertiary,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                needsTopics
-                                    ? 'No topics yet, so nothing is scheduled'
-                                    : 'No exam date, so it is scheduled last',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.tertiary,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 12, 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Color(subject.colorValue),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(subject.name, style: theme.textTheme.titleSmall),
+                        const SizedBox(height: 3),
+                        Text(
+                          [
+                            if (!needsTopics) '${topics.length} topics',
+                            if (!needsTopics)
+                              '${formatMinutes(remaining)} left',
+                            if (subject.examDate != null)
+                              'exam ${formatDate(subject.examDate!)}'
+                                  '${subject.examMinuteOfDay == null ? '' : ' '
+                                            '${formatClock(subject.examMinuteOfDay!)}'}',
+                          ].join('  ·  '),
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        if (needsTopics || needsDate) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                size: 14,
+                                color: theme.colorScheme.tertiary,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  needsTopics
+                                      ? 'No topics yet, so nothing is scheduled'
+                                      : 'No exam date, so it is scheduled last',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.tertiary,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  size: 20,
-                  color: theme.colorScheme.outline,
-                ),
-              ],
+                  Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: theme.colorScheme.outline,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

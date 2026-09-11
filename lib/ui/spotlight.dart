@@ -98,6 +98,10 @@ class SpotlightOverlay extends StatefulWidget {
 
   static const maxBubbleWidth = 360.0;
 
+  /// Less room than this above and below a target, and the bubble goes beside
+  /// it instead.
+  static const minBubbleHeight = 160.0;
+
   @override
   State<SpotlightOverlay> createState() => _SpotlightOverlayState();
 }
@@ -192,27 +196,55 @@ class _SpotlightOverlayState extends State<SpotlightOverlay> {
             final bottom = size.height - safe.bottom - margin;
             final spaceBelow = bottom - (hole.bottom + SpotlightOverlay.gap);
             final spaceAbove = (hole.top - SpotlightOverlay.gap) - top;
+            final spaceLeft =
+                (hole.left - SpotlightOverlay.gap) - (safe.left + margin);
+            final spaceRight =
+                (size.width - safe.right - margin) -
+                (hole.right + SpotlightOverlay.gap);
+            final vertical = math.max(spaceAbove, spaceBelow);
+            final sideways = math.max(spaceLeft, spaceRight);
             final below = spaceBelow >= spaceAbove;
 
-            // Centred on the target where it can be, pushed back inside the
-            // screen where it can't.
-            final maxLeft = math.max(margin, size.width - margin - width);
-            final left = (hole.center.dx - width / 2).clamp(margin, maxLeft);
+            if (vertical < SpotlightOverlay.minBubbleHeight &&
+                sideways > vertical) {
+              // A target as tall as the screen, like the navigation rail,
+              // leaves no room above or below it, so the bubble goes beside.
+              final right = spaceRight >= spaceLeft;
+              final along = bottom - top;
+              final y = along <= 0
+                  ? 0.0
+                  : ((hole.center.dy - top) / along * 2 - 1).clamp(-1.0, 1.0);
+              placed = Positioned(
+                top: top,
+                height: math.max(0.0, along),
+                left: right ? hole.right + SpotlightOverlay.gap : null,
+                right: right
+                    ? null
+                    : size.width - hole.left + SpotlightOverlay.gap,
+                width: math.min(width, sideways),
+                child: Align(alignment: Alignment(0, y), child: bubble),
+              );
+            } else {
+              // Centred on the target where it can be, pushed back inside the
+              // screen where it can't.
+              final maxLeft = math.max(margin, size.width - margin - width);
+              final left = (hole.center.dx - width / 2).clamp(margin, maxLeft);
 
-            placed = Positioned(
-              left: left,
-              width: width,
-              top: below ? hole.bottom + SpotlightOverlay.gap : null,
-              bottom: below
-                  ? null
-                  : size.height - hole.top + SpotlightOverlay.gap,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: math.max(0.0, below ? spaceBelow : spaceAbove),
+              placed = Positioned(
+                left: left,
+                width: width,
+                top: below ? hole.bottom + SpotlightOverlay.gap : null,
+                bottom: below
+                    ? null
+                    : size.height - hole.top + SpotlightOverlay.gap,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: math.max(0.0, below ? spaceBelow : spaceAbove),
+                  ),
+                  child: bubble,
                 ),
-                child: bubble,
-              ),
-            );
+              );
+            }
           }
 
           return Stack(
@@ -279,47 +311,63 @@ class _Bubble extends StatelessWidget {
         shadowColor: Colors.black54,
         borderRadius: BorderRadius.circular(PraharTheme.cardRadius),
         clipBehavior: Clip.antiAlias,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: centred
-                ? CrossAxisAlignment.center
-                : CrossAxisAlignment.stretch,
-            children: [
-              if (step.showMark) ...[
-                const AnimatedPraharMark(size: 56),
-                const SizedBox(height: 14),
-              ],
-              if (step.title != null) ...[
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Text(
-                    step.title!,
-                    textAlign: centred ? TextAlign.center : TextAlign.start,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Only the words scroll. The buttons stay pinned below them:
+            // otherwise, at a large font on a small phone, the one way forward
+            // is scrolled out of sight inside a card that gives no sign it
+            // scrolls at all.
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: centred
+                      ? CrossAxisAlignment.center
+                      : CrossAxisAlignment.stretch,
+                  children: [
+                    if (step.showMark) ...[
+                      const AnimatedPraharMark(size: 56),
+                      const SizedBox(height: 14),
+                    ],
+                    if (step.title != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Text(
+                          step.title!,
+                          textAlign: centred
+                              ? TextAlign.center
+                              : TextAlign.start,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Text(
+                        step.body,
+                        textAlign: centred ? TextAlign.center : TextAlign.start,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          height: 1.45,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-              ],
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Text(
-                  step.body,
-                  textAlign: centred ? TextAlign.center : TextAlign.start,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    height: 1.45,
-                  ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 10),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 12, 10),
               // Wrap rather than a Row with a Spacer: at a large font on a
               // narrow phone the two buttons don't fit side by side, and a
               // Spacer does not stop a Row overflowing.
-              Wrap(
+              child: Wrap(
                 alignment: WrapAlignment.spaceBetween,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: 8,
@@ -339,8 +387,8 @@ class _Bubble extends StatelessWidget {
                     ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

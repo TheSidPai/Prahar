@@ -11,6 +11,7 @@ import 'look_screen.dart';
 import 'plan_screen.dart';
 import 'subjects_screen.dart';
 import 'today_editorial_screen.dart';
+import 'tour.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,6 +29,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _planView = 0;
 
   static const _titles = ['Today', 'Plan', 'Progress', 'Subjects', 'Settings'];
+
+  static const _subjectsTab = 3;
+
+  void _select(int i) {
+    setState(() => _index = i);
+    // The tour's early stops wait for the student to open Subjects.
+    context.read<AppState>().noteShowingSubjects(i == _subjectsTab);
+  }
 
   @override
   void initState() {
@@ -235,29 +244,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       body: rail
           ? Row(
               children: [
-                _NavRail(
-                  glass: glass,
-                  selectedIndex: _index,
-                  onDestinationSelected: (i) => setState(() => _index = i),
+                TourTarget(
+                  id: TourTargetId.navigation,
+                  child: _NavRail(
+                    glass: glass,
+                    selectedIndex: _index,
+                    onDestinationSelected: _select,
+                  ),
                 ),
                 Expanded(child: pages),
               ],
             )
           : pages,
       floatingActionButton: _index == 3
-          ? FloatingActionButton.extended(
-              onPressed: () => showSubjectSheet(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Subject'),
+          ? TourTarget(
+              id: TourTargetId.addSubject,
+              child: FloatingActionButton.extended(
+                onPressed: () => showSubjectSheet(context),
+                icon: const Icon(Icons.add),
+                label: const Text('Subject'),
+              ),
             )
           : null,
       bottomNavigationBar: rail
           ? null
-          : _NavBar(
-              glass: glass,
-              selectedIndex: _index,
-              onDestinationSelected: (i) => setState(() => _index = i),
-              destinations: _destinations,
+          : TourTarget(
+              id: TourTargetId.navigation,
+              child: _NavBar(
+                glass: glass,
+                selectedIndex: _index,
+                onDestinationSelected: _select,
+                destinations: [
+                  for (final (i, d) in _destinations.indexed)
+                    TourTarget(
+                      id: i == _subjectsTab ? TourTargetId.subjectsTab : null,
+                      child: d,
+                    ),
+                ],
+              ),
             ),
     );
   }
@@ -363,9 +387,14 @@ class _NavRail extends StatelessWidget {
                 labelType: NavigationRailLabelType.all,
                 groupAlignment: -0.9,
                 destinations: [
-                  for (final d in _destinations)
+                  for (final (i, d) in _destinations.indexed)
                     NavigationRailDestination(
-                      icon: d.icon,
+                      icon: TourTarget(
+                        id: i == _HomeScreenState._subjectsTab
+                            ? TourTargetId.subjectsTab
+                            : null,
+                        child: d.icon,
+                      ),
                       selectedIcon: d.selectedIcon,
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       label: Text(

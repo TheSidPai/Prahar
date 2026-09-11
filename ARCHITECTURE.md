@@ -90,7 +90,7 @@ Dependencies point inward only. `domain/` depends on nothing in the app.
 | `lib/ui/` | Screens and the design system | see [section 10](#10-ui-architecture) |
 | `android/app/src/main/kotlin/` | Platform code | `MainActivity.kt`, `WidgetBridge.kt`, `NextBlockWidget.kt`, `TodayWidget.kt` |
 | `tools/` | Build, device diagnostics, icon generation | `dev.ps1`, `make_icon.ps1` |
-| `test/` | 280 tests across 23 files | see [section 11](#11-testing) |
+| `test/` | 297 tests across 24 files | see [section 11](#11-testing) |
 
 ### Startup
 
@@ -880,10 +880,14 @@ is showing, and when it is finished, belongs to whatever places it.
   touchable part of the screen. It works by a render box that reports no hit
   inside the window, which hands the tap to the app underneath; everywhere else
   an empty gesture detector catches it.
-- **The bubble never covers its target.** It takes whichever side of the window
-  has more room, clamps to the screen, and scrolls inside that space when a large
-  font makes it too tall. A step with no target, or a target not on screen,
+- **The bubble never covers its target.** It goes above or below, whichever has
+  more room, or beside a target too tall for either, like the navigation rail,
+  and clamps to the screen. A step with no target, or a target not on screen,
   gets a centred card instead of an error.
+- **Only the words scroll.** The buttons stay pinned under them. The first
+  version scrolled the whole card, and at 320dp with 1.5x text the welcome
+  card's Next ended up out of sight inside it, so a tap on it landed on the
+  scrim.
 - **It follows the target without a loop of its own.** It re-measures after
   every frame that happens anyway, through a chain of post-frame callbacks, which
   never schedule a frame. So it tracks a rotation or a sheet sliding away, and
@@ -891,6 +895,34 @@ is showing, and when it is finished, belongs to whatever places it.
 - **The bubble is its own surface, not `StyledPanel`.** Under the Open card style
   in Glass, StyledPanel draws nothing, which is right for a list row and wrong
   for words floating over a dimmed screen.
+
+**The first-run tour** (`tour.dart`, with its step logic in `domain/tour.dart`)
+is built on the engine, and it is a do-tour: on a fresh install there is nothing
+to point at, so the student makes a subject and a topic during it. It starts
+with a welcome card and one stop on the tabs, then waits for Subjects to be
+tapped, for a subject to be saved, shows what the subject's exam date does, and
+waits for a topic.
+
+- **The stop is derived, never stored.** `tourStepFor` takes whether a subject
+  and a topic exist, whether Subjects is showing, and which read-only stops have
+  been tapped past. A restart, a cancelled sheet or a deleted subject lands on
+  the right stop with no bookkeeping, for the same reason the plan is derived.
+  Settings hold only `tour_started` and `tour_done`. `AppState.load` starts the
+  tour when `tour_done` is unset and there are either no subjects or
+  `tour_started` is set, so an install that had subjects before the tour existed
+  never sees it. Saving the first topic, or Skip, sets `tour_done`.
+- **Targets register themselves.** `TourTarget` marks the nav bar or rail, the
+  Subjects destination, the Subject button, the first subject's card and "Add a
+  topic". Each marker owns its GlobalKey, so the same target on a page being
+  pushed and the page beneath can't collide, and each records whether its route
+  is on top.
+- **The host sits in `MaterialApp.builder`**, above the navigator, so the tour
+  stays up on the subject's own page, where a phone adds topics. A stop that
+  waits for a tap disappears while its target's route isn't on top, which is
+  exactly what an open sheet does, and returns when the sheet closes, saved or
+  not.
+- Widget tests that pump `HomeScreen` without `TourHost` never draw the tour,
+  and `AppState` built without `load()` never starts it.
 
 The week view shows seven days **from today**, not Monday to Sunday: a calendar
 week opened on Saturday wastes five columns on days that can't be filled.
@@ -994,7 +1026,7 @@ Rules for writing UI copy are in CLAUDE.md.
 
 ## 11. Testing
 
-280 tests in 23 files. `flutter analyze` is required alongside them, because a
+297 tests in 24 files. `flutter analyze` is required alongside them, because a
 test run only compiles what the tests import and leaves the rest of `lib/ui`
 unchecked.
 
@@ -1003,7 +1035,7 @@ unchecked.
 | Pure logic | `planner_test`, `estimator_test`, `calibration_test`, `subject_test`, `study_timer_test`, `today_focus_test`, `preferences_test`, `digest_test`, `layout_test` |
 | Storage | `database_test`, `backup_roundtrip_test` |
 | State | `reanchor_test`, and the logic groups in `autostart_test` and `reminders_toggle_test` |
-| Screens and layout | `device_matrix_test`, `landscape_test`, `glass_inset_test`, `first_run_test`, `week_grid_test`, `theme_toggle_test`, `progress_query_test`, `help_sheet_test`, `spotlight_test`, and the UI groups in `autostart_test` and `reminders_toggle_test` |
+| Screens and layout | `device_matrix_test`, `landscape_test`, `glass_inset_test`, `first_run_test`, `week_grid_test`, `theme_toggle_test`, `progress_query_test`, `help_sheet_test`, `spotlight_test`, `tour_test`, and the UI groups in `autostart_test` and `reminders_toggle_test` |
 
 ### Principles
 

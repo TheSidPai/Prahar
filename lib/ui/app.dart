@@ -5,6 +5,7 @@ import '../domain/preferences.dart';
 import '../state/app_state.dart';
 import 'home_screen.dart';
 import 'theme.dart';
+import 'tour.dart';
 
 class PraharApp extends StatelessWidget {
   const PraharApp({super.key});
@@ -32,6 +33,9 @@ class PraharApp extends StatelessWidget {
         material: prefs.materialChoice,
         cardStyle: prefs.cardStyle,
       ),
+      // Above the navigator, so the first-run tour stays up across pages.
+      builder: (context, child) =>
+          TourHost(child: child ?? const SizedBox.shrink()),
       home: const HomeScreen(),
     );
   }

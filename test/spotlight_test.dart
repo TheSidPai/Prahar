@@ -183,6 +183,54 @@ void main() {
       );
       expect(after, isNot(before));
     });
+
+    testWidgets('goes beside a target too tall to go above or below', (
+      tester,
+    ) async {
+      // The navigation rail on a phone held sideways: full height, 88 wide.
+      tester.view.physicalSize = const Size(891, 411);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: PraharTheme.of(Brightness.dark),
+          home: Scaffold(
+            body: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 88,
+                  child: ColoredBox(key: target, color: Colors.indigo),
+                ),
+                Positioned.fill(
+                  child: SpotlightOverlay(
+                    step: look(),
+                    onNext: () => nexts++,
+                    onSkip: () => skips++,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.takeException(), isNull);
+      final card = tester.getRect(bubble);
+      expect(
+        card.left,
+        greaterThanOrEqualTo(tester.getRect(find.byKey(target)).right),
+      );
+      expect(
+        card.height,
+        greaterThan(60),
+        reason: 'squeezed into the sliver above or below the rail',
+      );
+    });
   });
 
   group('spotlight: without a target', () {
@@ -249,5 +297,8 @@ void main() {
       card.bottom,
       lessThanOrEqualTo(tester.getRect(find.byKey(target)).top),
     );
+    // Scrolled out of sight inside the bubble, Next still has a rect on
+    // screen, and a tap there lands on the dimmed layer.
+    expect(tester.getRect(next).bottom, lessThanOrEqualTo(card.bottom));
   });
 }
