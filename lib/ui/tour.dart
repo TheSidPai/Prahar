@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
+import '../domain/format.dart';
 import '../domain/tour.dart';
 import '../state/app_state.dart';
 import 'spotlight.dart';
+import 'widgets.dart';
 
 /// The things the first-run tour points at.
 enum TourTargetId {
@@ -13,6 +15,8 @@ enum TourTargetId {
   addSubject,
   firstSubject,
   addTopic,
+  today,
+  planTab,
 }
 
 /// Marks a widget the tour can point at.
@@ -180,7 +184,9 @@ class _TourHostState extends State<TourHost> {
         target = targets.find(TourTargetId.navigation);
         spot = SpotlightStep(
           target: target,
-          body: 'These five tabs are the whole app. Start with Subjects.',
+          body: state.subjects.isEmpty
+              ? 'These five tabs are the whole app. Start with Subjects.'
+              : 'These five tabs are the whole app.',
         );
       case TourStep.openSubjects:
         target = targets.find(TourTargetId.subjectsTab);
@@ -228,12 +234,42 @@ class _TourHostState extends State<TourHost> {
                 advance: SpotlightAdvance.action,
                 body: 'Open it to add its first topic.',
               );
+      case TourStep.reminders:
+        target = null;
+        spot = SpotlightStep(
+          title: 'Turn on reminders',
+          body:
+              'Prahar reminds you as each study block starts. Android needs '
+              'a few things allowed first.',
+          nextLabel: 'Continue',
+          extra: _ReminderSetup(state: state),
+        );
+      case TourStep.today:
+        target = targets.find(TourTargetId.today);
+        spot = SpotlightStep(
+          target: target,
+          // Set up late at night, or against an exam that is today, there is
+          // nothing to point at on the card, and saying "study this" over an
+          // empty one would be wrong.
+          body: state.todaySessions.isEmpty
+              ? 'This card shows what to study now. Nothing more is planned '
+                    'for today.'
+              : 'This is what to study now. Tap Start focus to begin, and '
+                    'Done when you finish.',
+        );
+      case TourStep.plan:
+        target = targets.find(TourTargetId.planTab);
+        spot = SpotlightStep(
+          target: target,
+          body: 'Tap Plan any time to see the days ahead.',
+          nextLabel: 'Got it',
+        );
     }
 
     // A stop that waits for a tap has nothing to show without the thing to
     // tap. That is what happens while a sheet is open over it: the tour steps
     // aside, and comes back when the sheet closes, saved or not.
-    if (!step.isRead && target == null) return null;
+    if (step.waitsForTap && target == null) return null;
 
     return Positioned.fill(
       child: SpotlightOverlay(
@@ -241,8 +277,172 @@ class _TourHostState extends State<TourHost> {
         // window jumping from one target to the next.
         key: ValueKey((step, target)),
         step: spot,
-        onNext: step.isRead ? () => state.tourNext(step) : null,
+        onNext: step == TourStep.reminders
+            ? state.finishTourReminders
+            : step.isRead
+            ? () => state.tourNext(step)
+            : null,
         onSkip: state.skipTour,
+      ),
+    );
+  }
+}
+
+/// The reminders stop: each thing Android needs allowed, with its own button.
+///
+/// The same four things Settings > Notifications offers, in the order they
+/// matter, at the one moment a student is paying attention to setting up.
+/// Nothing here is required to carry on. Continue asks for notifications if
+/// that row was never used, since without them nothing else on the card
+/// matters.
+class _ReminderSetup extends StatefulWidget {
+  const _ReminderSetup({required this.state});
+
+  final AppState state;
+
+  @override
+  State<_ReminderSetup> createState() => _ReminderSetupState();
+}
+
+class _ReminderSetupState extends State<_ReminderSetup> {
+  /// When the test reminder is due, once one has been sent.
+  DateTime? _testAt;
+
+  /// Whether the autostart screen was opened. Android reports nothing about
+  /// the setting itself, so having been there is all that can be shown.
+  bool _autostartOpened = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    final gate = state.backgroundGate;
+    final testAt = _testAt;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SetupRow(
+          key: const ValueKey('tour-allow-notifications'),
+          done: state.remindersAsked && state.exactAlarmsAllowed,
+          title: 'Notifications',
+          detail:
+              'Android may ask twice: to show reminders, and to send them on '
+              'time.',
+          action: 'Allow',
+          onPressed: state.requestReminderPermissions,
+        ),
+        _SetupRow(
+          key: const ValueKey('tour-allow-background'),
+          done: state.batteryExempt,
+          title: 'Run in the background',
+          detail: 'So Android does not freeze Prahar before a reminder is due.',
+          action: 'Allow',
+          onPressed: state.requestBatteryExemption,
+        ),
+        // Only on phones that have such a screen. Stock Android has none, and
+        // a row sending someone to look for a setting that does not exist is
+        // worse than no row.
+        if (gate != null)
+          _SetupRow(
+            key: const ValueKey('tour-autostart'),
+            done: _autostartOpened,
+            title: gate.rowTitle,
+            detail: gate.explanation,
+            action: 'Open',
+            onPressed: () async {
+              final outcome = await state.openAutostartSettings();
+              if (!context.mounted) return;
+              setState(() => _autostartOpened = true);
+              autostartFallbackHint(context, outcome, gate);
+            },
+          ),
+        _SetupRow(
+          key: const ValueKey('tour-test-reminder'),
+          done: testAt != null,
+          title: 'Send a test reminder',
+          detail: testAt == null
+              ? 'It arrives in a minute, so you can see one work.'
+              : 'Due at ${formatClock(testAt.hour * 60 + testAt.minute)}. '
+                    'Lock the phone and wait.',
+          action: testAt == null ? 'Send' : 'Again',
+          repeatable: true,
+          onPressed: () async {
+            try {
+              final when = await state.notifier.scheduleTest();
+              if (mounted) setState(() => _testAt = when);
+            } catch (e) {
+              debugPrint('Prahar: could not send a test reminder: $e');
+            }
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _SetupRow extends StatelessWidget {
+  const _SetupRow({
+    super.key,
+    required this.done,
+    required this.title,
+    required this.detail,
+    required this.action,
+    required this.onPressed,
+    this.repeatable = false,
+  });
+
+  final bool done;
+  final String title;
+  final String detail;
+  final String action;
+  final VoidCallback onPressed;
+
+  /// Keeps its button once done. Only the test reminder, which is worth
+  /// sending again after changing a setting.
+  final bool repeatable;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(
+              done ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+              size: 20,
+              // Indigo for something taken care of. Amber stays on buttons.
+              color: done
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline,
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Expanded, so a large font wraps the words rather than pushing the
+          // button off the card.
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.titleSmall),
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!done || repeatable)
+            TextButton(onPressed: onPressed, child: Text(action)),
+        ],
       ),
     );
   }

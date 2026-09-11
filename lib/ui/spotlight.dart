@@ -32,6 +32,7 @@ class SpotlightStep {
     this.advance = SpotlightAdvance.next,
     this.nextLabel = 'Next',
     this.showMark = false,
+    this.extra,
   });
 
   /// The widget to highlight, found through the GlobalKey placed on it.
@@ -48,6 +49,10 @@ class SpotlightStep {
 
   /// Draws the brand mark above the title, for the welcome card.
   final bool showMark;
+
+  /// Anything more the stop needs under its words, such as a checklist. It
+  /// scrolls with the words; the buttons stay pinned below both.
+  final Widget? extra;
 }
 
 /// A dimmed layer over the whole app with a rounded window onto one widget,
@@ -358,6 +363,7 @@ class _Bubble extends StatelessWidget {
                         ),
                       ),
                     ),
+                    ?step.extra,
                   ],
                 ),
               ),

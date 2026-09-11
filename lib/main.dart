@@ -18,9 +18,10 @@ Future<void> main() async {
   final state = AppState(db: db, notifier: notifier);
   await state.load();
 
-  // Ask before the first frame so the alarm sync below actually lands. On a
-  // fresh install this is the only time the OS dialogs appear.
-  await notifier.requestPermissions();
+  // Ask before the first frame so the alarm sync below actually lands. Not
+  // while the first-run tour runs: it asks at its reminders stop, where it can
+  // say why, and these dialogs would otherwise cover its welcome card.
+  if (!state.tourActive) await notifier.requestPermissions();
   await state.refreshAlarms();
 
   runApp(

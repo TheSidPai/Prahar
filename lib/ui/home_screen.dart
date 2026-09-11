@@ -38,6 +38,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     context.read<AppState>().noteShowingSubjects(i == _subjectsTab);
   }
 
+  /// The last of the tour's requests for Today that this screen acted on.
+  int? _todayRequestsSeen;
+
+  /// Brings Today up when the tour asks, closing any page pushed over it. On
+  /// a phone the reminders stop is reached on the subject's own page, and the
+  /// tour's last stops are on Today.
+  void _followTourToToday(AppState state) {
+    final requests = state.todayRequests;
+    final seen = _todayRequestsSeen;
+    _todayRequestsSeen = requests;
+    if (seen == null || seen == requests) return;
+    // After the frame: this is called from build, and both of these rebuild.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      _select(0);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -103,6 +122,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    _followTourToToday(state);
 
     if (state.loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -276,10 +296,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 onDestinationSelected: _select,
                 destinations: [
                   for (final (i, d) in _destinations.indexed)
-                    TourTarget(
-                      id: i == _subjectsTab ? TourTargetId.subjectsTab : null,
-                      child: d,
-                    ),
+                    TourTarget(id: _tourIdForTab(i), child: d),
                 ],
               ),
             ),
@@ -322,6 +339,14 @@ const _destinations = [
     label: 'Settings',
   ),
 ];
+
+/// The tabs the first-run tour points at: Subjects, where setting up starts,
+/// and Plan, where the tour ends.
+TourTargetId? _tourIdForTab(int i) => switch (i) {
+  1 => TourTargetId.planTab,
+  _HomeScreenState._subjectsTab => TourTargetId.subjectsTab,
+  _ => null,
+};
 
 /// Navigation down the side instead of across the bottom.
 ///
@@ -389,12 +414,7 @@ class _NavRail extends StatelessWidget {
                 destinations: [
                   for (final (i, d) in _destinations.indexed)
                     NavigationRailDestination(
-                      icon: TourTarget(
-                        id: i == _HomeScreenState._subjectsTab
-                            ? TourTargetId.subjectsTab
-                            : null,
-                        child: d.icon,
-                      ),
+                      icon: TourTarget(id: _tourIdForTab(i), child: d.icon),
                       selectedIcon: d.selectedIcon,
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       label: Text(

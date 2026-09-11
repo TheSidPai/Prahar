@@ -96,6 +96,22 @@ class AppState extends ChangeNotifier {
 
   final Set<TourStep> _tourSeen = {};
 
+  /// Whether the reminders stop is finished. The one stop stored rather than
+  /// derived: Android reports nothing about autostart, so whether reminders
+  /// are set up is not something the data can answer. See [tourStepFor].
+  bool _tourRemindersDone = false;
+
+  /// A replay from the help sheet, which shows the welcome and the tabs again
+  /// to someone already set up.
+  bool _tourReplay = false;
+
+  /// Whether Android's notification prompts have been shown in this run.
+  bool remindersAsked = false;
+
+  /// Bumped when the tour needs Today on screen. HomeScreen owns the tab and
+  /// any page pushed over it, so HomeScreen is what acts on it.
+  int todayRequests = 0;
+
   /// The tour's current stop, or null when it isn't running.
   TourStep? get tourStep {
     if (!tourActive) return null;
@@ -103,6 +119,8 @@ class AppState extends ChangeNotifier {
       hasSubject: subjects.isNotEmpty,
       hasTopic: topics.isNotEmpty,
       showingSubjects: showingSubjects,
+      remindersDone: _tourRemindersDone,
+      replay: _tourReplay,
       seen: _tourSeen,
     );
   }
@@ -114,20 +132,63 @@ class AppState extends ChangeNotifier {
   }
 
   /// Moves past a stop that only needed reading.
-  void tourNext(TourStep step) {
+  ///
+  /// Passing the last one ends the tour for good.
+  Future<void> tourNext(TourStep step) async {
     _tourSeen.add(step);
+    if (tourActive && tourStep == null) return _endTour();
     notifyListeners();
   }
 
   /// Ends the tour for good, from its Skip button.
-  Future<void> skipTour() => _endTour();
+  ///
+  /// Launch holds back Android's notification prompts while the tour runs, so
+  /// they come with the reminders stop's explanation instead of over the
+  /// welcome card. Someone who skips before that stop is asked now, or
+  /// skipping would quietly mean no reminders at all.
+  Future<void> skipTour() =>
+      _endTour(askForReminders: !(remindersAsked || _tourRemindersDone));
 
-  /// The state changes before the write, so the tour is gone on the next
-  /// frame whether or not the database is quick about it.
-  Future<void> _endTour() async {
+  /// Shows Android's prompts for notifications and on-time alarms, then hands
+  /// the alarms over again with whatever was granted.
+  Future<void> requestReminderPermissions() async {
+    try {
+      await notifier.requestPermissions();
+    } catch (e) {
+      debugPrint('Prahar: could not ask for notification permissions: $e');
+    }
+    remindersAsked = true;
+    await refreshAlarms();
+  }
+
+  /// Finishes the reminders stop, and brings Today up for the last stops.
+  Future<void> finishTourReminders() async {
+    if (!remindersAsked) await requestReminderPermissions();
+    _tourRemindersDone = true;
+    todayRequests++;
+    notifyListeners();
+    await db.putSetting('tour_reminders', '1');
+  }
+
+  /// Runs the tour again, from the help sheet. Nothing is written: a restart
+  /// partway through a replay simply does not resume it.
+  void replayTour() {
+    _tourSeen.clear();
+    _tourRemindersDone = false;
+    _tourReplay = true;
+    tourActive = true;
+    todayRequests++;
+    notifyListeners();
+  }
+
+  /// The state changes before anything is awaited, so the tour is gone on the
+  /// next frame whatever the prompts or the database take.
+  Future<void> _endTour({bool askForReminders = false}) async {
     if (!tourActive) return;
     tourActive = false;
+    _tourReplay = false;
     notifyListeners();
+    if (askForReminders) await requestReminderPermissions();
     await db.putSetting('tour_done', '1');
   }
 
@@ -175,9 +236,8 @@ class AppState extends ChangeNotifier {
     tourActive =
         settings['tour_done'] != '1' &&
         (subjects.isEmpty || settings['tour_started'] == '1');
-    if (tourActive && topics.isNotEmpty) {
-      await _endTour();
-    } else if (tourActive && settings['tour_started'] != '1') {
+    _tourRemindersDone = settings['tour_reminders'] == '1';
+    if (tourActive && settings['tour_started'] != '1') {
       await db.putSetting('tour_started', '1');
     }
 
@@ -565,7 +625,6 @@ class AppState extends ChangeNotifier {
     await db.upsertTopic(t, sortOrder: topics.length);
     topics = [...topics, t];
     await _rebuild();
-    if (tourActive && tourStep == null) await _endTour();
     notifyListeners();
   }
 

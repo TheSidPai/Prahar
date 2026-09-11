@@ -13,6 +13,7 @@ import 'how_it_works.dart';
 import 'layout.dart';
 import 'subjects_screen.dart';
 import 'timer_screen.dart';
+import 'tour.dart';
 import 'widgets.dart';
 
 /// Today, rebuilt around one question: what am I meant to be doing now?
@@ -294,9 +295,13 @@ class _Hero extends StatelessWidget {
     // surface and a second hand-rolled one drifted immediately.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: StyledPanel(
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-        child: content,
+      // The first-run tour's stop on Today points here.
+      child: TourTarget(
+        id: TourTargetId.today,
+        child: StyledPanel(
+          padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+          child: content,
+        ),
       ),
     );
   }

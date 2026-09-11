@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../state/app_state.dart';
 import 'glass.dart';
 import 'how_it_works.dart';
 
@@ -12,7 +14,7 @@ import 'how_it_works.dart';
 /// what someone in that moment will actually read. The full guide stays one tap
 /// further for anyone who wants the reasons.
 ///
-/// This is also where the first-run tour's replay will live, for the same
+/// This is also where the first-run tour can be replayed, for the same
 /// reason the autostart notice has a permanent Settings row: anything shown
 /// once needs a way back.
 ///
@@ -31,6 +33,10 @@ Future<void> showHowItWorksSheet(BuildContext context) {
             Navigator.pop(sheetContext);
             HowItWorks.open(context);
           },
+          onTour: () {
+            Navigator.pop(sheetContext);
+            context.read<AppState>().replayTour();
+          },
         ),
       ),
     ),
@@ -38,9 +44,10 @@ Future<void> showHowItWorksSheet(BuildContext context) {
 }
 
 class _HowItWorksSheet extends StatelessWidget {
-  const _HowItWorksSheet({required this.onReadMore});
+  const _HowItWorksSheet({required this.onReadMore, required this.onTour});
 
   final VoidCallback onReadMore;
+  final VoidCallback onTour;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +79,11 @@ class _HowItWorksSheet extends StatelessWidget {
             key: const ValueKey('help-sheet-full-guide'),
             onPressed: onReadMore,
             child: const Text('Read the full guide'),
+          ),
+          TextButton(
+            key: const ValueKey('help-sheet-tour'),
+            onPressed: onTour,
+            child: const Text('Show me around again'),
           ),
         ],
       ),

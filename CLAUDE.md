@@ -29,7 +29,7 @@ and every paragraph in it was learned the hard way.
 `v0.2.0`, at commit `4477223`. `main` is level with `origin/main`. The user
 pushes, never Claude.
 
-- 297/297 tests pass and `analyze` is clean.
+- 306/306 tests pass and `analyze` is clean.
 - **Verified on hardware**: a Xiaomi 23127PN0CG (HyperOS, Android 16) and a
   OnePlus Pad (OxygenOS 16). Reminders reaching the lock screen with sound, the
   autostart deep link on both, the tablet two-pane layout, landscape, and the
@@ -110,13 +110,13 @@ where the tour's replay will go.
    `test/spotlight_test.dart`.
 2. **The setup stops. Done.** Welcome, the tabs, Subjects, a subject, what its
    date does, a topic, resumed from the data. `lib/ui/tour.dart`,
-   `lib/domain/tour.dart`, `test/tour_test.dart`. **Until phase 3 lands, two
-   rough edges are known:** the tour ends silently on the first topic, and the
-   launch permission prompts still appear over the welcome card. Neither build
-   should be released.
-3. The reminders step (moving the launch permission request out of `main.dart`;
-   a skip requests them at that moment, so a skipper still gets reminders),
-   the Today stops, and "Show me around again" in the ? sheet.
+   `lib/domain/tour.dart`, `test/tour_test.dart`.
+3. **Reminders, Today and replay. Done.** The reminders card, then one stop on
+   Today's main card and one on the Plan tab. Launch no longer asks for
+   notifications while the tour runs, and Skip asks instead. "Show me around
+   again" in the ? sheet replays it. Today got one stop rather than the two or
+   three agreed, to keep read-only bubbles near four (five as built). **Not yet
+   seen on a device**: both phones have data, so replay is how to see it.
 4. The Plan mini-tour.
 
 Decisions the user made:

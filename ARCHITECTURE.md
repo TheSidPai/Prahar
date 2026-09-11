@@ -90,7 +90,7 @@ Dependencies point inward only. `domain/` depends on nothing in the app.
 | `lib/ui/` | Screens and the design system | see [section 10](#10-ui-architecture) |
 | `android/app/src/main/kotlin/` | Platform code | `MainActivity.kt`, `WidgetBridge.kt`, `NextBlockWidget.kt`, `TodayWidget.kt` |
 | `tools/` | Build, device diagnostics, icon generation | `dev.ps1`, `make_icon.ps1` |
-| `test/` | 297 tests across 24 files | see [section 11](#11-testing) |
+| `test/` | 306 tests across 24 files | see [section 11](#11-testing) |
 
 ### Startup
 
@@ -102,8 +102,8 @@ Dependencies point inward only. `domain/` depends on nothing in the app.
    streak, today's log, the running block and the device's autostart gate,
    then build the plan.
 4. Ask for notification permissions, before the first frame, so the alarm sync
-   that follows actually lands. On a fresh install this is the only time the OS
-   dialogs appear.
+   that follows actually lands, unless the first-run tour is running. The tour
+   asks at its reminders stop instead (section 10).
 5. `refreshAlarms()`, then `runApp` with `AppState` provided at the root.
 
 ---
@@ -901,7 +901,8 @@ is built on the engine, and it is a do-tour: on a fresh install there is nothing
 to point at, so the student makes a subject and a topic during it. It starts
 with a welcome card and one stop on the tabs, then waits for Subjects to be
 tapped, for a subject to be saved, shows what the subject's exam date does, and
-waits for a topic.
+waits for a topic. Then comes a card for setting up reminders, one stop on
+Today's main card, and a last one on the Plan tab.
 
 - **The stop is derived, never stored.** `tourStepFor` takes whether a subject
   and a topic exist, whether Subjects is showing, and which read-only stops have
@@ -910,7 +911,7 @@ waits for a topic.
   Settings hold only `tour_started` and `tour_done`. `AppState.load` starts the
   tour when `tour_done` is unset and there are either no subjects or
   `tour_started` is set, so an install that had subjects before the tour existed
-  never sees it. Saving the first topic, or Skip, sets `tour_done`.
+  never sees it. Passing the last stop, or Skip, sets `tour_done`.
 - **Targets register themselves.** `TourTarget` marks the nav bar or rail, the
   Subjects destination, the Subject button, the first subject's card and "Add a
   topic". Each marker owns its GlobalKey, so the same target on a page being
@@ -921,6 +922,22 @@ waits for a topic.
   waits for a tap disappears while its target's route isn't on top, which is
   exactly what an open sheet does, and returns when the sheet closes, saved or
   not.
+- **The reminders stop is the one fact stored**, as `tour_reminders`. Android
+  reports nothing about autostart, so whether reminders are set up is not
+  something the data can answer. The card has a row each for Android's
+  notification prompts, the battery exemption, the vendor autostart screen
+  where the phone has one, and a test reminder. Continue asks for
+  notifications if that row was never used, then bumps
+  `AppState.todayRequests`, which HomeScreen answers by closing any pushed page
+  and switching to Today.
+- **Launch doesn't ask while the tour runs.** `main.dart` skips
+  `requestPermissions` when `tourActive`, so the OS dialogs arrive with the
+  reminders card's explanation rather than over the welcome card. Skip before
+  that stop asks at once, so skipping never means no reminders.
+- **Replay** is "Show me around again" in the ? sheet. It clears the stops seen
+  and shows the welcome and the tabs again even with data, then reminders,
+  Today and Plan. The subject stops are passed, because the data already has
+  what they would make. Nothing is written, so a restart ends a replay.
 - Widget tests that pump `HomeScreen` without `TourHost` never draw the tour,
   and `AppState` built without `load()` never starts it.
 
@@ -1026,7 +1043,7 @@ Rules for writing UI copy are in CLAUDE.md.
 
 ## 11. Testing
 
-297 tests in 24 files. `flutter analyze` is required alongside them, because a
+306 tests in 24 files. `flutter analyze` is required alongside them, because a
 test run only compiles what the tests import and leaves the rest of `lib/ui`
 unchecked.
 
