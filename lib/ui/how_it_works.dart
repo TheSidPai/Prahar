@@ -85,6 +85,35 @@ class _Opening extends StatelessWidget {
   }
 }
 
+/// The four steps, in one place.
+///
+/// This page tells each one at length; the quick sheet behind the ? on Today
+/// tells them in a line each. Both read their titles from here, so someone who
+/// taps ? and then "Read the full guide" meets the same four steps under the
+/// same names. Two copies would drift the first time one of them was reworded.
+///
+/// `short` is what the sheet shows. It says what to do, not why: the reasons
+/// are on this page.
+const howPraharWorksSteps = <({String title, String short})>[
+  (
+    title: 'Add a subject',
+    short: 'Give it an exam date. That date decides how much to do each day.',
+  ),
+  (
+    title: 'Break it into topics',
+    short:
+        'Chapters work well. Enter their pages and Prahar works out the time.',
+  ),
+  (
+    title: 'Say when you are free',
+    short: 'Set your study hours, and mark classes or anything else to avoid.',
+  ),
+  (
+    title: 'Follow Today, and tell it the truth',
+    short: 'Start each block, then mark it done with the time it really took.',
+  ),
+];
+
 /// The four steps as a path rather than four paragraphs.
 ///
 /// They were a numbered list: correct, and completely inert — the reader had
@@ -105,43 +134,45 @@ class _Journey extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    // Not const: the titles come from [howPraharWorksSteps], and indexing a
+    // const list is not itself a constant expression.
+    return Column(
       children: [
         _JourneyStep(
           n: '1',
-          title: 'Add a subject',
+          title: howPraharWorksSteps[0].title,
           body:
               'Give it an exam date. That date is what makes the schedule '
               'urgent. Without one, Prahar treats the subject as background '
               'work and everything else takes priority.',
-          visual: _ExamPill(),
+          visual: const _ExamPill(),
         ),
         _JourneyStep(
           n: '2',
-          title: 'Break it into topics',
+          title: howPraharWorksSteps[1].title,
           body:
               'Chapters work well. For each one you enter pages, problems or '
               'minutes. Pages are easiest, and Prahar converts them, then '
               'learns your real reading speed and corrects the estimate.',
-          visual: _EstimateBars(),
+          visual: const _EstimateBars(),
         ),
         _JourneyStep(
           n: '3',
-          title: 'Say when you are free',
+          title: howPraharWorksSteps[2].title,
           body:
               'Set the hours blocks can go between, then mark class times, '
               'lunch, a shift, or anything else the schedule should avoid. '
               'What is left is what you actually have.',
-          visual: _DayTrack(),
+          visual: const _DayTrack(),
         ),
         _JourneyStep(
           n: '4',
-          title: 'Follow Today, and tell it the truth',
+          title: howPraharWorksSteps[3].title,
           body:
               'Mark blocks done with the time they actually took. Missing a '
               'day is fine. The plan is rebuilt whenever anything changes, so '
               'work moves forward instead of piling up as overdue.',
-          visual: _DoneBlock(),
+          visual: const _DoneBlock(),
           last: true,
         ),
       ],

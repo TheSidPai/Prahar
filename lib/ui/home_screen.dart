@@ -5,6 +5,7 @@ import '../domain/preferences.dart';
 import '../state/app_state.dart';
 import 'brand.dart';
 import 'glass.dart';
+import 'help_sheet.dart';
 import 'layout.dart';
 import 'look_screen.dart';
 import 'plan_screen.dart';
@@ -179,6 +180,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           .titleTextStyle,
                     ))
             : Text(_titles[_index]),
+        // Help lives on Today only: it is where a first-time user lands, and
+        // where "what am I meant to do" gets asked. It sits at the trailing
+        // edge, away from the logo, because tapping the logo replays its
+        // animation and a mistap should never do both. Quiet grey rather than
+        // amber, since amber marks a call to action and this is help.
+        //
+        // help_outline_rounded was chosen from tools\make_help_options.ps1, at
+        // 24dp on both bar colours. The circle sits with the round mark; a bare
+        // question mark went thin at that size, and a speech bubble or a
+        // lightbulb read as chat or tips rather than help.
+        actions: _index == 0
+            ? [
+                IconButton(
+                  key: const ValueKey('today-help'),
+                  tooltip: 'How Prahar works',
+                  icon: Icon(
+                    Icons.help_outline_rounded,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  onPressed: () => showHowItWorksSheet(context),
+                ),
+                const SizedBox(width: 4),
+              ]
+            : null,
         // Sized rather than left to its intrinsic height so the glass pane
         // above it is a predictable shape, and so the body's inset — which
         // Scaffold derives from the bar's total preferred size — is stable

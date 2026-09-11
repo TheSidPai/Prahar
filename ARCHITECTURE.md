@@ -90,7 +90,7 @@ Dependencies point inward only. `domain/` depends on nothing in the app.
 | `lib/ui/` | Screens and the design system | see [section 10](#10-ui-architecture) |
 | `android/app/src/main/kotlin/` | Platform code | `MainActivity.kt`, `WidgetBridge.kt`, `NextBlockWidget.kt`, `TodayWidget.kt` |
 | `tools/` | Build, device diagnostics, icon generation | `dev.ps1`, `make_icon.ps1` |
-| `test/` | 261 tests across 21 files | see [section 11](#11-testing) |
+| `test/` | 269 tests across 22 files | see [section 11](#11-testing) |
 
 ### Startup
 
@@ -855,6 +855,20 @@ Also: `timer_screen.dart`, `busy_slots_screen.dart`, `how_it_works.dart`, and
 `mark_motion_screen.dart`, which is unreachable and kept for the animation
 variants.
 
+**Help is one tap from Today.** A **?** at the trailing edge of Today's top bar,
+and only Today's, opens `showHowItWorksSheet` in `help_sheet.dart`: the four
+steps in a line each, and a link to the full How Prahar works page. It exists
+because a first-time user couldn't tell what to do, and the full guide (a small
+link on the first-run screen, and a row in Settings) wasn't found.
+
+The step titles live once, in `howPraharWorksSteps` in `how_it_works.dart`, and
+both the sheet and the full page read them, so the two can't drift apart. The
+button sits away from the logo, which replays its animation when tapped, and is
+drawn in the quiet secondary grey rather than amber, because it's help, not a
+call to action. The icon, `help_outline_rounded`, was chosen from a contact sheet
+(`tools/make_help_options.ps1`). The first-run tour's replay will live in this
+sheet.
+
 The week view shows seven days **from today**, not Monday to Sunday: a calendar
 week opened on Saturday wastes five columns on days that can't be filled.
 Upright it's a row per day with time running across, because a 52dp column is a
@@ -957,7 +971,7 @@ Rules for writing UI copy are in CLAUDE.md.
 
 ## 11. Testing
 
-261 tests in 21 files. `flutter analyze` is required alongside them, because a
+269 tests in 22 files. `flutter analyze` is required alongside them, because a
 test run only compiles what the tests import and leaves the rest of `lib/ui`
 unchecked.
 
@@ -966,7 +980,7 @@ unchecked.
 | Pure logic | `planner_test`, `estimator_test`, `calibration_test`, `subject_test`, `study_timer_test`, `today_focus_test`, `preferences_test`, `digest_test`, `layout_test` |
 | Storage | `database_test`, `backup_roundtrip_test` |
 | State | `reanchor_test`, and the logic groups in `autostart_test` and `reminders_toggle_test` |
-| Screens and layout | `device_matrix_test`, `landscape_test`, `glass_inset_test`, `first_run_test`, `week_grid_test`, `theme_toggle_test`, `progress_query_test`, and the UI groups in `autostart_test` and `reminders_toggle_test` |
+| Screens and layout | `device_matrix_test`, `landscape_test`, `glass_inset_test`, `first_run_test`, `week_grid_test`, `theme_toggle_test`, `progress_query_test`, `help_sheet_test`, and the UI groups in `autostart_test` and `reminders_toggle_test` |
 
 ### Principles
 

@@ -29,7 +29,7 @@ and every paragraph in it was learned the hard way.
 `v0.2.0`, at commit `4477223`. `main` is level with `origin/main`. The user
 pushes, never Claude.
 
-- 261/261 tests pass and `analyze` is clean.
+- 269/269 tests pass and `analyze` is clean.
 - **Verified on hardware**: a Xiaomi 23127PN0CG (HyperOS, Android 16) and a
   OnePlus Pad (OxygenOS 16). Reminders reaching the lock screen with sound, the
   autostart deep link on both, the tablet two-pane layout, landscape, and the
@@ -95,6 +95,71 @@ an `AnimatedVectorDrawable` as the launch splash
 - `lib/ui/today_editorial_screen.dart`, `layout.dart`, `theme.dart`,
   `glass.dart`, `brand.dart`
 - `tools/dev.ps1`: every build and device action
+
+## Agreed next build: the first-run tour
+
+Prompted by a first-time user (the user's parent) who opened the app with no
+context and couldn't tell what to do. The first-run screen's "How Prahar works"
+link was right there and wasn't noticed, and reading an explanation wasn't what
+was needed anyway. Designed with the user on 11 Sep; **not built yet**. The ?
+help sheet on Today came first and is where the tour's replay will go.
+
+Decisions the user made:
+
+- **A do-tour, not a look-tour.** The user really adds a subject and a topic
+  during it. On a fresh install Subjects and Today are empty, so a look-only
+  tour has nothing to point at; doing the setup *is* the tour.
+- **Starts automatically on first launch**, when there are no subjects, with
+  **Skip** on every step.
+- **Existing installs don't matter yet.** Too few users to design for.
+
+The sequence (read: a bubble to tap past; do: waits for the action):
+
+1. Welcome card: the mark, "Welcome to Prahar", two lines, Show me around or
+   Skip. (read)
+2. The nav bar, **one stop only**: five tabs, start with Subjects. Don't name
+   all five. (read)
+3. Tap Subjects. The tour waits for the tap rather than switching for them.
+   (do)
+4. Tap + Subject and save it. The overlay steps aside while the sheet is open
+   and returns once it's saved. (do)
+5. The new subject row: the exam date decides how much to do each day. One
+   sentence, never the algorithm. (read)
+6. Add a topic: usually a chapter, with its page count. (do)
+7. Reminders: explain, then notifications, exact alarms, battery, autostart,
+   and a test reminder. (do)
+8. Today, two or three stops: what to study now; Start focus and Done; the rest
+   of today. End on "tap Plan any time". (read)
+
+Keep read-only bubbles to about four in total.
+
+Things that have to be right:
+
+- **Reminders come before Today, for two reasons.** The Android permission
+  prompts currently fire at launch in `main.dart`, before the first frame, so
+  they would land on top of the welcome card; that request must move into step
+  7. And until battery is unrestricted, Today shows the red "Reminders will not
+  arrive" card right above the block the tour is presenting.
+- **Resume from the data, not a stored step number.** No subject: step 3. A
+  subject but no topic: step 6. A topic but reminders not granted: step 7. The
+  same principle as the derived plan.
+- **Branches:** a cancelled sheet prompts again rather than breaking; a subject
+  saved without an exam date gets nudged back to set one; Today with nothing
+  planned (set up late at night, or an exam date that is today or past) needs
+  its own wording.
+- **Plan gets its own short tour on the first deliberate visit**, never inside
+  the main one. At most three stops (Days, Week, Month). It must target what is
+  actually on screen: a phone shows the Days/Week/Month toggle, a wide layout
+  shows the week grid beside the month calendar with no toggle. Progress waits
+  until it has real content, or has no tour. Settings needs none.
+- **Look:** a dim overlay with a soft rounded cut-out and a thin indigo ring
+  (indigo means focus); the bubble follows Cards and Glass like any surface;
+  Next is amber (a call to action); plain copy, no dashes; fits 320dp at 1.5x
+  text; the bubble never covers its own target; targets measured from the real
+  layout, including the landscape rail, tablets and three-button navigation.
+- **Testing:** both dev devices already have data, so the tour won't appear on
+  either. Replay from the ? sheet ("Show me around again") is how it gets seen,
+  and each step needs a widget test, since the Xiaomi can't be driven over adb.
 
 ## Open work, in order
 
@@ -237,6 +302,7 @@ tools\make_t3_tick_variants.ps1 # K1..K5 tick-thickness ladder
 tools\make_v2_launcher.ps1      # any icon variant at every launcher density
 tools\make_nav_options.ps1      # nav icon candidates, 7 per tab, at 96 and 24px
 tools\make_mark_anim.ps1        # the mark's animation as 10-frame filmstrips
+tools\make_help_options.ps1     # help icon candidates on both bar colours
 ```
 
 Every `adb` call in `dev.ps1` is bare, with no `-s <serial>`, so **exactly one
@@ -459,7 +525,10 @@ without reason. How they're implemented is in ARCHITECTURE.md, section 10.
 
 - **Visual choices are made by looking, not by reading names.** Icons were chosen
   from contact sheets at the 24dp they're seen at (`make_nav_options.ps1`), and
-  the mark's animation from filmstrips (`make_mark_anim.ps1`). The sheets go to
+  the mark's animation from filmstrips (`make_mark_anim.ps1`). The help button's
+  `help_outline_rounded` came from `make_help_options.ps1`: the circle sits with
+  the round mark, where a bare question mark went thin at 24dp and a speech
+  bubble or lightbulb read as chat or tips. The sheets go to
   gitignored `build/`, so regenerate them to revisit a decision.
 - **Inter, and only Inter.** It beat six alternatives in a live picker; the picker
   and the other fonts are gone.
