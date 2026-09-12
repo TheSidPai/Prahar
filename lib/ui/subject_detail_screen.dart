@@ -29,15 +29,32 @@ class SubjectDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final subject = state.subjectFor(subjectId);
-    if (subject == null) return const Scaffold(body: SizedBox.shrink());
+    if (subject == null) {
+      // The subject is gone, deleted from this page or anywhere else. Leave,
+      // rather than draw a page about nothing: it used to be a blank grey
+      // screen with no way back but the system back gesture.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        if (ModalRoute.of(context)?.isCurrent ?? false) {
+          Navigator.of(context).pop();
+        }
+      });
+      return Scaffold(appBar: AppBar());
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: Text(subject.name),
         actions: [
           IconButton(
+            tooltip: 'Edit subject',
             icon: const Icon(Icons.edit_outlined),
             onPressed: () => showSubjectSheet(context, existing: subject),
+          ),
+          IconButton(
+            tooltip: 'Delete subject',
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => confirmDeleteSubject(context, subject),
           ),
         ],
       ),

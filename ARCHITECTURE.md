@@ -90,7 +90,7 @@ Dependencies point inward only. `domain/` depends on nothing in the app.
 | `lib/ui/` | Screens and the design system | see [section 10](#10-ui-architecture) |
 | `android/app/src/main/kotlin/` | Platform code | `MainActivity.kt`, `WidgetBridge.kt`, `NextBlockWidget.kt`, `TodayWidget.kt` |
 | `tools/` | Build, device diagnostics, icon generation | `dev.ps1`, `make_icon.ps1` |
-| `test/` | 307 tests across 24 files | see [section 11](#11-testing) |
+| `test/` | 311 tests across 25 files | see [section 11](#11-testing) |
 
 ### Startup
 
@@ -948,6 +948,14 @@ colour, not a word. Sideways it's a seven-column grid with a clock down the side
 Blocks draw only the lines of text that fit their height and clip the rest; they
 once painted over their neighbours.
 
+**Deleting a subject has its own button**: a bin beside the pencil, on the
+subject's page and in the tablet pane, and it asks first, since the topics and
+their logged time go with it (`confirmDeleteSubject`). It used to be a text
+button inside the edit sheet. **A subject page closes itself once its subject is
+gone**, however that happened; before, deleting left a blank grey page with no
+back arrow. On a tablet the pane falls back to the first subject rather than
+showing the space where the deleted one was.
+
 **"Archived" means the same thing everywhere.** Subjects and Progress both fold
 subjects whose exam has passed into an Archive section, from
 `state.archivedSubjects`, and Progress's headline percentage counts only work
@@ -1043,7 +1051,7 @@ Rules for writing UI copy are in CLAUDE.md.
 
 ## 11. Testing
 
-307 tests in 24 files. `flutter analyze` is required alongside them, because a
+311 tests in 25 files. `flutter analyze` is required alongside them, because a
 test run only compiles what the tests import and leaves the rest of `lib/ui`
 unchecked.
 
@@ -1052,7 +1060,7 @@ unchecked.
 | Pure logic | `planner_test`, `estimator_test`, `calibration_test`, `subject_test`, `study_timer_test`, `today_focus_test`, `preferences_test`, `digest_test`, `layout_test` |
 | Storage | `database_test`, `backup_roundtrip_test` |
 | State | `reanchor_test`, and the logic groups in `autostart_test` and `reminders_toggle_test` |
-| Screens and layout | `device_matrix_test`, `landscape_test`, `glass_inset_test`, `first_run_test`, `week_grid_test`, `theme_toggle_test`, `progress_query_test`, `help_sheet_test`, `spotlight_test`, `tour_test`, and the UI groups in `autostart_test` and `reminders_toggle_test` |
+| Screens and layout | `device_matrix_test`, `landscape_test`, `glass_inset_test`, `first_run_test`, `week_grid_test`, `theme_toggle_test`, `progress_query_test`, `help_sheet_test`, `spotlight_test`, `tour_test`, `subject_delete_test`, and the UI groups in `autostart_test` and `reminders_toggle_test` |
 
 ### Principles
 

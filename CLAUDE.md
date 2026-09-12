@@ -29,7 +29,7 @@ and every paragraph in it was learned the hard way.
 `v0.2.0`, at commit `4477223`. `main` is level with `origin/main`. The user
 pushes, never Claude.
 
-- 307/307 tests pass and `analyze` is clean.
+- 311/311 tests pass and `analyze` is clean.
 - **Verified on hardware**: a Xiaomi 23127PN0CG (HyperOS, Android 16) and a
   OnePlus Pad (OxygenOS 16). Reminders reaching the lock screen with sound, the
   autostart deep link on both, the tablet two-pane layout, landscape, and the
@@ -434,7 +434,11 @@ whole run in `build\dev.log` to read with an offset. `test` tees the full output
 and a copy to the log. This replaced trimming with `| Select-Object -Last N` at
 the call site.
 
-Each test is capped at 60 seconds (`--timeout 60s`). Before that, a widget test
+Each test is capped at 60 seconds (`--timeout 60s`). **Except `testWidgets`,
+which keeps its own 10-minute timeout** that the flag does not shorten: on 12 Sep
+a database write inside a widget test's body hung `subject_delete_test` for the
+full ten minutes, and the rest of that file failed with "Guarded function
+conflict". Write fixtures in `setUp` or inside `tester.runAsync`. Before that, a widget test
 awaiting a database write inside fake async hung and turned a one-minute run into
 ten before anything failed.
 

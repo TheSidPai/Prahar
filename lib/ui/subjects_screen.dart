@@ -75,7 +75,12 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
     // Two panes when there is width: the list stops being a menu you leave in
     // order to look at something, and becomes an index you read alongside it.
     final wide = Layout.isWide(MediaQuery.sizeOf(context));
-    final shown = _selected ?? (active.isNotEmpty ? active.first.id : null);
+    // The chosen subject only while it still exists. After a delete the pane
+    // would otherwise go on showing the empty space where it was.
+    final chosen = _selected;
+    final shown = chosen != null && state.subjectFor(chosen) != null
+        ? chosen
+        : (active.isNotEmpty ? active.first.id : null);
 
     final list = ListView(
       padding: EdgeInsets.only(
@@ -211,6 +216,11 @@ class _DetailPane extends StatelessWidget {
                 tooltip: 'Edit subject',
                 icon: const Icon(Icons.edit_outlined, size: 20),
                 onPressed: () => showSubjectSheet(context, existing: subject),
+              ),
+              IconButton(
+                tooltip: 'Delete subject',
+                icon: const Icon(Icons.delete_outline, size: 20),
+                onPressed: () => confirmDeleteSubject(context, subject),
               ),
               TextButton.icon(
                 onPressed: () => showTopicSheet(context, subjectId: subject.id),
@@ -427,6 +437,52 @@ class _SubjectRow extends StatelessWidget {
   }
 }
 
+/// Asks before deleting a subject, then deletes it.
+///
+/// Its own bin button beside the pencil, not a row in the edit sheet: removing
+/// a subject with all its topics and logged time is not a kind of editing, and
+/// tucked inside the sheet it was hard to find. The page it was shown on closes
+/// itself once the subject is gone; see SubjectDetailScreen.
+Future<void> confirmDeleteSubject(BuildContext context, Subject subject) async {
+  final state = context.read<AppState>();
+  final hasTopics = state.topicsFor(subject.id).isNotEmpty;
+
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) {
+      final scheme = Theme.of(context).colorScheme;
+      return AlertDialog(
+        title: Text('Delete ${subject.name}?'),
+        content: Text(
+          hasTopics
+              ? "Its topics and the study time logged on them go too. This "
+                    "can't be undone."
+              : "This can't be undone.",
+        ),
+        actions: [
+          TextButton(
+            key: const ValueKey('cancel-delete-subject'),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          // Red, not the amber of an ordinary action: this one destroys.
+          FilledButton(
+            key: const ValueKey('confirm-delete-subject'),
+            style: FilledButton.styleFrom(
+              backgroundColor: scheme.error,
+              foregroundColor: scheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (ok == true) await state.deleteSubject(subject.id);
+}
+
 /// Add or edit a subject. Exam date is optional but heavily encouraged — it is
 /// what drives every urgency decision the planner makes.
 Future<void> showSubjectSheet(BuildContext context, {Subject? existing}) async {
@@ -600,14 +656,6 @@ Future<void> showSubjectSheet(BuildContext context, {Subject? existing}) async {
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    if (existing != null)
-                      TextButton(
-                        onPressed: () async {
-                          await state.deleteSubject(existing.id);
-                          if (context.mounted) Navigator.pop(context);
-                        },
-                        child: const Text('Delete'),
-                      ),
                     const Spacer(),
                     FilledButton(
                       onPressed: () async {
