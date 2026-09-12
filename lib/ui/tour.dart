@@ -324,7 +324,7 @@ class _ReminderSetupState extends State<_ReminderSetup> {
       children: [
         _SetupRow(
           key: const ValueKey('tour-allow-notifications'),
-          done: state.remindersAsked && state.exactAlarmsAllowed,
+          done: state.notificationsAllowed && state.exactAlarmsAllowed,
           title: 'Notifications',
           detail:
               'Android may ask twice: to show reminders, and to send them on '

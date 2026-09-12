@@ -198,6 +198,24 @@ class Notifier {
     return granted;
   }
 
+  /// Whether this app may post notifications right now.
+  ///
+  /// Fails soft to true, like the checks below: never say something is off on
+  /// the strength of a check that did not complete.
+  Future<bool> notificationsEnabled() async {
+    try {
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      if (android == null) return true;
+      return await android.areNotificationsEnabled() ?? true;
+    } catch (e) {
+      debugPrint('Prahar: notification permission check failed: $e');
+      return true;
+    }
+  }
+
   /// Whether the app is exempt from battery optimisation.
   ///
   /// This is the difference between reminders working and not. Without the

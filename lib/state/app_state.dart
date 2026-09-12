@@ -48,6 +48,10 @@ class AppState extends ChangeNotifier {
   bool loading = true;
   bool exactAlarmsAllowed = true;
 
+  /// Whether Android lets the app post notifications. Read on every replan and
+  /// resume, so the tour's reminders card can show it is already allowed.
+  bool notificationsAllowed = true;
+
   /// False means reminders will not arrive until the app is opened by hand.
   /// Surfaced loudly, because everything else about the app is pointless
   /// without it.
@@ -147,7 +151,12 @@ class AppState extends ChangeNotifier {
   /// welcome card. Someone who skips before that stop is asked now, or
   /// skipping would quietly mean no reminders at all.
   Future<void> skipTour() =>
-      _endTour(askForReminders: !(remindersAsked || _tourRemindersDone));
+      _endTour(askForReminders: !(_remindersSettled || _tourRemindersDone));
+
+  /// Nothing left to ask Android for: the prompts ran in this session, or
+  /// both permissions were already granted, as after a restore or on replay.
+  bool get _remindersSettled =>
+      remindersAsked || (notificationsAllowed && exactAlarmsAllowed);
 
   /// Shows Android's prompts for notifications and on-time alarms, then hands
   /// the alarms over again with whatever was granted.
@@ -163,7 +172,7 @@ class AppState extends ChangeNotifier {
 
   /// Finishes the reminders stop, and brings Today up for the last stops.
   Future<void> finishTourReminders() async {
-    if (!remindersAsked) await requestReminderPermissions();
+    if (!_remindersSettled) await requestReminderPermissions();
     _tourRemindersDone = true;
     todayRequests++;
     notifyListeners();
@@ -322,6 +331,7 @@ class AppState extends ChangeNotifier {
 
     if (resyncAlarms && plan != null) {
       exactAlarmsAllowed = await notifier.canScheduleExact();
+      notificationsAllowed = await notifier.notificationsEnabled();
       batteryExempt = await notifier.isBatteryExempt();
       // A replan is worth doing even if the alarms cannot be written: the
       // schedule on screen is still correct, and throwing here would take the
@@ -348,6 +358,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> refreshAlarms() async {
     exactAlarmsAllowed = await notifier.canScheduleExact();
+    notificationsAllowed = await notifier.notificationsEnabled();
     batteryExempt = await notifier.isBatteryExempt();
     await _syncReminders();
     await _syncDigests();

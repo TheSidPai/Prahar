@@ -61,6 +61,12 @@ class _QuietNotifier extends Notifier {
 
   @override
   Future<bool> hasAutostartScreen() async => false;
+
+  /// Off unless a test says otherwise, as on a fresh install.
+  bool notificationsOn = false;
+
+  @override
+  Future<bool> notificationsEnabled() async => notificationsOn;
 }
 
 /// The first-run tour: which stop it is at, when it runs, and that each stop
@@ -172,8 +178,11 @@ void main() {
       if (dir.existsSync()) dir.deleteSync(recursive: true);
     });
 
-    Future<AppState> launch() async {
-      final state = AppState(db: db, notifier: _QuietNotifier());
+    Future<AppState> launch({bool notificationsOn = false}) async {
+      final state = AppState(
+        db: db,
+        notifier: _QuietNotifier()..notificationsOn = notificationsOn,
+      );
       await state.load();
       return state;
     }
@@ -242,6 +251,15 @@ void main() {
       expect(asks(state), 1);
     });
 
+    test('nothing is asked when Android already allows it', () async {
+      // After a restore, or on a replay: the prompts would only be noise.
+      final state = await launch(notificationsOn: true);
+      await setUpSubject(state);
+      await state.finishTourReminders();
+
+      expect(asks(state), 0);
+    });
+
     test('skipping ends it for good', () async {
       await (await launch()).skipTour();
       expect((await launch()).tourActive, isFalse);
@@ -276,9 +294,12 @@ void main() {
       db = PraharDatabase();
       await db.open(path: dir.path);
       notifier = _QuietNotifier();
+      // A fresh install: nothing has been allowed yet. Set here because
+      // nothing reads it from the notifier until the state is loaded.
       state = AppState(db: db, notifier: notifier)
         ..loading = false
         ..prefs = const Prefs()
+        ..notificationsAllowed = false
         ..tourActive = true;
     });
 

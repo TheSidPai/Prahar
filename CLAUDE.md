@@ -29,7 +29,7 @@ and every paragraph in it was learned the hard way.
 `v0.2.0`, at commit `4477223`. `main` is level with `origin/main`. The user
 pushes, never Claude.
 
-- 306/306 tests pass and `analyze` is clean.
+- 307/307 tests pass and `analyze` is clean.
 - **Verified on hardware**: a Xiaomi 23127PN0CG (HyperOS, Android 16) and a
   OnePlus Pad (OxygenOS 16). Reminders reaching the lock screen with sound, the
   autostart deep link on both, the tablet two-pane layout, landscape, and the
@@ -340,7 +340,9 @@ missing.
 prefix, and `-t` is a prefix of the script's own `-Task`, so
 `dev.ps1 adb logcat -d -t 200` sets `Task='200'` and prints the help. It looks
 exactly like adb returning nothing, and an hour went into "the log buffer is
-empty" before that was spotted. Use `-v brief -s <tag>`.
+empty" before that was spotted. Use `-v brief -s <tag>`. **`-r` fails the same
+way** (`dev.ps1 adb install -r <apk>` was rejected on 11 Sep), so never pass
+single-letter flags through `adb`; to reinstall, just run `dev.ps1 install`.
 
 ### Use these exact command shapes, or the permission prompts come back
 
@@ -456,6 +458,10 @@ exists to show.
 - **Kotlin and manifest changes are only verified by building.** Tests never touch
   them, and `MethodChannel` types are checked at runtime, not compile time. After
   changing either, `apk`, then `install`, then `check` on a device.
+- **`reanchor_test` depends on the time of day.** It plans from the wall clock,
+  and near the end of the day today has no blocks left, so it fails with
+  `Bad state: No element` in `firstStart`. Seen just before midnight on 11 Sep;
+  a rerun after midnight passed. A real failure there names something else.
 - **`install` builds first.** Until 4 Sep it installed whatever APK was already in
   `build/`, silently reinstalling the previous build. If a change seems absent on
   the device, check the APK's timestamp before suspecting the code.
@@ -492,6 +498,15 @@ ask the user to open the screen, or write a widget test.
   It appears on the first install of a *new* package, because MIUI's on-screen
   confirmation cancels itself if not tapped in time. Updates never show it. Retry
   once, and look at the phone.
+
+**A reinstall is not a clean slate.** The manifest doesn't set `allowBackup`,
+so on 11 Sep Android's Auto Backup restored the whole database after
+`adb uninstall` and `install`, and the app launched as an existing install:
+permission prompts at launch, no tour. `pm clear` over adb is refused on MIUI
+(`CLEAR_APP_USER_DATA`). To test a first launch, clear data on the phone:
+Settings > Apps > Prahar > Storage > Clear data. Whether to keep Auto Backup on
+is an open decision, and it means "an uninstall loses everything" is not quite
+true.
 
 ## Releasing
 

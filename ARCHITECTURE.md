@@ -90,7 +90,7 @@ Dependencies point inward only. `domain/` depends on nothing in the app.
 | `lib/ui/` | Screens and the design system | see [section 10](#10-ui-architecture) |
 | `android/app/src/main/kotlin/` | Platform code | `MainActivity.kt`, `WidgetBridge.kt`, `NextBlockWidget.kt`, `TodayWidget.kt` |
 | `tools/` | Build, device diagnostics, icon generation | `dev.ps1`, `make_icon.ps1` |
-| `test/` | 306 tests across 24 files | see [section 11](#11-testing) |
+| `test/` | 307 tests across 24 files | see [section 11](#11-testing) |
 
 ### Startup
 
@@ -1043,7 +1043,7 @@ Rules for writing UI copy are in CLAUDE.md.
 
 ## 11. Testing
 
-306 tests in 24 files. `flutter analyze` is required alongside them, because a
+307 tests in 24 files. `flutter analyze` is required alongside them, because a
 test run only compiles what the tests import and leaves the rest of `lib/ui`
 unchecked.
 
