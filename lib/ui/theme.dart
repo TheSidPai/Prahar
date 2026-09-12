@@ -46,6 +46,16 @@ class PraharTheme {
   /// the same one `MarkPalette.onLight` uses, for the same reason.
   static const accentOnLight = Color(0xFFC2661F);
 
+  /// The tour's paper note, and the arrows and window drawn in the same
+  /// colour. Fixed across themes: the tour dims whatever sits behind it, so
+  /// the note always lands on a dark ground, and nothing else in the app is
+  /// this colour, so it can only be the guide.
+  static const tourPaper = Color(0xFFF3EDE3);
+
+  /// The note's Next button. Indigo rather than amber, which stays with the
+  /// app's own buttons so a highlighted one never looks like the way on.
+  static const tourNext = Color(0xFF5A63D8);
+
   /// The one bundled family. A seven-font picker shipped while the choice was
   /// still open; Inter won it on a live preview, so the picker and the six
   /// unused TTFs are gone. Bundled, never fetched — the release build has no
