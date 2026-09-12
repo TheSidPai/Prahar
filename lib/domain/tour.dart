@@ -1,80 +1,56 @@
-/// The stops on the first-run tour.
+/// The stops on Prahar's tours, in the order they come.
 ///
-/// Which stop is showing is worked out from what the student has made so far,
-/// never stored as a step number. Closing the app halfway, cancelling a sheet
-/// or deleting the subject all land on the right stop with no bookkeeping, for
-/// the same reason the plan is derived rather than saved. The one exception is
-/// [reminders]; see [tourStepFor].
-enum TourStep {
-  /// A card with the mark. Read.
+/// Every stop moves on by Next. The student is never asked to tap the app
+/// during a tour: a highlighted button that is also the thing to press next
+/// reads as "press it", which is exactly what confused the first version.
+enum TourStop {
   welcome,
-
-  /// The navigation, one stop for all five tabs. Read.
-  navigation,
-
-  /// Waits for Subjects to be tapped.
-  openSubjects,
-
-  /// Waits for a subject to be saved.
-  addSubject,
-
-  /// The new subject, and what its exam date does. Read.
-  subject,
-
-  /// Waits for a topic to be saved.
-  addTopic,
-
-  /// A card with a row for each thing Android needs allowed, and Continue.
-  reminders,
-
-  /// Today's main card. Read.
+  tabs,
+  subjects,
+  topics,
   today,
+  planProgress,
+  reminders,
+  finish,
+  block,
+  focus,
+  skip,
+  done,
+  laterBlocks;
 
-  /// The Plan tab, and the end of the tour. Read.
-  plan;
-
-  /// Stops with nothing to do but read, and a Next button.
-  bool get isRead =>
-      this == welcome ||
-      this == navigation ||
-      this == subject ||
-      this == today ||
-      this == plan;
-
-  /// Stops that wait for a tap on something in the app.
-  bool get waitsForTap =>
-      this == openSubjects || this == addSubject || this == addTopic;
+  /// Stops shown on the Subjects tab. Every other stop is on Today.
+  bool get onSubjectsTab => this == subjects || this == topics;
 }
 
-/// Which stop the tour is at, or null once it is over.
+enum TourKind { main, firstBlock }
+
+/// The main tour.
 ///
-/// [seen] holds the read stops already tapped past. The welcome and the
-/// navigation stop belong to an empty app, or to a [replay]: someone coming
-/// back with a subject already made is past them.
-///
-/// [remindersDone] is the one input that is stored rather than derived.
-/// Android reports nothing about autostart, so "reminders are set up" is not
-/// something the data can answer, and finishing that stop is recorded instead.
-TourStep? tourStepFor({
-  required bool hasSubject,
-  required bool hasTopic,
-  required bool showingSubjects,
-  bool remindersDone = false,
-  bool replay = false,
-  Set<TourStep> seen = const {},
-}) {
-  if (!hasSubject || replay) {
-    if (!seen.contains(TourStep.welcome)) return TourStep.welcome;
-    if (!seen.contains(TourStep.navigation)) return TourStep.navigation;
-  }
-  if (!hasTopic) {
-    if (!showingSubjects) return TourStep.openSubjects;
-    if (!hasSubject) return TourStep.addSubject;
-    if (!seen.contains(TourStep.subject)) return TourStep.subject;
-    return TourStep.addTopic;
-  }
-  if (!remindersDone) return TourStep.reminders;
-  if (!seen.contains(TourStep.today)) return TourStep.today;
-  if (!seen.contains(TourStep.plan)) return TourStep.plan;
-  return null;
-}
+/// A [replay], from the help sheet, is for someone already set up: it folds in
+/// the first block's stops when Today has a block to point at, and ends on
+/// reminders instead of the Add your first subject card.
+List<TourStop> mainTourStops({
+  required bool replay,
+  bool hasBlock = false,
+  bool hasLaterBlocks = false,
+}) => [
+  TourStop.welcome,
+  TourStop.tabs,
+  TourStop.subjects,
+  TourStop.topics,
+  TourStop.today,
+  if (replay && hasBlock)
+    ...firstBlockStops(hasLaterBlocks: hasLaterBlocks).skip(1),
+  TourStop.planProgress,
+  TourStop.reminders,
+  if (!replay) TourStop.finish,
+];
+
+/// The short tour for a student's first real block, shown once.
+List<TourStop> firstBlockStops({required bool hasLaterBlocks}) => [
+  TourStop.block,
+  TourStop.focus,
+  TourStop.skip,
+  TourStop.done,
+  if (hasLaterBlocks) TourStop.laterBlocks,
+];

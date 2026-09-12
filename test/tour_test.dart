@@ -8,19 +8,18 @@ import 'package:prahar/domain/preferences.dart';
 import 'package:prahar/domain/schedule.dart';
 import 'package:prahar/domain/tour.dart';
 import 'package:prahar/notifications/notifier.dart';
-import 'package:prahar/planner/planner.dart';
 import 'package:prahar/state/app_state.dart';
 import 'package:prahar/ui/home_screen.dart';
-import 'package:prahar/ui/subject_detail_screen.dart';
+import 'package:prahar/ui/spotlight.dart';
 import 'package:prahar/ui/theme.dart';
 import 'package:prahar/ui/tour.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// Answers the OS questions without an OS, and counts the permission asks.
-/// There is no plugin in a test.
 class _QuietNotifier extends Notifier {
   int permissionRequests = 0;
+  bool notificationsOn = false;
 
   @override
   Future<void> init() async {}
@@ -30,6 +29,9 @@ class _QuietNotifier extends Notifier {
     permissionRequests++;
     return true;
   }
+
+  @override
+  Future<bool> notificationsEnabled() async => notificationsOn;
 
   @override
   Future<bool> canScheduleExact() async => true;
@@ -61,19 +63,10 @@ class _QuietNotifier extends Notifier {
 
   @override
   Future<bool> hasAutostartScreen() async => false;
-
-  /// Off unless a test says otherwise, as on a fresh install.
-  bool notificationsOn = false;
-
-  @override
-  Future<bool> notificationsEnabled() async => notificationsOn;
 }
 
-/// The first-run tour: which stop it is at, when it runs, and that each stop
-/// points at something the student can actually reach on that layout.
-///
-/// The development phones both have data, so the tour never starts on them by
-/// itself. These tests are most of what there is.
+/// The tours: which stops, when they run, and that each stop points at what
+/// is really on screen, with every stop moved on by Next.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -87,78 +80,80 @@ void main() {
     name: 'Chemistry',
     examDate: DateTime.now().add(const Duration(days: 30)),
   );
-  const chapter = Topic(
-    id: 't1',
-    subjectId: 's1',
-    title: 'Chapter 1',
-    estimatedMinutes: 120,
-  );
 
-  group('which stop', () {
-    TourStep? at({
-      bool subject = false,
-      bool topic = false,
-      bool onSubjects = false,
-      bool reminders = false,
-      bool replay = false,
-      Set<TourStep> seen = const {},
-    }) => tourStepFor(
-      hasSubject: subject,
-      hasTopic: topic,
-      showingSubjects: onSubjects,
-      remindersDone: reminders,
-      replay: replay,
-      seen: seen,
+  /// Two blocks today, the first running now, built by hand so the tests do
+  /// not depend on the time of day they run at.
+  Plan planWithBlocks() {
+    final now = DateTime.now();
+    final start = (now.hour * 60 + now.minute - 5).clamp(0, 1300);
+    StudySession block(String id, int at) => StudySession(
+      id: id,
+      topicId: 't1',
+      subjectId: 's1',
+      topicTitle: 'Chapter 1',
+      subjectName: 'Chemistry',
+      date: DateTime(now.year, now.month, now.day),
+      startMinuteOfDay: at,
+      durationMinutes: 50,
     );
+    return Plan(
+      sessions: [block('b1', start), block('b2', start + 55)],
+      feasibility: const Feasibility(
+        requiredMinutes: 100,
+        availableMinutes: 240,
+        unscheduledMinutes: 0,
+      ),
+      generatedAt: now,
+    );
+  }
 
-    const intro = {TourStep.welcome, TourStep.navigation};
-
-    test('an empty app walks from the welcome to adding a subject', () {
-      expect(at(), TourStep.welcome);
-      expect(at(seen: {TourStep.welcome}), TourStep.navigation);
-      expect(at(seen: intro), TourStep.openSubjects);
-      expect(at(seen: intro, onSubjects: true), TourStep.addSubject);
+  group('which stops', () {
+    test('a fresh install walks the eight stops, ending on the button', () {
+      expect(mainTourStops(replay: false), [
+        TourStop.welcome,
+        TourStop.tabs,
+        TourStop.subjects,
+        TourStop.topics,
+        TourStop.today,
+        TourStop.planProgress,
+        TourStop.reminders,
+        TourStop.finish,
+      ]);
     });
 
-    test('coming back with a subject skips the welcome', () {
-      expect(at(subject: true), TourStep.openSubjects);
-      expect(at(subject: true, onSubjects: true), TourStep.subject);
+    test('a replay folds in the first block, and has no button card', () {
+      final stops = mainTourStops(
+        replay: true,
+        hasBlock: true,
+        hasLaterBlocks: true,
+      );
+      expect(stops.sublist(4, 9), [
+        TourStop.today,
+        TourStop.focus,
+        TourStop.skip,
+        TourStop.done,
+        TourStop.laterBlocks,
+      ]);
+      expect(stops, isNot(contains(TourStop.finish)));
       expect(
-        at(subject: true, onSubjects: true, seen: {TourStep.subject}),
-        TourStep.addTopic,
+        mainTourStops(replay: true),
+        isNot(contains(TourStop.focus)),
+        reason: 'nothing to point at without a block',
       );
     });
 
-    test('a topic moves on to reminders, then Today, then Plan', () {
-      expect(at(subject: true, topic: true), TourStep.reminders);
-      expect(at(subject: true, topic: true, reminders: true), TourStep.today);
+    test('the first block shows later blocks only when there are some', () {
+      expect(firstBlockStops(hasLaterBlocks: true).last, TourStop.laterBlocks);
       expect(
-        at(subject: true, topic: true, reminders: true, seen: {TourStep.today}),
-        TourStep.plan,
-      );
-      expect(
-        at(
-          subject: true,
-          topic: true,
-          reminders: true,
-          seen: {TourStep.today, TourStep.plan},
-        ),
-        isNull,
+        firstBlockStops(hasLaterBlocks: false),
+        isNot(contains(TourStop.laterBlocks)),
       );
     });
 
-    test('a replay shows the welcome again, then skips what is set up', () {
-      expect(at(subject: true, topic: true, replay: true), TourStep.welcome);
+    test('subjects and topics are the stops on the Subjects tab', () {
       expect(
-        at(subject: true, topic: true, replay: true, seen: intro),
-        TourStep.reminders,
-      );
-    });
-
-    test('deleting the subject goes back to adding one', () {
-      expect(
-        at(onSubjects: true, seen: {...intro, TourStep.subject}),
-        TourStep.addSubject,
+        TourStop.values.where((s) => s.onSubjectsTab),
+        unorderedEquals([TourStop.subjects, TourStop.topics]),
       );
     });
   });
@@ -187,100 +182,106 @@ void main() {
       return state;
     }
 
-    Future<void> setUpSubject(AppState state) async {
-      await state.addSubject(name: 'Chemistry', examDate: chemistry.examDate);
-      await state.addTopic(
-        subjectId: state.subjects.single.id,
-        title: 'Chapter 1',
-        unit: EffortUnit.pages,
-        amount: 12,
-        rate: 3,
-      );
-    }
-
     int asks(AppState state) =>
         (state.notifier as _QuietNotifier).permissionRequests;
 
-    test('a fresh install starts it', () async {
+    test('a fresh install starts it on the welcome', () async {
       final state = await launch();
-      expect(state.tourActive, isTrue);
-      expect(state.tourStep, TourStep.welcome);
+      expect(state.tourKind, TourKind.main);
+      expect(state.tourStop, TourStop.welcome);
     });
 
     test('an install that already had subjects never sees it', () async {
       await db.upsertSubject(chemistry);
-      final state = await launch();
-      expect(state.tourActive, isFalse);
+      expect((await launch()).tourActive, isFalse);
     });
 
-    test('a restart partway through carries on from the data', () async {
-      await launch();
+    test('closed partway, it starts over', () async {
+      final first = await launch();
+      await first.tourNext();
       await db.upsertSubject(chemistry);
 
       final state = await launch();
-      expect(state.tourActive, isTrue);
-      expect(
-        state.tourStep,
-        TourStep.openSubjects,
-        reason: 'past the welcome, since a subject already exists',
-      );
+      expect(state.tourStop, TourStop.welcome);
     });
 
-    test('saving the first topic moves on to reminders', () async {
+    test('Next moves on and Back moves back, never before the first', () async {
       final state = await launch();
-      await setUpSubject(state);
-
-      expect(state.tourActive, isTrue);
-      expect(state.tourStep, TourStep.reminders);
+      state.tourBack();
+      expect(state.tourIndex, 0);
+      await state.tourNext();
+      await state.tourNext();
+      expect(state.tourStop, TourStop.subjects);
+      state.tourBack();
+      expect(state.tourStop, TourStop.tabs);
     });
 
-    test('a restart after reminders picks up at Today', () async {
-      final first = await launch();
-      await setUpSubject(first);
-      await first.finishTourReminders();
+    test(
+      'Next on reminders asks Android, unless it already allows it',
+      () async {
+        for (final allowed in [false, true]) {
+          final state = await launch(notificationsOn: allowed);
+          while (state.tourStop != TourStop.reminders) {
+            await state.tourNext();
+          }
+          await state.tourNext();
+          expect(asks(state), allowed ? 0 : 1);
+          expect(state.tourStop, TourStop.finish);
+          await db.putSetting('tour_done', '');
+        }
+      },
+    );
 
-      expect((await launch()).tourStep, TourStep.today);
-    });
-
-    test('finishing reminders asks Android once, if nobody had yet', () async {
-      final state = await launch();
-      await setUpSubject(state);
-      await state.requestReminderPermissions();
-      await state.finishTourReminders();
-
-      expect(asks(state), 1);
-    });
-
-    test('nothing is asked when Android already allows it', () async {
-      // After a restore, or on a replay: the prompts would only be noise.
-      final state = await launch(notificationsOn: true);
-      await setUpSubject(state);
-      await state.finishTourReminders();
-
-      expect(asks(state), 0);
-    });
-
-    test('skipping ends it for good', () async {
-      await (await launch()).skipTour();
-      expect((await launch()).tourActive, isFalse);
-    });
-
-    test('skipping asks for reminders, since launch held back', () async {
+    test('Skip ends it for good, and asks for reminders', () async {
       final state = await launch();
       await state.skipTour();
       expect(asks(state), 1);
-    });
-
-    test('passing the last stop ends it for good', () async {
-      final state = await launch();
-      await setUpSubject(state);
-      await state.finishTourReminders();
-      await state.tourNext(TourStep.today);
-      await state.tourNext(TourStep.plan);
-
-      expect(state.tourActive, isFalse);
       expect((await launch()).tourActive, isFalse);
     });
+
+    test(
+      'Add your first subject ends it for good and asks for the form',
+      () async {
+        final state = await launch();
+        await state.finishTourAddingSubject();
+        expect(state.tourActive, isFalse);
+        expect(state.addSubjectRequests, 1);
+        expect((await launch()).tourActive, isFalse);
+      },
+    );
+
+    test(
+      'the first block tour starts once, when Today shows a block',
+      () async {
+        final state = await launch();
+        state.plan = planWithBlocks();
+        state
+          ..noteShowingToday(false)
+          ..noteShowingToday(true);
+        expect(
+          state.tourKind,
+          TourKind.main,
+          reason: 'never over another tour',
+        );
+
+        await state.skipTour();
+        state
+          ..noteShowingToday(false)
+          ..noteShowingToday(true);
+        expect(state.tourKind, TourKind.firstBlock);
+        expect(state.tourStop, TourStop.block);
+
+        while (state.tourActive) {
+          await state.tourNext();
+        }
+        final again = await launch();
+        again.plan = planWithBlocks();
+        again
+          ..noteShowingToday(false)
+          ..noteShowingToday(true);
+        expect(again.tourActive, isFalse, reason: 'only once');
+      },
+    );
   });
 
   group('on screen', () {
@@ -294,13 +295,10 @@ void main() {
       db = PraharDatabase();
       await db.open(path: dir.path);
       notifier = _QuietNotifier();
-      // A fresh install: nothing has been allowed yet. Set here because
-      // nothing reads it from the notifier until the state is loaded.
       state = AppState(db: db, notifier: notifier)
         ..loading = false
         ..prefs = const Prefs()
-        ..notificationsAllowed = false
-        ..tourActive = true;
+        ..notificationsAllowed = false;
     });
 
     tearDown(() async {
@@ -308,22 +306,18 @@ void main() {
       if (dir.existsSync()) dir.deleteSync(recursive: true);
     });
 
-    /// A subject with a topic and a plan, set straight on the state so
-    /// nothing is written.
-    void withTopic() {
-      final availability = Availability(
-        minutesByWeekday: {for (var d = 1; d <= 7; d++) d: 240},
-      );
+    void withBlocks() {
       state
         ..subjects = [chemistry]
-        ..topics = const [chapter]
-        ..availability = availability
-        ..plan = const Planner().generate(
-          subjects: [chemistry],
-          topics: const [chapter],
-          availability: availability,
-          today: DateTime.now(),
-        );
+        ..topics = const [
+          Topic(
+            id: 't1',
+            subjectId: 's1',
+            title: 'Chapter 1',
+            estimatedMinutes: 120,
+          ),
+        ]
+        ..plan = planWithBlocks();
     }
 
     Widget app() => ChangeNotifierProvider<AppState>.value(
@@ -335,12 +329,12 @@ void main() {
       ),
     );
 
-    // Targets report in after a frame, the window is measured after another,
-    // and the welcome mark takes a second to draw. Today runs a periodic
-    // timer, so pumpAndSettle would never return.
+    // Many short frames rather than a few long ones: switching tab, finding
+    // the target, sliding the window and drawing the arrow each wait for a
+    // frame. Today runs a periodic timer, so pumpAndSettle would never return.
     Future<void> settle(WidgetTester tester) async {
-      for (var i = 0; i < 5; i++) {
-        await tester.pump(const Duration(milliseconds: 300));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
       }
     }
 
@@ -349,6 +343,31 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(app());
+      await settle(tester);
+    }
+
+    const phone = Size(411, 914);
+    const small = Size(320, 640);
+
+    final bubble = find.byKey(const ValueKey('spotlight-bubble'));
+    final next = find.byKey(const ValueKey('spotlight-next'));
+    final back = find.byKey(const ValueKey('spotlight-back'));
+    final skip = find.byKey(const ValueKey('spotlight-skip'));
+
+    Finder target(TourTargetId id) =>
+        find.byWidgetPredicate((w) => w is TourTarget && w.id == id);
+
+    List<SpotlightArrow> arrows(WidgetTester tester) =>
+        (tester
+                    .widget<CustomPaint>(
+                      find.byKey(const ValueKey('spotlight-arrows')),
+                    )
+                    .painter!
+                as SpotlightArrowPainter)
+            .arrows;
+
+    Future<void> tapNext(WidgetTester tester) async {
+      await tester.tap(next);
       await settle(tester);
     }
 
@@ -368,23 +387,6 @@ void main() {
       await settle(tester);
     }
 
-    const phone = Size(411, 914);
-    const sideways = Size(891, 411);
-    const tablet = Size(1280, 800);
-    const small = Size(320, 640);
-
-    final bubble = find.byKey(const ValueKey('spotlight-bubble'));
-    final next = find.byKey(const ValueKey('spotlight-next'));
-    final skip = find.byKey(const ValueKey('spotlight-skip'));
-
-    Finder target(TourTargetId id) =>
-        find.byWidgetPredicate((w) => w is TourTarget && w.id == id);
-
-    Future<void> tapThrough(WidgetTester tester, Finder f) async {
-      await tester.tap(f, warnIfMissed: false);
-      await settle(tester);
-    }
-
     void expectFits(WidgetTester tester, Size size) {
       expect(tester.takeException(), isNull);
       final card = tester.getRect(bubble);
@@ -392,261 +394,175 @@ void main() {
       expect(card.top, greaterThanOrEqualTo(0));
       expect(card.right, lessThanOrEqualTo(size.width));
       expect(card.bottom, lessThanOrEqualTo(size.height));
-      // A button scrolled out of sight inside the bubble still has a rect on
-      // screen, and a tap there lands on the dimmed layer instead.
-      if (next.evaluate().isNotEmpty) {
-        expect(
-          tester.getRect(next).bottom,
-          lessThanOrEqualTo(card.bottom),
-          reason: 'Next is scrolled out of sight inside the bubble',
-        );
-      }
+      expect(
+        tester.getRect(next).bottom,
+        lessThanOrEqualTo(card.bottom),
+        reason: 'Next is scrolled out of sight inside the note',
+      );
     }
 
-    testWidgets('a phone walks from the welcome to adding a subject', (
+    testWidgets('a phone walks the whole tour, switching tabs itself', (
       tester,
     ) async {
+      state.startMainTour();
       await pumpAt(tester, phone);
-      expect(state.tourStep, TourStep.welcome);
-      expect(bubble, findsOneWidget);
+      expect(state.tourStop, TourStop.welcome);
+      expect(back, findsNothing);
 
-      await tapThrough(tester, next);
-      expect(state.tourStep, TourStep.navigation);
+      await tapNext(tester);
+      expect(state.tourStop, TourStop.tabs);
       expect(
         tester.getRect(bubble).bottom,
         lessThanOrEqualTo(tester.getRect(find.byType(NavigationBar)).top),
-        reason: 'the bubble covers the tabs it is describing',
       );
 
-      await tapThrough(tester, next);
-      expect(state.tourStep, TourStep.openSubjects);
-      expect(next, findsNothing, reason: 'this stop waits for a tap');
-
-      // Any other tab is held back.
-      await tapThrough(tester, find.byIcon(Icons.calendar_month_outlined));
-      expect(state.tourStep, TourStep.openSubjects);
-      expect(find.byType(SegmentedButton<int>), findsNothing);
-
-      await tapThrough(tester, target(TourTargetId.subjectsTab));
-      expect(state.tourStep, TourStep.addSubject);
+      await tapNext(tester);
+      expect(state.tourStop, TourStop.subjects);
+      final fab = find.byType(FloatingActionButton);
+      expect(fab, findsOneWidget, reason: 'the tour opened Subjects itself');
       expect(
-        tester
-            .getRect(bubble)
-            .overlaps(tester.getRect(find.byType(FloatingActionButton))),
-        isFalse,
+        arrows(tester).single.end.dx,
+        closeTo(tester.getCenter(fab).dx, 1),
       );
 
-      await tapThrough(tester, find.byType(FloatingActionButton));
-      expect(find.byType(BottomSheet), findsOneWidget);
-    });
-
-    testWidgets('steps aside for the sheet, and returns if it closes unsaved', (
-      tester,
-    ) async {
-      state
-        ..tourNext(TourStep.welcome)
-        ..tourNext(TourStep.navigation);
-      await pumpAt(tester, phone);
-      await tapThrough(tester, target(TourTargetId.subjectsTab));
-      await tapThrough(tester, find.byType(FloatingActionButton));
-
-      expect(find.byType(BottomSheet), findsOneWidget);
-      expect(bubble, findsNothing, reason: 'the dim layer is over the sheet');
-
-      Navigator.of(tester.element(find.byType(BottomSheet))).pop();
+      // Nothing under the dim can be tapped.
+      await tester.tap(fab, warnIfMissed: false);
       await settle(tester);
-
       expect(find.byType(BottomSheet), findsNothing);
-      expect(state.tourStep, TourStep.addSubject);
-      expect(bubble, findsOneWidget);
-    });
 
-    testWidgets('picks up at a subject, and follows it onto its page', (
-      tester,
-    ) async {
-      state.subjects = [chemistry];
-      await pumpAt(tester, phone);
-      expect(
-        state.tourStep,
-        TourStep.openSubjects,
-        reason: 'no welcome for someone with a subject already',
-      );
+      await tapNext(tester);
+      expect(state.tourStop, TourStop.topics);
+      await tester.tap(back);
+      await settle(tester);
+      expect(state.tourStop, TourStop.subjects);
+      expect(fab, findsOneWidget);
 
-      await tapThrough(tester, target(TourTargetId.subjectsTab));
-      expect(state.tourStep, TourStep.subject);
-      expect(
-        tester.getRect(bubble).top,
-        greaterThanOrEqualTo(
-          tester.getRect(target(TourTargetId.firstSubject)).bottom,
-        ),
-      );
+      await tapNext(tester);
+      await tapNext(tester);
+      expect(state.tourStop, TourStop.today);
+      expect(fab, findsNothing, reason: 'back on Today');
 
-      await tapThrough(tester, next);
-      expect(state.tourStep, TourStep.addTopic);
-      expect(target(TourTargetId.addTopic), findsNothing);
+      await tapNext(tester);
+      expect(state.tourStop, TourStop.planProgress);
+      expect(find.byKey(const ValueKey('spotlight-note-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('spotlight-note-1')), findsOneWidget);
+      final pair = arrows(tester);
+      expect(pair, hasLength(2));
+      for (final (i, id) in [
+        TourTargetId.planTab,
+        TourTargetId.progressTab,
+      ].indexed) {
+        expect(pair[i].end.dx, closeTo(tester.getCenter(target(id)).dx, 1));
+      }
 
-      // The row is what opens the page with the button on it.
-      await tapThrough(tester, target(TourTargetId.firstSubject));
-      final add = target(TourTargetId.addTopic);
-      expect(add, findsOneWidget);
-      expect(bubble, findsOneWidget);
-      expect(tester.getRect(bubble).overlaps(tester.getRect(add)), isFalse);
-
-      await tapThrough(tester, add);
-      expect(
-        find.byType(BottomSheet),
-        findsOneWidget,
-        reason: 'the window is on the button, so the tap reaches it',
-      );
-    });
-
-    testWidgets('the reminders card asks, then Today and Plan end the tour', (
-      tester,
-    ) async {
-      withTopic();
-      await pumpAt(tester, phone);
-      expect(state.tourStep, TourStep.reminders);
+      await tapNext(tester);
+      expect(state.tourStop, TourStop.reminders);
       expect(
         find.byKey(const ValueKey('tour-allow-notifications')),
         findsOneWidget,
       );
 
-      await tapAndWaitFor(tester, next, 'tour_reminders');
-      expect(
-        notifier.permissionRequests,
-        1,
-        reason: 'Continue asks when the Allow row was never used',
+      await tapNext(tester);
+      expect(state.tourStop, TourStop.finish);
+      expect(notifier.permissionRequests, 1);
+
+      await tapAndWaitFor(
+        tester,
+        find.byKey(const ValueKey('tour-add-subject')),
+        'tour_done',
       );
-      expect(state.tourStep, TourStep.today);
-      final card = target(TourTargetId.today);
-      expect(card, findsOneWidget);
-      expect(tester.getRect(bubble).overlaps(tester.getRect(card)), isFalse);
-
-      await tapThrough(tester, next);
-      expect(state.tourStep, TourStep.plan);
-      final plan = target(TourTargetId.planTab);
-      expect(plan, findsOneWidget);
-      expect(tester.getRect(bubble).overlaps(tester.getRect(plan)), isFalse);
-
-      await tapAndWaitFor(tester, next, 'tour_done');
       expect(state.tourActive, isFalse);
       expect(bubble, findsNothing);
-    });
-
-    testWidgets('Continue closes the subject page to show Today', (
-      tester,
-    ) async {
-      withTopic();
-      await pumpAt(tester, phone);
-      Navigator.of(tester.element(find.byType(HomeScreen))).push(
-        MaterialPageRoute<void>(
-          builder: (_) => SubjectDetailScreen(subjectId: chemistry.id),
-        ),
+      expect(
+        find.byType(BottomSheet),
+        findsOneWidget,
+        reason: 'the button opens the subject form',
       );
-      await settle(tester);
-      expect(find.byType(SubjectDetailScreen), findsOneWidget);
-
-      await tapAndWaitFor(tester, next, 'tour_reminders');
-
-      expect(find.byType(SubjectDetailScreen), findsNothing);
-      expect(target(TourTargetId.today), findsOneWidget);
     });
 
     testWidgets('Skip ends the tour, remembers it, and asks for reminders', (
       tester,
     ) async {
+      state.startMainTour();
       await pumpAt(tester, phone);
       await tapAndWaitFor(tester, skip, 'tour_done');
 
       expect(bubble, findsNothing);
       expect(state.tourActive, isFalse);
       expect(notifier.permissionRequests, 1);
-      final settings = await tester.runAsync(db.settings);
-      expect(settings!['tour_done'], '1');
     });
 
-    testWidgets('the help sheet shows the tour again', (tester) async {
-      withTopic();
-      state.tourActive = false;
+    testWidgets('the help sheet replays it, with the first block folded in', (
+      tester,
+    ) async {
+      withBlocks();
       await pumpAt(tester, phone);
       expect(bubble, findsNothing);
 
-      await tapThrough(tester, find.byKey(const ValueKey('today-help')));
-      await tapThrough(tester, find.byKey(const ValueKey('help-sheet-tour')));
+      await tester.tap(find.byKey(const ValueKey('today-help')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('help-sheet-tour')));
+      await settle(tester);
 
-      expect(find.byType(BottomSheet), findsNothing);
-      expect(state.tourStep, TourStep.welcome);
+      expect(state.tourStop, TourStop.welcome);
+      expect(state.tourLength, 11);
       expect(bubble, findsOneWidget);
+    });
 
-      await tapThrough(tester, next);
-      await tapThrough(tester, next);
-      expect(
-        state.tourStep,
-        TourStep.reminders,
-        reason: 'already set up, so the subject stops are passed',
-      );
+    testWidgets('the first block tour points at the real buttons', (
+      tester,
+    ) async {
+      withBlocks();
+      state.startFirstBlockTour();
+      await pumpAt(tester, phone);
+      expect(state.tourStop, TourStop.block);
+
+      for (final (stop, id) in [
+        (TourStop.focus, TourTargetId.focus),
+        (TourStop.skip, TourTargetId.skipBlock),
+        (TourStop.done, TourTargetId.doneBlock),
+        (TourStop.laterBlocks, TourTargetId.laterBlocks),
+      ]) {
+        await tapNext(tester);
+        expect(state.tourStop, stop);
+        final aim = target(id);
+        expect(aim, findsOneWidget);
+        expect(tester.getRect(bubble).overlaps(tester.getRect(aim)), isFalse);
+        expect(
+          arrows(tester).single.end.dx,
+          closeTo(tester.getCenter(aim).dx, 1),
+        );
+      }
+
+      await tapAndWaitFor(tester, next, 'first_block_done');
+      expect(state.tourActive, isFalse);
     });
 
     testWidgets('sideways, the tabs stop sits beside the rail', (tester) async {
-      state.tourNext(TourStep.welcome);
-      await pumpAt(tester, sideways);
+      state.startMainTour();
+      await pumpAt(tester, const Size(891, 411));
+      await tapNext(tester);
+
       expect(tester.takeException(), isNull);
-      expect(find.byType(NavigationRail), findsOneWidget);
       expect(
         tester.getRect(bubble).left,
         greaterThanOrEqualTo(tester.getRect(find.byType(NavigationRail)).right),
       );
-
-      await tapThrough(tester, next);
-      await tapThrough(tester, target(TourTargetId.subjectsTab));
-      expect(state.tourStep, TourStep.addSubject);
-      expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a tablet points straight at the topic button in the pane', (
-      tester,
-    ) async {
-      state
-        ..subjects = [chemistry]
-        ..tourNext(TourStep.subject);
-      await pumpAt(tester, tablet);
-
-      await tapThrough(tester, target(TourTargetId.subjectsTab));
-      expect(state.tourStep, TourStep.addTopic);
-
-      final add = target(TourTargetId.addTopic);
-      expect(add, findsOneWidget);
-      expect(tester.getRect(bubble).overlaps(tester.getRect(add)), isFalse);
-
-      await tapThrough(tester, add);
-      expect(find.byType(BottomSheet), findsOneWidget);
-    });
-
-    testWidgets('fits a small phone at a large font', (tester) async {
-      tester.platformDispatcher.textScaleFactorTestValue = 1.5;
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      await pumpAt(tester, small);
-
-      expectFits(tester, small);
-      await tapThrough(tester, next);
-      expectFits(tester, small);
-      await tapThrough(tester, next);
-      expectFits(tester, small);
-      await tapThrough(tester, target(TourTargetId.subjectsTab));
-      expect(state.tourStep, TourStep.addSubject);
-      expectFits(tester, small);
-    });
-
-    testWidgets('the reminders card fits a small phone at a large font', (
+    testWidgets('every stop fits a small phone at a large font', (
       tester,
     ) async {
       tester.platformDispatcher.textScaleFactorTestValue = 1.5;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      withTopic();
+      state.startMainTour();
       await pumpAt(tester, small);
 
-      expect(state.tourStep, TourStep.reminders);
-      expectFits(tester, small);
+      while (true) {
+        expectFits(tester, small);
+        if (state.tourStop == TourStop.finish) break;
+        await tapNext(tester);
+      }
     });
   });
 }

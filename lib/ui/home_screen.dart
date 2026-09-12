@@ -34,26 +34,41 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _select(int i) {
     setState(() => _index = i);
-    // The tour's early stops wait for the student to open Subjects.
-    context.read<AppState>().noteShowingSubjects(i == _subjectsTab);
+    // The first block's tour starts only where its targets are.
+    context.read<AppState>().noteShowingToday(i == 0);
   }
 
-  /// The last of the tour's requests for Today that this screen acted on.
-  int? _todayRequestsSeen;
+  /// The last Add your first subject request from the tour acted on here.
+  int? _addSubjectSeen;
 
-  /// Brings Today up when the tour asks, closing any page pushed over it. On
-  /// a phone the reminders stop is reached on the subject's own page, and the
-  /// tour's last stops are on Today.
-  void _followTourToToday(AppState state) {
-    final requests = state.todayRequests;
-    final seen = _todayRequestsSeen;
-    _todayRequestsSeen = requests;
-    if (seen == null || seen == requests) return;
-    // After the frame: this is called from build, and both of these rebuild.
+  /// Keeps the screen where the tour is: on the tab its stop is about, with
+  /// nothing pushed over it. And when the tour ends on Add your first subject,
+  /// opens that form on the Subjects tab.
+  void _followTour(AppState state) {
+    final requests = state.addSubjectRequests;
+    final seen = _addSubjectSeen;
+    _addSubjectSeen = requests;
+    // After the frame in both cases: this is called from build.
+    if (seen != null && seen != requests) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        _select(_subjectsTab);
+        showSubjectSheet(context);
+      });
+      return;
+    }
+    final stop = state.tourStop;
+    if (stop == null) return;
+    final want = stop.onSubjectsTab ? _subjectsTab : 0;
+    if (want == _index && !Navigator.of(context).canPop()) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final now = context.read<AppState>().tourStop;
+      if (now == null) return;
       Navigator.of(context).popUntil((route) => route.isFirst);
-      _select(0);
+      final tab = now.onSubjectsTab ? _subjectsTab : 0;
+      if (tab != _index) _select(tab);
     });
   }
 
@@ -122,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    _followTourToToday(state);
+    _followTour(state);
 
     if (state.loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -296,7 +311,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 onDestinationSelected: _select,
                 destinations: [
                   for (final (i, d) in _destinations.indexed)
-                    TourTarget(id: _tourIdForTab(i), child: d),
+                    TourTarget(
+                      id: _tourIdForTab(i),
+                      child: NavigationDestination(
+                        icon: TourTabPulse(index: i, child: d.icon),
+                        selectedIcon: TourTabPulse(
+                          index: i,
+                          child: d.selectedIcon ?? d.icon,
+                        ),
+                        label: d.label,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -340,11 +365,10 @@ const _destinations = [
   ),
 ];
 
-/// The tabs the first-run tour points at: Subjects, where setting up starts,
-/// and Plan, where the tour ends.
+/// The tabs the tour points at together: Plan and Progress.
 TourTargetId? _tourIdForTab(int i) => switch (i) {
   1 => TourTargetId.planTab,
-  _HomeScreenState._subjectsTab => TourTargetId.subjectsTab,
+  2 => TourTargetId.progressTab,
   _ => null,
 };
 
@@ -414,7 +438,10 @@ class _NavRail extends StatelessWidget {
                 destinations: [
                   for (final (i, d) in _destinations.indexed)
                     NavigationRailDestination(
-                      icon: TourTarget(id: _tourIdForTab(i), child: d.icon),
+                      icon: TourTarget(
+                        id: _tourIdForTab(i),
+                        child: TourTabPulse(index: i, child: d.icon),
+                      ),
                       selectedIcon: d.selectedIcon,
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       label: Text(

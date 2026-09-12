@@ -90,7 +90,7 @@ Dependencies point inward only. `domain/` depends on nothing in the app.
 | `lib/ui/` | Screens and the design system | see [section 10](#10-ui-architecture) |
 | `android/app/src/main/kotlin/` | Platform code | `MainActivity.kt`, `WidgetBridge.kt`, `NextBlockWidget.kt`, `TodayWidget.kt` |
 | `tools/` | Build, device diagnostics, icon generation | `dev.ps1`, `make_icon.ps1` |
-| `test/` | 311 tests across 25 files | see [section 11](#11-testing) |
+| `test/` | 310 tests across 25 files | see [section 11](#11-testing) |
 
 ### Startup
 
@@ -869,77 +869,75 @@ call to action. The icon, `help_outline_rounded`, was chosen from a contact shee
 (`tools/make_help_options.ps1`). The first-run tour's replay will live in this
 sheet.
 
-**The spotlight engine** (`spotlight.dart`) is the drawing half of the first-run
-tour, and knows nothing about Prahar. `SpotlightOverlay` sits as the top child of
-a Stack over the app: a dim scrim with a rounded window cut round one widget,
-found by `GlobalKey`, a thin ring in the primary indigo, and a bubble. Which step
-is showing, and when it is finished, belongs to whatever places it.
+**The spotlight engine** (`spotlight.dart`) is the drawing half of the tours, and
+knows nothing about Prahar. `SpotlightOverlay` sits as the top child of a Stack
+over the app: a dim scrim with a rounded window onto what a stop is about, a
+paper note (`PraharTheme.tourPaper`, ink text, the mark and a step count, Skip,
+Back, dots and an indigo Next), and a dashed arrow from one to the other. Which
+stop is showing belongs to whatever places it, which says so through
+`stepIndex`.
 
-- **Two kinds of step.** A `next` step has a Next button and the target can be
-  seen but not touched. An `action` step has no Next, and the window is the only
-  touchable part of the screen. It works by a render box that reports no hit
-  inside the window, which hands the tap to the app underneath; everywhere else
-  an empty gesture detector catches it.
-- **The bubble never covers its target.** It goes above or below, whichever has
-  more room, or beside a target too tall for either, like the navigation rail,
-  and clamps to the screen. A step with no target, or a target not on screen,
-  gets a centred card instead of an error.
-- **Only the words scroll.** The buttons stay pinned under them. The first
-  version scrolled the whole card, and at 320dp with 1.5x text the welcome
-  card's Next ended up out of sight inside it, so a tap on it landed on the
-  scrim.
-- **It follows the target without a loop of its own.** It re-measures after
-  every frame that happens anyway, through a chain of post-frame callbacks, which
-  never schedule a frame. So it tracks a rotation or a sheet sliding away, and
-  costs nothing on a still screen, where a Ticker would repaint forever.
-- **The bubble is its own surface, not `StyledPanel`.** Under the Open card style
-  in Glass, StyledPanel draws nothing, which is right for a list row and wrong
-  for words floating over a dimmed screen.
+- **It moves between stops.** A new `stepIndex` slides and reshapes the window
+  to the new target, the note glides with it, and the arrow draws itself once
+  both have settled, then nudges twice. A target that only moved, on a scroll or
+  a rotation, is followed at once. With reduced motion, stops swap at once.
+- **The arrow points at the whole target.** `SpotlightArrow.between` leaves the
+  side of the note facing the target and lands on the middle of the target's
+  facing edge, square to it. The first version landed on the nearest corner and
+  read as pointing at the corner.
+- **Side notes.** A step's `companions` each get a small note and their own
+  arrow, and the window grows to frame all their targets. Plan and Progress use
+  this.
+- **`awaitTarget` holds the window** while the next stop's target is still being
+  built, as it is for a frame or two after the tour switches tabs. Without it
+  the note jumps to the middle of the screen and back.
+- **The note never covers its target.** It goes above or below, whichever has
+  more room, or beside a target too tall for either, like the rail. The window
+  is kept inside the screen, so the nav bar's ring shows whole. Only the words
+  scroll; the buttons stay pinned, and the dots are dropped when a measurement
+  says Back, the dots and Next would not fit.
+- **No frame loop of its own.** It re-measures through post-frame callbacks,
+  which never schedule a frame, so a still screen costs nothing.
+- **The note is its own surface, not a card.** Cards follow Settings > Cards,
+  and the point of the note is to look like nothing else in the app. A theme
+  applied inside it turns anything a stop adds, a checklist or a button, into
+  ink and indigo on paper.
 
-**The first-run tour** (`tour.dart`, with its step logic in `domain/tour.dart`)
-is built on the engine, and it is a do-tour: on a fresh install there is nothing
-to point at, so the student makes a subject and a topic during it. It starts
-with a welcome card and one stop on the tabs, then waits for Subjects to be
-tapped, for a subject to be saved, shows what the subject's exam date does, and
-waits for a topic. Then comes a card for setting up reminders, one stop on
-Today's main card, and a last one on the Plan tab.
+**The tours** (`tour.dart`, with the stop order in `domain/tour.dart`) are built
+on the engine, and every stop moves on by Next. The first version waited for the
+student to tap the app on some stops, and a highlighted button that is also the
+way on reads as "press it", which confused people on the stops where pressing
+was wrong.
 
-- **The stop is derived, never stored.** `tourStepFor` takes whether a subject
-  and a topic exist, whether Subjects is showing, and which read-only stops have
-  been tapped past. A restart, a cancelled sheet or a deleted subject lands on
-  the right stop with no bookkeeping, for the same reason the plan is derived.
-  Settings hold only `tour_started` and `tour_done`. `AppState.load` starts the
-  tour when `tour_done` is unset and there are either no subjects or
-  `tour_started` is set, so an install that had subjects before the tour existed
-  never sees it. Passing the last stop, or Skip, sets `tour_done`.
+- **The main tour, eight stops:** welcome, the five tabs (each icon pulsing in
+  turn, `TourTabPulse`), Subjects, topics, Today, Plan and Progress together,
+  reminders, and a last card whose one real button is Add your first subject.
+  An empty app has no subject, topic or block to point at, so those stops carry
+  small drawings marked Example.
+- **The first block's tour, five stops,** runs once, the first time Today shows a
+  real block: the card, Start focus, Skip, Done, and the later blocks when there
+  are some. `AppState` checks after every replan and whenever Today is shown;
+  `first_block_done` records it.
+- **The tour moves the app.** Each stop says which tab it is on
+  (`TourStop.onSubjectsTab`), and HomeScreen follows: it closes anything pushed
+  and switches tabs, and Back switches them back. Add your first subject bumps
+  `AppState.addSubjectRequests`, which HomeScreen answers by opening the form on
+  Subjects.
+- **What is stored:** `tour_started`, `tour_done` and `first_block_done`. The
+  stop index is not: an app closed partway starts the tour over. An install that
+  had subjects before the tour existed never sees the main tour.
+- **Replay** is "Show me around again" in the ? sheet. It points at real subjects
+  and the real Today card, folds in the first block's stops when a block is on
+  Today, and ends on reminders.
+- **Launch doesn't ask for permissions while the main tour runs.** Next on the
+  reminders stop asks, unless Android already allows it, and Skip asks at once,
+  so skipping never means no reminders.
 - **Targets register themselves.** `TourTarget` marks the nav bar or rail, the
-  Subjects destination, the Subject button, the first subject's card and "Add a
-  topic". Each marker owns its GlobalKey, so the same target on a page being
-  pushed and the page beneath can't collide, and each records whether its route
-  is on top.
-- **The host sits in `MaterialApp.builder`**, above the navigator, so the tour
-  stays up on the subject's own page, where a phone adds topics. A stop that
-  waits for a tap disappears while its target's route isn't on top, which is
-  exactly what an open sheet does, and returns when the sheet closes, saved or
-  not.
-- **The reminders stop is the one fact stored**, as `tour_reminders`. Android
-  reports nothing about autostart, so whether reminders are set up is not
-  something the data can answer. The card has a row each for Android's
-  notification prompts, the battery exemption, the vendor autostart screen
-  where the phone has one, and a test reminder. Continue asks for
-  notifications if that row was never used, then bumps
-  `AppState.todayRequests`, which HomeScreen answers by closing any pushed page
-  and switching to Today.
-- **Launch doesn't ask while the tour runs.** `main.dart` skips
-  `requestPermissions` when `tourActive`, so the OS dialogs arrive with the
-  reminders card's explanation rather than over the welcome card. Skip before
-  that stop asks at once, so skipping never means no reminders.
-- **Replay** is "Show me around again" in the ? sheet. It clears the stops seen
-  and shows the welcome and the tabs again even with data, then reminders,
-  Today and Plan. The subject stops are passed, because the data already has
-  what they would make. Nothing is written, so a restart ends a replay.
-- Widget tests that pump `HomeScreen` without `TourHost` never draw the tour,
-  and `AppState` built without `load()` never starts it.
+  Plan and Progress tabs, the Subject button, the first subject's card, the
+  Today card, its three buttons and the first later block. Each owns its
+  GlobalKey and records whether its route is on top.
+- Tours start by themselves only after `load()`, so widget tests that build
+  `AppState` bare never get one unless they start it.
 
 The week view shows seven days **from today**, not Monday to Sunday: a calendar
 week opened on Saturday wastes five columns on days that can't be filled.
@@ -1051,7 +1049,7 @@ Rules for writing UI copy are in CLAUDE.md.
 
 ## 11. Testing
 
-311 tests in 25 files. `flutter analyze` is required alongside them, because a
+310 tests in 25 files. `flutter analyze` is required alongside them, because a
 test run only compiles what the tests import and leaves the rest of `lib/ui`
 unchecked.
 

@@ -29,7 +29,7 @@ and every paragraph in it was learned the hard way.
 `v0.2.0`, at commit `4477223`. `main` is level with `origin/main`. The user
 pushes, never Claude.
 
-- 311/311 tests pass and `analyze` is clean.
+- 310/310 tests pass and `analyze` is clean.
 - **Verified on hardware**: a Xiaomi 23127PN0CG (HyperOS, Android 16) and a
   OnePlus Pad (OxygenOS 16). Reminders reaching the lock screen with sound, the
   autostart deep link on both, the tablet two-pane layout, landscape, and the
@@ -104,20 +104,23 @@ link was right there and wasn't noticed, and reading an explanation wasn't what
 was needed anyway. Designed with the user on 11 Sep. The ? help sheet on Today came first and is
 where the tour's replay will go.
 
-**Being built in four phases, each committed when verified:**
+**Built, and redesigned on 12 Sep after the user tried it on the phone.** The
+first build waited for real taps on some stops, which confused; everything
+below the look was replaced. What stands now, agreed from an HTML preview
+page and seen installed on the Xiaomi:
 
-1. **The spotlight engine. Done.** `lib/ui/spotlight.dart`, tested alone in
-   `test/spotlight_test.dart`.
-2. **The setup stops. Done.** Welcome, the tabs, Subjects, a subject, what its
-   date does, a topic, resumed from the data. `lib/ui/tour.dart`,
-   `lib/domain/tour.dart`, `test/tour_test.dart`.
-3. **Reminders, Today and replay. Done.** The reminders card, then one stop on
-   Today's main card and one on the Plan tab. Launch no longer asks for
-   notifications while the tour runs, and Skip asks instead. "Show me around
-   again" in the ? sheet replays it. Today got one stop rather than the two or
-   three agreed, to keep read-only bubbles near four (five as built). **Not yet
-   seen on a device**: both phones have data, so replay is how to see it.
-4. The Plan mini-tour.
+- A paper note (`#F3EDE3`, ink text, indigo Next), dashed arrows landing on the
+  middle of the target's edge, Back from the second stop, Skip by the step
+  count, the window sliding between stops.
+- The main tour, eight Next-only stops, switching tabs itself, with drawings
+  marked Example for what an empty app lacks, Plan and Progress as a pair of
+  side notes, and a last card with Add your first subject.
+- A five-stop first-block tour for Start focus, Skip and Done, once, when Today
+  first has a real block.
+- The Plan mini-tour idea is dropped: Plan and Progress are covered in the main
+  tour.
+
+How it works is in ARCHITECTURE.md, section 10.
 
 Decisions the user made:
 

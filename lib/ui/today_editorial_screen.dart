@@ -135,8 +135,9 @@ class _TodayEditorialScreenState extends State<TodayEditorialScreen> {
       if (rest.isNotEmpty) ...[
         const SizedBox(height: 26),
         _SectionLabel('Then'),
-        for (final s in rest)
+        for (final (i, s) in rest.indexed)
           _RailRow(
+            tourId: i == 0 ? TourTargetId.laterBlocks : null,
             session: s,
             color: Color(
               state.subjectFor(s.subjectId)?.colorValue ?? 0xFF4F46E5,
@@ -418,21 +419,30 @@ class _Hero extends StatelessWidget {
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            FilledButton.icon(
-              onPressed: onStart,
-              icon: const Icon(Icons.play_arrow, size: 20),
-              label: const Text('Start focus'),
+            TourTarget(
+              id: TourTargetId.focus,
+              child: FilledButton.icon(
+                onPressed: onStart,
+                icon: const Icon(Icons.play_arrow, size: 20),
+                label: const Text('Start focus'),
+              ),
             ),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextButton(
-                  onPressed: () => confirmSkip(context, state, session),
-                  child: const Text('Skip'),
+                TourTarget(
+                  id: TourTargetId.skipBlock,
+                  child: TextButton(
+                    onPressed: () => confirmSkip(context, state, session),
+                    child: const Text('Skip'),
+                  ),
                 ),
-                TextButton(
-                  onPressed: () => confirmDone(context, state, session),
-                  child: const Text('Done'),
+                TourTarget(
+                  id: TourTargetId.doneBlock,
+                  child: TextButton(
+                    onPressed: () => confirmDone(context, state, session),
+                    child: const Text('Done'),
+                  ),
                 ),
               ],
             ),
@@ -489,6 +499,7 @@ class _RailRow extends StatelessWidget {
     required this.onStart,
     required this.onDone,
     required this.onSkip,
+    this.tourId,
   });
 
   final StudySession session;
@@ -499,92 +510,99 @@ class _RailRow extends StatelessWidget {
   final VoidCallback onDone;
   final VoidCallback onSkip;
 
+  /// Set on the first later block only, which the first block's tour points
+  /// at. Marked on the card rather than the padded row, so the ring hugs it.
+  final TourTargetId? tourId;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onToggle,
-          // AnimatedSize measures the child, so the card grows and shrinks
-          // with the reveal rather than snapping to its open height.
-          child: AnimatedSize(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 46,
-                        child: Text(
-                          formatClock(session.startMinuteOfDay),
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+      child: TourTarget(
+        id: tourId,
+        child: Card(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onToggle,
+            // AnimatedSize measures the child, so the card grows and shrinks
+            // with the reveal rather than snapping to its open height.
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 46,
+                          child: Text(
+                            formatClock(session.startMinuteOfDay),
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         ),
-                      ),
-                      Container(
-                        width: 3,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(2),
+                        Container(
+                          width: 3,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              session.topicTitle,
-                              style: theme.textTheme.bodyLarge,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              session.subjectName,
-                              style: theme.textTheme.bodySmall,
-                            ),
-                          ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                session.topicTitle,
+                                style: theme.textTheme.bodyLarge,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                session.subjectName,
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        formatMinutes(session.durationMinutes),
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      const SizedBox(width: 6),
-                      // The only affordance on the line, and it turns to point
-                      // at what it just revealed.
-                      AnimatedRotation(
-                        turns: open ? 0.5 : 0,
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOutCubic,
-                        child: Icon(
-                          Icons.keyboard_arrow_down,
-                          size: 20,
-                          color: theme.colorScheme.outline,
+                        const SizedBox(width: 10),
+                        Text(
+                          formatMinutes(session.durationMinutes),
+                          style: theme.textTheme.bodySmall,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        // The only affordance on the line, and it turns to point
+                        // at what it just revealed.
+                        AnimatedRotation(
+                          turns: open ? 0.5 : 0,
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          child: Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 20,
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                if (open)
-                  _RailActions(
-                    onStart: onStart,
-                    onDone: onDone,
-                    onSkip: onSkip,
-                  ),
-              ],
+                  if (open)
+                    _RailActions(
+                      onStart: onStart,
+                      onDone: onDone,
+                      onSkip: onSkip,
+                    ),
+                ],
+              ),
             ),
           ),
         ),

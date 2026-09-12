@@ -88,70 +88,109 @@ class AppState extends ChangeNotifier {
   /// it, down to something occasional.
   static const reanchorAfterMinutes = 2;
 
-  /// Whether the first-run tour is running.
-  ///
-  /// It starts on a fresh install and carries on after a restart until it is
-  /// finished or skipped. Which stop it is at is never stored; see [tourStep].
-  bool tourActive = false;
+  /// Which tour is running, if any.
+  TourKind? tourKind;
 
-  /// Whether the Subjects tab is the one showing. Reported by HomeScreen and
-  /// read only by the tour, whose early stops wait for the student to go there.
-  bool showingSubjects = false;
+  bool get tourActive => tourKind != null;
 
-  final Set<TourStep> _tourSeen = {};
+  /// Tours start by themselves only in the running app, from [load]. A state
+  /// built bare, as widget tests build it, never starts one.
+  bool _toursEnabled = false;
 
-  /// Whether the reminders stop is finished. The one stop stored rather than
-  /// derived: Android reports nothing about autostart, so whether reminders
-  /// are set up is not something the data can answer. See [tourStepFor].
-  bool _tourRemindersDone = false;
-
-  /// A replay from the help sheet, which shows the welcome and the tabs again
-  /// to someone already set up.
+  List<TourStop> _tourStops = const [];
+  int _tourIndex = 0;
   bool _tourReplay = false;
+  bool _firstBlockDone = false;
+
+  /// Whether Today is the tab showing. Reported by HomeScreen: the first
+  /// block's tour only starts where its targets are.
+  bool showingToday = true;
 
   /// Whether Android's notification prompts have been shown in this run.
   bool remindersAsked = false;
 
-  /// Bumped when the tour needs Today on screen. HomeScreen owns the tab and
-  /// any page pushed over it, so HomeScreen is what acts on it.
-  int todayRequests = 0;
+  /// Bumped by the tour's last button, Add your first subject. HomeScreen owns
+  /// the Subjects tab and the sheet, so HomeScreen is what acts on it.
+  int addSubjectRequests = 0;
 
-  /// The tour's current stop, or null when it isn't running.
-  TourStep? get tourStep {
-    if (!tourActive) return null;
-    return tourStepFor(
-      hasSubject: subjects.isNotEmpty,
-      hasTopic: topics.isNotEmpty,
-      showingSubjects: showingSubjects,
-      remindersDone: _tourRemindersDone,
-      replay: _tourReplay,
-      seen: _tourSeen,
+  /// The stop showing, or null when no tour is running.
+  TourStop? get tourStop => tourKind == null || _tourIndex >= _tourStops.length
+      ? null
+      : _tourStops[_tourIndex];
+  int get tourIndex => _tourIndex;
+  int get tourLength => _tourStops.length;
+
+  void startMainTour({bool replay = false}) {
+    final sessions = todaySessions;
+    _tourStops = mainTourStops(
+      replay: replay,
+      hasBlock: sessions.isNotEmpty,
+      hasLaterBlocks: sessions.length > 1,
     );
+    _tourIndex = 0;
+    _tourReplay = replay;
+    tourKind = TourKind.main;
+    notifyListeners();
   }
 
-  void noteShowingSubjects(bool showing) {
-    if (showing == showingSubjects) return;
-    showingSubjects = showing;
-    if (tourActive) notifyListeners();
+  /// Runs the tour again, from the help sheet.
+  void replayTour() => startMainTour(replay: true);
+
+  /// The first block's tour: once, for a student's first real block.
+  void startFirstBlockTour() {
+    final sessions = todaySessions;
+    _tourStops = firstBlockStops(hasLaterBlocks: sessions.length > 1);
+    _tourIndex = 0;
+    _tourReplay = false;
+    tourKind = TourKind.firstBlock;
+    notifyListeners();
   }
 
-  /// Moves past a stop that only needed reading.
-  ///
-  /// Passing the last one ends the tour for good.
-  Future<void> tourNext(TourStep step) async {
-    _tourSeen.add(step);
-    if (tourActive && tourStep == null) return _endTour();
+  void noteShowingToday(bool showing) {
+    if (showing == showingToday) return;
+    showingToday = showing;
+    _maybeStartFirstBlockTour();
+  }
+
+  /// Starts the first block's tour when it is due: once, never over another
+  /// tour, and only while Today is showing a real block to point at.
+  void _maybeStartFirstBlockTour() {
+    if (!_toursEnabled || loading || tourActive || _firstBlockDone) return;
+    if (!showingToday || todaySessions.isEmpty) return;
+    startFirstBlockTour();
+  }
+
+  /// Moves on. On the reminders stop Android's prompts come first, if nothing
+  /// has asked yet; past the last stop the tour ends.
+  Future<void> tourNext() async {
+    final stop = tourStop;
+    if (stop == null) return;
+    if (stop == TourStop.reminders && !_remindersSettled) {
+      await requestReminderPermissions();
+    }
+    if (_tourIndex >= _tourStops.length - 1) return _endTour();
+    _tourIndex++;
+    notifyListeners();
+  }
+
+  void tourBack() {
+    if (!tourActive || _tourIndex == 0) return;
+    _tourIndex--;
     notifyListeners();
   }
 
   /// Ends the tour for good, from its Skip button.
   ///
-  /// Launch holds back Android's notification prompts while the tour runs, so
-  /// they come with the reminders stop's explanation instead of over the
-  /// welcome card. Someone who skips before that stop is asked now, or
-  /// skipping would quietly mean no reminders at all.
-  Future<void> skipTour() =>
-      _endTour(askForReminders: !(_remindersSettled || _tourRemindersDone));
+  /// Launch holds back Android's notification prompts while the first tour
+  /// runs, so a student who skips it is asked now, or skipping would quietly
+  /// mean no reminders at all.
+  Future<void> skipTour() => _endTour(
+    askForReminders:
+        tourKind == TourKind.main && !_tourReplay && !_remindersSettled,
+  );
+
+  /// The tour's last button: ends it and opens the subject form.
+  Future<void> finishTourAddingSubject() => _endTour(openSubjectSheet: true);
 
   /// Nothing left to ask Android for: the prompts ran in this session, or
   /// both permissions were already granted, as after a restore or on replay.
@@ -170,35 +209,28 @@ class AppState extends ChangeNotifier {
     await refreshAlarms();
   }
 
-  /// Finishes the reminders stop, and brings Today up for the last stops.
-  Future<void> finishTourReminders() async {
-    if (!_remindersSettled) await requestReminderPermissions();
-    _tourRemindersDone = true;
-    todayRequests++;
-    notifyListeners();
-    await db.putSetting('tour_reminders', '1');
-  }
-
-  /// Runs the tour again, from the help sheet. Nothing is written: a restart
-  /// partway through a replay simply does not resume it.
-  void replayTour() {
-    _tourSeen.clear();
-    _tourRemindersDone = false;
-    _tourReplay = true;
-    tourActive = true;
-    todayRequests++;
-    notifyListeners();
-  }
-
   /// The state changes before anything is awaited, so the tour is gone on the
   /// next frame whatever the prompts or the database take.
-  Future<void> _endTour({bool askForReminders = false}) async {
-    if (!tourActive) return;
-    tourActive = false;
+  Future<void> _endTour({
+    bool askForReminders = false,
+    bool openSubjectSheet = false,
+  }) async {
+    final kind = tourKind;
+    if (kind == null) return;
+    final replay = _tourReplay;
+    final coveredBlock = _tourStops.contains(TourStop.focus);
+    tourKind = null;
+    _tourStops = const [];
+    _tourIndex = 0;
     _tourReplay = false;
+    if (coveredBlock) _firstBlockDone = true;
+    if (openSubjectSheet) addSubjectRequests++;
     notifyListeners();
     if (askForReminders) await requestReminderPermissions();
-    await db.putSetting('tour_done', '1');
+    if (kind == TourKind.main && !replay) {
+      await db.putSetting('tour_done', '1');
+    }
+    if (coveredBlock) await db.putSetting('first_block_done', '1');
   }
 
   /// Whether to show the autostart notice.
@@ -239,14 +271,14 @@ class AppState extends ChangeNotifier {
     final running = settings['running_session'] ?? '';
     runningSessionId = running.isEmpty ? null : running;
 
-    // The tour runs on a fresh install, and after a restart partway through
-    // it picks up wherever the data says it is. An install that already had
-    // subjects before the tour existed never sees it.
-    tourActive =
+    // The main tour runs on a fresh install, and starts over if the app was
+    // closed partway through it. An install that already had subjects before
+    // the tour existed never sees it.
+    final startTour =
         settings['tour_done'] != '1' &&
         (subjects.isEmpty || settings['tour_started'] == '1');
-    _tourRemindersDone = settings['tour_reminders'] == '1';
-    if (tourActive && settings['tour_started'] != '1') {
+    _firstBlockDone = settings['first_block_done'] == '1';
+    if (startTour && settings['tour_started'] != '1') {
       await db.putSetting('tour_started', '1');
     }
 
@@ -258,7 +290,13 @@ class AppState extends ChangeNotifier {
     await _rebuild();
 
     loading = false;
-    notifyListeners();
+    _toursEnabled = true;
+    if (startTour) {
+      startMainTour();
+    } else {
+      _maybeStartFirstBlockTour();
+      notifyListeners();
+    }
   }
 
   /// Minutes of today already spoken for, whether studied or deliberately
@@ -354,6 +392,9 @@ class AppState extends ChangeNotifier {
         plannedMinutes: plannedMinutesToday,
       );
     }
+
+    // The first real block usually appears right here, after the first topic.
+    _maybeStartFirstBlockTour();
   }
 
   Future<void> refreshAlarms() async {
